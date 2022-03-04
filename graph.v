@@ -465,10 +465,6 @@ Definition low_deg (K: nat) (n: node) (adj: nodeset) : bool := S.cardinal adj <?
 Definition remove_node (n: node) (g: graph) : graph :=
   M.map (S.remove n) (M.remove n g).
 
-Import Nat.
-
-Definition high_deg (K: nat) (n: node) (adj: nodeset) : bool := sqrt K <? S.cardinal adj.
-
 (* ================================================================= *)
 (** ** Some Proofs in Support of Termination
 
@@ -483,7 +479,7 @@ Lemma subset_nodes_sub:  forall P g, S.Subset (subset_nodes P g) (nodes g).
 (** **** Exercise: 3 stars, standard (select_terminates)  *)
 Lemma select_terminates: 
   forall (K: nat) (g : graph) (n : S.elt),
-   S.choose (subset_nodes (high_deg K) g) = Some n -> 
+   S.choose (subset_nodes (low_deg K) g) = Some n -> 
    M.cardinal (remove_node n g) < M.cardinal g.
 Proof.
 (* FILL IN HERE *) Admitted.
@@ -494,7 +490,7 @@ Proof.
 Require Import Recdef.  (* Must import this to use the [Function] feature *)
 
 Function select (K: nat) (g: graph) {measure M.cardinal g}: list node :=
-  match S.choose (subset_nodes (high_deg K) g) with
+  match S.choose (subset_nodes (low_deg K) g) with
   | Some n => n :: select K (remove_node n g)
   | None => nil
   end.
@@ -557,9 +553,12 @@ Local Open Scope positive.
 (* Let's use only three colors *)
 Definition palette: S.t := fold_right S.add S.empty [1; 2; 3].
 
+(* Add an edge in an undirected graph *)
 Definition add_edge (e: (E.t*E.t)) (g: graph) : graph :=
- M.add (fst e) (S.add (snd e) (adj g (fst e))) 
-  (M.add (snd e) (S.add (fst e) (adj g (snd e))) g).
+  match e with
+  | (u,v) => M.add u (S.add v (adj g u))
+           (M.add v (S.add u (adj g v)) g)
+  end.
 
 Definition mk_graph (el: list (E.t*E.t)) :=
   fold_right add_edge (M.empty _) el.
