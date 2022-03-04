@@ -21,21 +21,17 @@ Definition bipartite (g : graph) := exists f, coloring_ok two_colors g f.
 
 Definition empty_graph := mk_graph [].
 
-(* The (open) neighborhood of a vertex v in a graph consists of the
-   subgraph induced by the vertices adjacent to v.  It does not
-   include v itself. *)
-(* Definition neighborhood (g : graph) v := *)
-(*   remove_node v (S.fold (fun n g' => if S.mem v (adj g n) then add_edge (n,v) g' else g') (nodes g) empty_graph). *)
-
 (* The neighbors of a vertex v in a graph g. *)
 Definition neighbors (g : graph) v := S.remove v (adj g v).
 Check neighbors.
 
-Search In.
-Check find.
+(* Subgraph induced by a set of vertices *)
 Definition subgraph_of (g : graph) (s : nodeset) :=
   M.fold (fun v adj g' => if S.mem v s then M.add v (S.filter (fun u => S.mem u s) adj) g' else g') g empty_graph.
 
+(* The (open) neighborhood of a vertex v in a graph consists of the
+   subgraph induced by the vertices adjacent to v.  It does not
+   include v itself. *)
 Definition neighborhood (g : graph) v := remove_node v (subgraph_of g (neighbors g v)).
 
 (* Neighborhoods do not include their vertex *)
@@ -56,7 +52,7 @@ Qed.
 (* Definition of a 3-colorable graph *)
 Definition three_colorable (g : graph) := exists f, coloring_ok three_colors g f.
 
-Example ex_graph := 
+Example ex_graph :=
   mk_graph [ (6,4); (4,5); (4,3); (3,2); (5,2); (1,2); (1,5) ]%positive.
 
 Local Open Scope positive_scope.
