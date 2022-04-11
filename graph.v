@@ -3,6 +3,7 @@ Require Import Setoid.  (* Generalized rewriting *)
 Require Import FSets.   (* Efficient functional sets *)
 Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
+From Hammer Require Import Tactics.
 Import Arith.
 Import ListNotations.
 
@@ -83,7 +84,7 @@ Definition Mdomain {A} (m: M.t A) : S.t :=
 Definition example_map : M.t S.t :=
 (M.add 3%positive S.empty 
   (M.add 9%positive S.empty 
-   (M.add 2%positive S.empty (M.empty S.t   )))).
+   (M.add 2%positive S.empty (M.empty S.t)))).
 
 Example domain_example_map: 
     S.elements (Mdomain example_map) = [2;9;3]%positive.
@@ -295,10 +296,11 @@ Proof.
   split; generalize dependent j.
   - induction l; intros j H.
     + inversion H.
-    + destruct a as [x y].
-      pose proof (S.elements_2).
-
-(* FILL IN HERE *) Admitted.
+    + sauto.
+  - induction l; intros j H.
+    + inversion H. inversion H0.
+    + sauto lq: on rew: off.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (Sorted_lt_key) 
