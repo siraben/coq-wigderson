@@ -4,6 +4,7 @@ Require Import Setoid.  (* Generalized rewriting *)
 Require Import FSets.   (* Efficient functional sets *)
 Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
+From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 Import Arith.
 Import ListNotations.
@@ -36,13 +37,14 @@ Definition vertices := nodes.
 Lemma subgraph_vertices_subset : forall g s, S.Subset (nodes (subgraph_of g s)) (nodes g).
 Proof.
   intros g s.
+  unfold subgraph_of.
+  unfold S.Subset.
+  intros a H.
   induction g.
-  - cbn. apply S.subset_2. reflexivity.
-  - pose proof S.subset_1.
-    pose proof S.subset_2.
-    pose proof M.fold_1.
+  - sfirstorder.
+  - pose proof M.fold_1.
     pose proof fold_right_rev_left.
-    pose proof S.subset.
+
 Admitted.
 
 (* The (open) neighborhood of a vertex v in a graph consists of the
@@ -81,11 +83,12 @@ Qed.
 Lemma subgraph_induced_find : forall i g s, S.In i s -> M.find i (subgraph_of g s) = M.find i g.
 Proof.
   intros i g s Hi.
+
   destruct (M.find i g) eqn:E.
   - unfold subgraph_of.
 Admitted.
 
-(* A subgraph of a graph is colorable *)
+(* A subgraph of a graph is colorable under the same coloring *)
 Lemma subgraph_colorable : forall (g : graph) p f s, coloring_ok f g p -> coloring_ok f (subgraph_of g s) p.
 Proof.
   intros g p f s H.
@@ -103,22 +106,83 @@ Proof.
   - admit.
 Admitted.
 
-
 (* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
 Lemma nbd_2_colorable :
   forall (g : graph) v, three_colorable g -> two_colorable (neighborhood g v).
 Proof.
+  (* Let g be a graph and v a vertex. *)
   intros g v.
   unfold three_colorable.
   unfold two_colorable.
   unfold neighborhood.
   intros [f Hf].
+  (* The coloring function we use is the same *)
   exists f.
   unfold coloring_ok in *.
+  (* Let i be a vertex and j an adjacent vertex in the neighborhood of i. *)
   intros i j H.
   split.
-  - intros ci Hci.
+  - (* Want to show that the *)
+    intros ci Hci.
     pose proof (Hf i j).
     admit.
   - admit.
 Admitted.
+
+Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
+
+Inductive two := N | M.
+Inductive three := N' | M' | P'.
+
+Require Import Program.
+
+Program Definition three_to_two : forall {A} (f : A -> three) (p : {y | forall x, f x <> y}),
+  {p : (two -> three) * (A -> two) | let (i,c) := p in forall x, i (c x) = f x} :=
+  fun A f y =>
+    (* y is the value not reached by f *)
+    (* want to create an injection that agrees on f *)
+    match y with
+    | N' => exist _ (fun (x : two) =>
+                      match x with
+                      | N => P'
+                      | M => M'
+                      end,
+                      (fun (a : A) =>
+                         match f a with
+                         | N' => _
+                         | M' => M
+                         | P' => N
+                         end)) ltac:(hauto)
+    | M' => exist _ (fun (x : two) =>
+                      match x with
+                      | N => N'
+                      | M => P'
+                      end,
+                      (fun (a : A) =>
+                         match f a with
+                         | N' => N
+                         | M' => _
+                         | P' => M
+                         end)) ltac:(hauto)
+    | P' => exist _ (fun (x : two) =>
+                      match x with
+                      | N => N'
+                      | M => M'
+                      end,
+                      (fun (a : A) =>
+                         match f a with
+                         | N' => N
+                         | M' => M
+                         | P' => _
+                         end)) ltac:(hauto)
+    end.
+
+Definition example_f (b : bool) : three := if b then N' else M'.
+
+Definition f_restricted_pair :=
+  proj1_sig (three_to_two example_f ltac:(exists P'; hauto unfold: example_f q: on)).
+
+Compute (let (i, c) := f_restricted_pair in (c true, c false, i (c true), i (c false))).
+     (* = (N, M, N', M') *)
+     (* : two * two * three * three *)
+

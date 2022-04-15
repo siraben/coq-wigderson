@@ -4,6 +4,8 @@ Require Import FSets.   (* Efficient functional sets *)
 Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
 From Hammer Require Import Tactics.
+From Hammer Require Import Hammer.
+From Hammer Require Import Hints.
 Import Arith.
 Import ListNotations.
 
@@ -202,9 +204,7 @@ Qed.
 Lemma filter_sortE: forall f l, 
      Sorted E.lt l -> Sorted E.lt (List.filter f l).
 Proof.
-  apply filter_sort with E.eq; auto.
-  apply lt_strict.
-  apply lt_proper.
+  apply filter_sort with E.eq; intuition.
 Qed.
 
 (* ================================================================= *)
@@ -248,31 +248,14 @@ apply SortE_equivlistE_eqlistE.
 * (* Use [filter_sortE] to prove this one *)
   apply filter_sortE. apply PositiveSet.elements_3.
 *
-intro j.
-rewrite filter_InA; [ | apply Proper_eq_eq].
-destruct (E.eq_dec j i).
-(* To prove this one, you'll need  S.remove_1, S.remove_2, S.remove_3,
-    S.elements_1, S.elements_2. *)
-+ (* j=i *)
-  split.
-  ++ intros. subst.
-     pose proof (S.remove_1 s (@eq_refl _ i)).
-     apply S.elements_2 in H0. contradiction.
-  ++ intros [_ contra]; inversion contra.
-+ split.
-  ++ intros. apply S.remove_2 with (s := s) in n; auto.
-     split; auto.
-     apply S.elements_2 in H0.
-     apply S.remove_3 in H0.
-     apply S.elements_1.
-     assumption.
-  ++ intros [H0 _].
-     pose proof n.
-     apply S.remove_2 with (s := s) in n; auto.
-     apply S.elements_2 in H0.
-     apply S.remove_2 with (x := i) in H0; auto.
-     apply S.elements_1 in H0.
-     assumption.
+  intro j.
+  rewrite filter_InA; [ | apply Proper_eq_eq].
+  pose proof S.remove_1.
+  pose proof S.remove_2.
+  pose proof S.remove_3.
+  pose proof S.elements_1.
+  pose proof S.elements_2.
+  hauto lq: on rew: off.
 Qed.
 (** [] *)
 
@@ -314,7 +297,8 @@ Lemma Sorted_lt_key:
   forall A (al: list (positive*A)), 
    Sorted (@M.lt_key A) al <->  Sorted E.lt (map (@fst positive A) al).
 Proof.
-(* FILL IN HERE *) Admitted.
+  induction al; sauto.
+Qed.
 (** [] *)
 
 (* ================================================================= *)
@@ -369,7 +353,7 @@ Lemma specialize_SortA_equivlistA_eqlistA:
   equivlistA (@M.eq_key_elt A) al bl ->
   eqlistA (@M.eq_key_elt A) al bl.
 Proof.
-intros.
+  intros.
 apply SortA_equivlistA_eqlistA with (@M.lt_key A); auto.
 apply M.eqke_equiv.
 apply M.ltk_strorder.
@@ -421,16 +405,27 @@ Lemma Mremove_cardinal_less: forall A i (s: M.t A), M.In i s ->
 
 Lemma fold_right_rev_left:
   forall (A B: Type) (f: A -> B -> A) (l: list B) (i: A),
-  fold_left f l i = fold_right (fun x y => f y x) i (rev l).
-(* FILL IN HERE *) Admitted.
+    fold_left f l i = fold_right (fun x y => f y x) i (rev l).
+Proof.
+  intros A B f l i.
+  generalize dependent i.
+  induction l.
+  - scongruence.
+  - intros i.
+    cbn.
+    rewrite fold_right_app.
+    sfirstorder.
+Qed.
 
 Lemma Snot_in_empty: forall n, ~ S.In n S.empty.
-(* FILL IN HERE *) Admitted.
+Proof.
+  sfirstorder.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (Sin_domain)  *)
 Lemma Sin_domain: forall A n (g: M.t A), S.In n (Mdomain g) <-> M.In n g.
-
+Proof.
 (** To reason about [M.fold], used in the definition of [Mdomain],
     a useful theorem is [WP.fold_rec_bis]. *)
 
@@ -475,6 +470,8 @@ Definition remove_node (n: node) (g: graph) : graph :=
 
 (** **** Exercise: 3 stars, standard (subset_nodes_sub)  *)
 Lemma subset_nodes_sub:  forall P g, S.Subset (subset_nodes P g) (nodes g).
+Proof.
+  intros P g.
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -527,12 +524,17 @@ Definition coloring_ok (palette: S.t) (g: graph) (f: coloring) :=
 
 (** **** Exercise: 2 stars, standard (adj_ext)  *)
 Lemma adj_ext: forall g i j, E.eq i j -> S.eq (adj g i) (adj g j).
-(* FILL IN HERE *) Admitted.
+Proof.
+  sauto.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (in_colors_of_1)  *)
 Lemma in_colors_of_1:
   forall i s f c, S.In i s -> M.find i f = Some c -> S.In c (colors_of f s).
+Proof.
+  intros i s f c H H0.
+  unfold colors_of.
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
