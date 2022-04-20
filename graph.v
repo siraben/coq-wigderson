@@ -311,23 +311,37 @@ Qed.
 (** **** Exercise: 4 stars, standard (cardinal_map)  *)
 Lemma cardinal_map:  forall A B (f: A -> B) g, 
      M.cardinal (M.map f g) = M.cardinal g.
-Proof.  
+Proof.
+  
 
 (** Hint:  To prove this theorem, I used these lemmas.  
      You might find a different way. *)
 
-Check M.cardinal_1.
-Check M.elements_1.
-Check M.elements_2.
-Check M.elements_3.
-Check map_length.
-Check eqlistA_length.
-Check SortE_equivlistE_eqlistE.
-Check InA_map_fst_key.
-Check WF.map_mapsto_iff.
-Check Sorted_lt_key.
-
-(* FILL IN HERE *) Admitted.
+pose proof M.cardinal_1.
+pose proof M.elements_1.
+pose proof M.elements_2.
+pose proof M.elements_3.
+pose proof map_length.
+pose proof eqlistA_length.
+pose proof SortE_equivlistE_eqlistE.
+pose proof InA_map_fst_key.
+pose proof WF.map_mapsto_iff.
+pose proof Sorted_lt_key.
+intros A B f g.
+rewrite !M.cardinal_1.
+pose proof (SortE_equivlistE_eqlistE (map fst (M.elements g)) (map fst (M.elements (M.map f g))) ltac:(hauto l:on) ltac:(hauto l:on)).
+assert (equivlistA E.eq (map fst (M.elements g)) (map fst (M.elements (M.map f g)))).
+{
+  unfold equivlistA.
+  intros x.
+  split; intros HH.
+  - sauto lq: on rew: off.
+  - rewrite InA_map_fst_key.
+    rewrite InA_map_fst_key in HH.
+    sauto lq:on rew: off.
+}
+hauto l: on.
+Qed.
 (** [] *)
 
 (** **** Exercise: 4 stars, standard (Sremove_cardinal_less)  *)
