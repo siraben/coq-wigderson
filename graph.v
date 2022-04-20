@@ -275,14 +275,7 @@ Lemma InA_map_fst_key:
  forall A j l, 
    InA E.eq j (map (@fst M.E.t A) l) <-> exists e, InA (@M.eq_key_elt A) (j,e) l.
 Proof.
-  intros A j l.
-  split; generalize dependent j.
-  - induction l; intros j H.
-    + inversion H.
-    + sauto.
-  - induction l; intros j H.
-    + inversion H. inversion H0.
-    + sauto lq: on rew: off.
+  split; induction l; intros H; sauto lq: on rew: off.
 Qed.
 (** [] *)
 
@@ -317,7 +310,6 @@ Proof.
 (** Hint:  To prove this theorem, I used these lemmas.  
      You might find a different way. *)
 
-pose proof M.cardinal_1.
 pose proof M.elements_1.
 pose proof M.elements_2.
 pose proof M.elements_3.
@@ -335,10 +327,8 @@ assert (equivlistA E.eq (map fst (M.elements g)) (map fst (M.elements (M.map f g
   unfold equivlistA.
   intros x.
   split; intros HH.
-  - sauto lq: on rew: off.
-  - rewrite InA_map_fst_key.
-    rewrite InA_map_fst_key in HH.
-    sauto lq:on rew: off.
+  - hauto lq: on rew: off.
+  - fcrush.
 }
 hauto l: on.
 Qed.
