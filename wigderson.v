@@ -15,6 +15,9 @@ Definition high_deg (K: nat) (n: node) (adj: nodeset) : bool := sqrt K <? S.card
 
 Print coloring.
 
+Definition good_coloring {A} (g: graph) (f: node -> A) :=
+ forall i j, S.In j (adj g i) -> (forall ci cj, f i = ci -> f j = cj -> ci<>cj).
+
 Definition two_colors: S.t := fold_right S.add S.empty [1; 2]%positive.
 Definition three_colors: S.t := fold_right S.add S.empty [1; 2; 3]%positive.
 
@@ -44,7 +47,6 @@ Proof.
   - sfirstorder.
   - pose proof M.fold_1.
     pose proof fold_right_rev_left.
-
 Admitted.
 
 (* The (open) neighborhood of a vertex v in a graph consists of the
@@ -106,29 +108,6 @@ Proof.
   - admit.
 Admitted.
 
-(* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
-Lemma nbd_2_colorable :
-  forall (g : graph) v, three_colorable g -> two_colorable (neighborhood g v).
-Proof.
-  (* Let g be a graph and v a vertex. *)
-  intros g v.
-  unfold three_colorable.
-  unfold two_colorable.
-  unfold neighborhood.
-  intros [f Hf].
-  (* The coloring function we use is the same *)
-  exists f.
-  unfold coloring_ok in *.
-  (* Let i be a vertex and j an adjacent vertex in the neighborhood of i. *)
-  intros i j H.
-  split.
-  - (* Want to show that the *)
-    intros ci Hci.
-    pose proof (Hf i j).
-    admit.
-  - admit.
-Admitted.
-
 Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
 
 Inductive two := N | M.
@@ -180,9 +159,103 @@ Program Definition three_to_two : forall {A} (f : A -> three) (p : {y | forall x
 Definition example_f (b : bool) : three := if b then N' else M'.
 
 Definition f_restricted_pair :=
-  proj1_sig (three_to_two example_f ltac:(exists P'; hauto unfold: example_f q: on)).
+  ` (three_to_two example_f ltac:(exists P'; hauto unfold: example_f q: on)).
 
 Compute (let (i, c) := f_restricted_pair in (c true, c false, i (c true), i (c false))).
      (* = (N, M, N', M') *)
-     (* : two * two * three * three *)
+(* : two * two * three * three *)
 
+
+Definition two_colorable' (g : graph) := exists f, @good_coloring two g f.
+Definition three_colorable' (g : graph) := exists f, @good_coloring three g f.
+(* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
+(* Let the color of the vertex be 3 *)
+Lemma nbd_2_colorable_3 :
+  forall (g : graph) v,
+    (exists f, @good_coloring three g f /\ f v = P' /\ injective f)
+    -> two_colorable' (neighborhood g v).
+Proof.
+  (* Let g be a graph and v a vertex. *)
+  intros g v.
+  unfold three_colorable'.
+  unfold two_colorable'.
+  intros [f [Hf [cf injf]]].
+
+  (* For all neighbors u of v, u is colored differently from v *)
+  assert (forall u cu, S.In u (adj g v) -> f u = cu -> P' <> cu).
+  {
+    strivial unfold: good_coloring.
+  }
+  
+  (* Remove the vertex from the coloring *)
+  pose proof (three_to_two f).
+  exists (fun x => if x =? v then None else f x).
+  unfold coloring_ok.
+  intros i j H0.
+  split.
+  - intros ci H1.
+
+  hammer.
+
+  eexists.
+  intros i j H0.
+  split.
+  + intros ci H1.
+      
+ 
+
+    
+  
+  (* The coloring function we use is the same *)
+  exists f.
+  unfold coloring_ok in *.
+  (* Let i be a vertex and j an adjacent vertex in the neighborhood of i. *)
+  intros i j H.
+  split.
+  - (* Want to show that the *)
+    intros ci Hci.
+    pose proof (Hf i j).
+    admit.
+  - admit.
+Admitted.
+
+(* Lemma nbd_2_colorable : *)
+(*   forall (g : graph) v, three_colorable g -> two_colorable (neighborhood g v). *)
+(* Proof. *)
+(*   (* Let g be a graph and v a vertex. *) *)
+(*   intros g v. *)
+(*   unfold three_colorable. *)
+(*   unfold two_colorable. *)
+(*   intros [f Hf]. *)
+(*   (* Let c be the color of the node v *) *)
+(*   set (c := M.find v f). *)
+(*   destruct c as [c'|] eqn:Ec. *)
+(*   - (* For all neighbors u of v, u is colored differently from v *) *)
+(*     assert (forall u cu, S.In u (adj g v) -> M.find u f = Some cu -> c' <> cu). *)
+(*     { *)
+(*       strivial unfold: coloring_ok. *)
+(*     } *)
+(*     unfold c in Ec. *)
+(*     (* Remove the vertex from the coloring and adjust the other color values *) *)
+(*     exists (M.map (fun x => if x =? c' then ) (M.remove v f)). *)
+(*     eexists. *)
+(*     intros i j H0. *)
+(*     split. *)
+(*     + intros ci H1. *)
+      
+ 
+
+    
+  
+(*   (* The coloring function we use is the same *) *)
+(*   exists f. *)
+(*   unfold coloring_ok in *. *)
+(*   (* Let i be a vertex and j an adjacent vertex in the neighborhood of i. *) *)
+(*   intros i j H. *)
+(*   split. *)
+(*   - (* Want to show that the *) *)
+(*     intros ci Hci. *)
+(*     pose proof (Hf i j). *)
+(*     admit. *)
+(*   - admit. *)
+(* Admitted. *)

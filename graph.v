@@ -342,6 +342,8 @@ intros.
 repeat rewrite S.cardinal_1.
 generalize (Sremove_elements _ _ H); intro.
 rewrite H0; clear H0.
+rewrite <- Sremove_elements by auto.
+pose proof (@S.remove_1 s i i eq_refl).
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -430,6 +432,18 @@ Qed.
 (** **** Exercise: 3 stars, standard (Sin_domain)  *)
 Lemma Sin_domain: forall A n (g: M.t A), S.In n (Mdomain g) <-> M.In n g.
 Proof.
+  intros A n g.
+  unfold Mdomain.
+  split.
+  - ssimpl.
+    pose proof (WP.fold_identity g).
+    Search M.fold.
+    admit.
+  - intros H.
+    apply WP.fold_rec_bis.
+    + scongruence.
+    + admit.
+    + hauto use: PositiveSet.add_2 unfold: PositiveMap.key, PositiveSet.elt.
 (** To reason about [M.fold], used in the definition of [Mdomain],
     a useful theorem is [WP.fold_rec_bis]. *)
 
@@ -476,6 +490,17 @@ Definition remove_node (n: node) (g: graph) : graph :=
 Lemma subset_nodes_sub:  forall P g, S.Subset (subset_nodes P g) (nodes g).
 Proof.
   intros P g.
+  unfold subset_nodes.
+  apply WP.fold_rec_bis.
+  - qauto use: WP.F.In_m, Sin_domain unfold: PositiveSet.elt, PositiveSet.Subset, nodes.
+  - sfirstorder.
+  - intros k e a m' H H0 H1.
+    sdestruct (P k e).
+    + unfold S.Subset in *.
+      unfold nodes in *.
+      unfold Mdomain in *.
+      intros.
+      specialize (H1 a0).
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
@@ -539,6 +564,7 @@ Lemma in_colors_of_1:
 Proof.
   intros i s f c H H0.
   unfold colors_of.
+  rewrite S.fold_1.
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
