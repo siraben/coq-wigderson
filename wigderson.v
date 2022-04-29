@@ -15,8 +15,8 @@ Definition high_deg (K: nat) (n: node) (adj: nodeset) : bool := sqrt K <? S.card
 
 Print coloring.
 
-Definition good_coloring {A} (g: graph) (f: node -> A) :=
- forall i j, S.In j (adj g i) -> (forall ci cj, f i = ci -> f j = cj -> ci<>cj).
+Definition good_coloring (g: graph) (f: coloring) :=
+ forall i j, S.In j (adj g i) -> (forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci<>cj).
 
 Definition two_colors: S.t := fold_right S.add S.empty [1; 2]%positive.
 Definition three_colors: S.t := fold_right S.add S.empty [1; 2; 3]%positive.
@@ -156,6 +156,136 @@ Program Definition three_to_two : forall {A} (f : A -> three) (p : {y | forall x
                          end)) ltac:(hauto)
     end.
 
+Print Module M.
+Definition two_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2.
+Definition three_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2 \/ c = 3.
+
+Require Import FunctionalExtensionality.
+
+Lemma map_o {A} : forall (m : M.t A) (x : M.key) f,
+ @M.find A x (M.map f m) = Datatypes.option_map f (M.find x m).
+Proof.
+  scongruence use: WF.map_o.
+Qed.
+
+(* (ignored 1) Restricting a 3-coloring map to a 2-coloring map. *)
+Lemma two_coloring_from_three_1 (f : coloring) :
+  three_coloring f -> (forall x, M.find x f <> Some 1)
+  -> {p : (M.key -> M.key) * coloring | let (i,c) := p in two_coloring c /\ M.Equiv Logic.eq (M.map i c) f}.
+Proof.
+  intros H H0.
+  remember (fun i => match i with
+                  | 2 => 1
+                  | 3 => 2
+                  | _ => i
+                  end) as down.
+  remember (fun i => match i with
+                  | 1 => 2
+                  | 2 => 3
+                  | _ => i
+                  end) as up.
+  refine (exist _ (up, M.map down f) _).
+  split.
+  - unfold two_coloring.
+    intros v c HH.
+    unfold three_coloring in H.
+    pose proof (M.map_2 f down ltac:(hauto l:on)).
+    destruct H1 as [e He].
+    pose proof (M.map_2 f down ltac:(hauto l:on)).
+    assert (e = 2 \/ e = 3) by (hauto lq: on rew: off).
+    hecrush use: map_o unfold: M.MapsTo.
+  - unfold M.Equiv.
+    split.
+    + sauto use: M.map_1, M.map_2.
+    + intros k e e' H1 H2.
+      assert (up (down e') = e') by (hauto lq: on).
+      pose proof (M.map_1 down H2).
+      pose proof (@M.map_1 M.key M.key _ k (down e') up H4).
+      scongruence.
+Defined.
+
+(* (ignored 2) Restricting a 3-coloring map to a 2-coloring map. *)
+Lemma two_coloring_from_three_2 (f : coloring) :
+  three_coloring f -> (forall x, M.find x f <> Some 2)
+  -> {p : (M.key -> M.key) * coloring | let (i,c) := p in two_coloring c /\ M.Equiv Logic.eq (M.map i c) f}.
+Proof.
+  intros H H0.
+  remember (fun i => match i with
+                  | 1 => 1
+                  | 3 => 2
+                  | _ => i
+                  end) as down.
+  remember (fun i => match i with
+                  | 1 => 1
+                  | 2 => 3
+                  | _ => i
+                  end) as up.
+  refine (exist _ (up, M.map down f) _).
+  split.
+  - unfold two_coloring.
+    intros v c HH.
+    unfold three_coloring in H.
+    pose proof (M.map_2 f down ltac:(hauto l:on)).
+    destruct H1 as [e He].
+    pose proof (M.map_2 f down ltac:(hauto l:on)).
+    assert (e = 1 \/ e = 3) by (hauto lq: on rew: off).
+    hecrush use: map_o unfold: M.MapsTo.
+  - unfold M.Equiv.
+    split.
+    + sauto use: M.map_1, M.map_2.
+    + intros k e e' H1 H2.
+      assert (up (down e') = e') by (hauto lq: on).
+      pose proof (M.map_1 down H2).
+      pose proof (@M.map_1 M.key M.key _ k (down e') up H4).
+      scongruence.
+Defined.
+
+(* (ignored 3) Restricting a 3-coloring map to a 2-coloring map. *)
+Lemma two_coloring_from_three_3 (f : coloring) :
+  three_coloring f -> (forall x, M.find x f <> Some 3)
+  -> {p : (M.key -> M.key) * coloring | let (i,c) := p in two_coloring c /\ M.Equiv Logic.eq (M.map i c) f}.
+Proof.
+  intros H H0.
+  remember (fun i => match i with
+                  | 1 => 1
+                  | 2 => 2
+                  | _ => i
+                  end) as down.
+  remember (fun i => match i with
+                  | 1 => 1
+                  | 2 => 2
+                  | _ => i
+                  end) as up.
+  refine (exist _ (up, M.map down f) _).
+  split.
+  - unfold two_coloring.
+    intros v c HH.
+    unfold three_coloring in H.
+    pose proof (M.map_2 f down ltac:(hauto l:on)).
+    destruct H1 as [e He].
+    pose proof (M.map_2 f down ltac:(hauto l:on)).
+    assert (e = 1 \/ e = 2) by (hauto lq: on rew: off).
+    hecrush use: map_o unfold: M.MapsTo.
+  - unfold M.Equiv.
+    split.
+    + sauto use: M.map_1, M.map_2.
+    + intros k e e' H1 H2.
+      assert (up (down e') = e') by (hauto lq: on).
+      pose proof (M.map_1 down H2).
+      pose proof (@M.map_1 M.key M.key _ k (down e') up H4).
+      scongruence.
+Defined.
+
+Lemma two_coloring_from_three (f : coloring) y :
+  three_coloring f -> ({y = 1} + {y = 2} + {y = 3}) -> (forall x, M.find x f <> Some y)
+  -> {p : (M.key -> M.key) * coloring | let (i,c) := p in two_coloring c /\ M.Equiv Logic.eq (M.map i c) f}.
+Proof.
+  intros H [[A|B]|C] H1;
+    [apply two_coloring_from_three_1
+    |apply two_coloring_from_three_2
+    |apply two_coloring_from_three_3]; sfirstorder.
+Qed.
+
 Definition example_f (b : bool) : three := if b then N' else M'.
 
 Definition f_restricted_pair :=
@@ -166,58 +296,56 @@ Compute (let (i, c) := f_restricted_pair in (c true, c false, i (c true), i (c f
 (* : two * two * three * three *)
 
 
-Definition two_colorable' (g : graph) := exists f, @good_coloring two g f.
-Definition three_colorable' (g : graph) := exists f, @good_coloring three g f.
-(* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
-(* Let the color of the vertex be 3 *)
-Lemma nbd_2_colorable_3 :
-  forall (g : graph) v,
-    (exists f, @good_coloring three g f /\ f v = P' /\ injective f)
-    -> two_colorable' (neighborhood g v).
-Proof.
-  (* Let g be a graph and v a vertex. *)
-  intros g v.
-  unfold three_colorable'.
-  unfold two_colorable'.
-  intros [f [Hf [cf injf]]].
+(* (* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *) *)
+(* (* Let the color of the vertex be 3 *) *)
+(* Lemma nbd_2_colorable_3 : *)
+(*   forall (g : graph) v, *)
+(*     (exists f, @good_coloring three g f /\ f v = P' /\ injective f) *)
+(*     -> two_colorable' (neighborhood g v). *)
+(* Proof. *)
+(*   (* Let g be a graph and v a vertex. *) *)
+(*   intros g v. *)
+(*   unfold three_colorable'. *)
+(*   unfold two_colorable'. *)
+(*   intros [f [Hf [cf injf]]]. *)
 
-  (* For all neighbors u of v, u is colored differently from v *)
-  assert (forall u cu, S.In u (adj g v) -> f u = cu -> P' <> cu).
-  {
-    strivial unfold: good_coloring.
-  }
-  
-  (* Remove the vertex from the coloring *)
-  pose proof (three_to_two f).
-  exists (fun x => if x =? v then None else f x).
-  unfold coloring_ok.
-  intros i j H0.
-  split.
-  - intros ci H1.
+(*   (* For all neighbors u of v, u is colored differently from v *) *)
+(*   assert (forall u cu, S.In u (adj g v) -> f u = cu -> P' <> cu). *)
+(*   { *)
+(*     strivial unfold: good_coloring. *)
+(*   } *)
 
-  hammer.
+(*   (* Remove the vertex from the coloring *) *)
+(*   pose proof (three_to_two f). *)
+(*   exists (fun x => if x =? v then None else f x). *)
+(*   unfold coloring_ok. *)
+(*   intros i j H0. *)
+(*   split. *)
+(*   - intros ci H1. *)
 
-  eexists.
-  intros i j H0.
-  split.
-  + intros ci H1.
-      
- 
+(*   hammer. *)
 
-    
-  
-  (* The coloring function we use is the same *)
-  exists f.
-  unfold coloring_ok in *.
-  (* Let i be a vertex and j an adjacent vertex in the neighborhood of i. *)
-  intros i j H.
-  split.
-  - (* Want to show that the *)
-    intros ci Hci.
-    pose proof (Hf i j).
-    admit.
-  - admit.
-Admitted.
+(*   eexists. *)
+(*   intros i j H0. *)
+(*   split. *)
+(*   + intros ci H1. *)
+
+
+
+
+
+(*   (* The coloring function we use is the same *) *)
+(*   exists f. *)
+(*   unfold coloring_ok in *. *)
+(*   (* Let i be a vertex and j an adjacent vertex in the neighborhood of i. *) *)
+(*   intros i j H. *)
+(*   split. *)
+(*   - (* Want to show that the *) *)
+(*     intros ci Hci. *)
+(*     pose proof (Hf i j). *)
+(*     admit. *)
+(*   - admit. *)
+(* Admitted. *)
 
 (* Lemma nbd_2_colorable : *)
 (*   forall (g : graph) v, three_colorable g -> two_colorable (neighborhood g v). *)
@@ -242,11 +370,11 @@ Admitted.
 (*     intros i j H0. *)
 (*     split. *)
 (*     + intros ci H1. *)
-      
- 
 
-    
-  
+
+
+
+
 (*   (* The coloring function we use is the same *) *)
 (*   exists f. *)
 (*   unfold coloring_ok in *. *)
