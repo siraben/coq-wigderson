@@ -13,10 +13,9 @@ Import Nat.
 (* Predicate that takes a vertex with high degree (> sqrt K) *)
 Definition high_deg (K: nat) (n: node) (adj: nodeset) : bool := sqrt K <? S.cardinal adj.
 
-Print coloring.
-
-Definition good_coloring (g: graph) (f: coloring) :=
- forall i j, S.In j (adj g i) -> (forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci<>cj).
+(* A coloring is complete if every vertex is colored. *)
+Definition coloring_complete (palette: S.t) (g: graph) (f: coloring) :=
+ ( forall i, M.In i f) /\ coloring_ok palette g f.
 
 Definition two_colors: S.t := fold_right S.add S.empty [1; 2]%positive.
 Definition three_colors: S.t := fold_right S.add S.empty [1; 2; 3]%positive.
@@ -28,7 +27,6 @@ Definition empty_graph := mk_graph [].
 
 (* The neighbors of a vertex v in a graph g. *)
 Definition neighbors (g : graph) v := S.remove v (adj g v).
-Check neighbors.
 
 (* Subgraph induced by a set of vertices *)
 Definition subgraph_of (g : graph) (s : nodeset) :=
@@ -41,12 +39,7 @@ Lemma subgraph_vertices_subset : forall g s, S.Subset (nodes (subgraph_of g s)) 
 Proof.
   intros g s.
   unfold subgraph_of.
-  unfold S.Subset.
-  intros a H.
-  induction g.
-  - sfirstorder.
-  - pose proof M.fold_1.
-    pose proof fold_right_rev_left.
+  (* Obviously true, but I'll come back to it later. *)
 Admitted.
 
 (* The (open) neighborhood of a vertex v in a graph consists of the
@@ -160,7 +153,6 @@ Print Module M.
 Definition two_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2.
 Definition three_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2 \/ c = 3.
 
-Require Import FunctionalExtensionality.
 
 Lemma map_o {A} : forall (m : M.t A) (x : M.key) f,
  @M.find A x (M.map f m) = Datatypes.option_map f (M.find x m).
@@ -295,95 +287,81 @@ Compute (let (i, c) := f_restricted_pair in (c true, c false, i (c true), i (c f
      (* = (N, M, N', M') *)
 (* : two * two * three * three *)
 
+(* NOTE:
 
-(* (* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *) *)
-(* (* Let the color of the vertex be 3 *) *)
-(* Lemma nbd_2_colorable_3 : *)
-(*   forall (g : graph) v, *)
-(*     (exists f, @good_coloring three g f /\ f v = P' /\ injective f) *)
-(*     -> two_colorable' (neighborhood g v). *)
-(* Proof. *)
-(*   (* Let g be a graph and v a vertex. *) *)
-(*   intros g v. *)
-(*   unfold three_colorable'. *)
-(*   unfold two_colorable'. *)
-(*   intros [f [Hf [cf injf]]]. *)
+Coloring should be defined as an equivalence class.  A map is a
+2-coloring if it's in some equivalence with the canonical two-coloring
+map that sends things to 1 or 2.
 
-(*   (* For all neighbors u of v, u is colored differently from v *) *)
-(*   assert (forall u cu, S.In u (adj g v) -> f u = cu -> P' <> cu). *)
-(*   { *)
-(*     strivial unfold: good_coloring. *)
-(*   } *)
+ *)
 
-(*   (* Remove the vertex from the coloring *) *)
-(*   pose proof (three_to_two f). *)
-(*   exists (fun x => if x =? v then None else f x). *)
-(*   unfold coloring_ok. *)
-(*   intros i j H0. *)
-(*   split. *)
-(*   - intros ci H1. *)
+Definition coloring_equiv (f g : coloring) :=
+  exists to from,
+     M.Equiv Logic.eq (M.map to f) g /\ M.Equiv Logic.eq (M.map from g) f.
 
-(*   hammer. *)
+Lemma coloring_equiv_refl : forall f, coloring_equiv f f.
+Proof.
+  intros f.
+  exists (fun x => x), (fun x => x).
+  unfold M.Equiv.
+  ssimpl.
+  - hauto l: on use: M.map_2.
+  - hauto l: on use: M.map_1.
+  - pose proof (M.map_1 (fun x => x) H2).
+    unfold M.MapsTo in H.
+    scongruence.
+  - hauto l: on use: M.map_2.
+  - hauto l: on use: M.map_1.
+  - pose proof (M.map_1 (fun x => x) H2).
+    scongruence.
+Qed.
 
-(*   eexists. *)
-(*   intros i j H0. *)
-(*   split. *)
-(*   + intros ci H1. *)
+Lemma coloring_equiv_sym : forall f g, coloring_equiv f g -> coloring_equiv g f.
+Proof.
+  hauto q: on.
+Qed.
 
+Lemma coloring_equiv_trans : forall f g h, coloring_equiv f g -> coloring_equiv g h -> coloring_equiv f h.
+Proof.
+  intros f g h [to1 [from1 H1]] [to2 [from2 H2]].
+  unfold coloring_equiv.
+  exists (fun x => to2 (to1 x)), (fun x => from1 (from2 x)).
+  unfold M.Equiv.
+  ssimpl.
+  - qauto use: PositiveMap.map_2, PositiveMap.map_1 unfold: PositiveMap.MapsTo, coloring, PositiveMap.In.
+  - hfcrush use: PositiveMap.map_2, PositiveMap.map_1 unfold: PositiveMap.MapsTo, coloring, PositiveMap.In.
+  - pose proof (M.map_1 from2 H14).
+    pose proof (M.map_1 from1 H3).
+    assert (M.In k (M.map to2 g)) by sfirstorder.
+    admit.
+  - qauto use: PositiveMap.map_2, PositiveMap.map_1 unfold: PositiveMap.MapsTo, coloring, PositiveMap.In.
+  - hfcrush use: PositiveMap.map_2, PositiveMap.map_1 unfold: PositiveMap.MapsTo, coloring, PositiveMap.In.
+  - admit.
+Admitted.
 
+(*
+  Prove that every two-coloring map is 
+ *)
 
+(* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
+(* The statement is more subtle than that, we have:
 
+Let g be a graph, f be a 3-coloring that is complete (every node has a color).
+Then for every vertex v there is a coloring c and map (i : 2 -> 3) such that:
+- c is a 2-coloring of the neighborhood of v, N(v)
+- (M.map i c) and f agree on N(v)
+- c is a complete coloring on N(v)
+ *)
+Lemma nbd_2_colorable_3 :
+  forall (g : graph) (f : coloring),
+    three_coloring f -> coloring_complete three_colors g f ->
+    (forall v,
+        {p : (M.key -> M.key) * coloring |
+          let (i,c) := p in
+          two_coloring c
+          /\ M.Equiv Logic.eq (M.map i c) f
+          /\ coloring_complete two_colors (neighborhood g v) c
+    }).
+Proof.
+Admitted.
 
-(*   (* The coloring function we use is the same *) *)
-(*   exists f. *)
-(*   unfold coloring_ok in *. *)
-(*   (* Let i be a vertex and j an adjacent vertex in the neighborhood of i. *) *)
-(*   intros i j H. *)
-(*   split. *)
-(*   - (* Want to show that the *) *)
-(*     intros ci Hci. *)
-(*     pose proof (Hf i j). *)
-(*     admit. *)
-(*   - admit. *)
-(* Admitted. *)
-
-(* Lemma nbd_2_colorable : *)
-(*   forall (g : graph) v, three_colorable g -> two_colorable (neighborhood g v). *)
-(* Proof. *)
-(*   (* Let g be a graph and v a vertex. *) *)
-(*   intros g v. *)
-(*   unfold three_colorable. *)
-(*   unfold two_colorable. *)
-(*   intros [f Hf]. *)
-(*   (* Let c be the color of the node v *) *)
-(*   set (c := M.find v f). *)
-(*   destruct c as [c'|] eqn:Ec. *)
-(*   - (* For all neighbors u of v, u is colored differently from v *) *)
-(*     assert (forall u cu, S.In u (adj g v) -> M.find u f = Some cu -> c' <> cu). *)
-(*     { *)
-(*       strivial unfold: coloring_ok. *)
-(*     } *)
-(*     unfold c in Ec. *)
-(*     (* Remove the vertex from the coloring and adjust the other color values *) *)
-(*     exists (M.map (fun x => if x =? c' then ) (M.remove v f)). *)
-(*     eexists. *)
-(*     intros i j H0. *)
-(*     split. *)
-(*     + intros ci H1. *)
-
-
-
-
-
-(*   (* The coloring function we use is the same *) *)
-(*   exists f. *)
-(*   unfold coloring_ok in *. *)
-(*   (* Let i be a vertex and j an adjacent vertex in the neighborhood of i. *) *)
-(*   intros i j H. *)
-(*   split. *)
-(*   - (* Want to show that the *) *)
-(*     intros ci Hci. *)
-(*     pose proof (Hf i j). *)
-(*     admit. *)
-(*   - admit. *)
-(* Admitted. *)
