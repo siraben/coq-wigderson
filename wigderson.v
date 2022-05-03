@@ -32,15 +32,40 @@ Definition neighbors (g : graph) v := S.remove v (adj g v).
 Definition subgraph_of (g : graph) (s : nodeset) :=
   M.fold (fun v adj g' => if S.mem v s then M.add v (S.filter (fun u => S.mem u s) adj) g' else g') g empty_graph.
 
-Check subgraph_of.
-
 Definition vertices := nodes.
 Lemma subgraph_vertices_subset : forall g s, S.Subset (nodes (subgraph_of g s)) (nodes g).
 Proof.
   intros g s.
   unfold subgraph_of.
-  (* Obviously true, but I'll come back to it later. *)
-Admitted.
+  apply WP.fold_rec_bis.
+  - intros m m' a H H0.
+    sauto unfold: M.In, M.MapsTo, nodes, S.Subset use: Sin_domain.
+  - sfirstorder.
+  - intros k e a m' H H0 H1.
+    intros a' Ha'.
+    sdestruct (S.mem k s).
+    + destruct (E.eq_dec a' k).
+      * subst.
+        unfold nodes.
+        apply Sin_domain.
+        hauto lq: on rew: off use: WF.add_in_iff.
+      * unfold nodes in *.
+        unfold S.Subset in H1.
+        assert (S.In a' (Mdomain m')).
+        {
+          apply H1.
+          apply Sin_domain in Ha'.
+          apply Sin_domain.
+          apply WP.F.add_neq_in_iff in Ha'; auto.
+        }
+        apply Sin_domain.
+        apply Sin_domain in H3.
+        best use: WP.F.add_neq_in_iff.
+    + apply H1 in Ha'.
+      apply Sin_domain.
+      apply Sin_domain in Ha'.
+      destruct (E.eq_dec a' k); sauto lq: on rew: off use: WP.F.add_neq_in_iff.
+Qed.
 
 (* The (open) neighborhood of a vertex v in a graph consists of the
    subgraph induced by the vertices adjacent to v.  It does not
