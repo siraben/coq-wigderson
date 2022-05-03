@@ -495,13 +495,30 @@ Proof.
   - qauto use: WP.F.In_m, Sin_domain unfold: PositiveSet.elt, PositiveSet.Subset, nodes.
   - sfirstorder.
   - intros k e a m' H H0 H1.
+    (* H: k maps to e in g
+       H0: k is not in m'
+       H1: a is a subset of nodes of m'
+       =============
+       want to show that (if P k e then S.add k a else a) is a subset of
+       the nodes of (M.add k e m')
+     *)
     sdestruct (P k e).
-    + unfold S.Subset in *.
-      unfold nodes in *.
-      unfold Mdomain in *.
-      intros.
-      specialize (H1 a0).
-(* FILL IN HERE *) Admitted.
+    + (* want to show that (S.add k a) is a subset of nodes in (M.add k e m') *)
+      unfold S.Subset in *.
+      intros a' Ha'.
+      unfold nodes.
+      apply Sin_domain.
+      destruct (E.eq_dec a' k).
+      * subst.
+        hfcrush use: WF.add_in_iff unfold: PositiveSet.elt, nodeset, PositiveMap.key.
+      * qauto use: WF.add_neq_in_iff, PositiveSet.add_3, Sin_domain unfold: nodes, PositiveSet.elt, PositiveMap.key.
+    + (* want to show that a is a subset of nodes of (M.add k e m') *)
+      unfold S.Subset in *.
+      intros a' Ha'.
+      destruct (E.eq_dec a' k).
+      * subst. qauto use: Sin_domain unfold: PositiveSet.elt, PositiveMap.key, nodes.
+      * hauto lq: on use: WF.add_in_iff, Sin_domain unfold: nodes, PositiveMap.key, PositiveSet.elt.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (select_terminates)  *)
