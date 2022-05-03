@@ -415,12 +415,7 @@ Lemma fold_right_rev_left:
 Proof.
   intros A B f l i.
   generalize dependent i.
-  induction l.
-  - scongruence.
-  - intros i.
-    cbn.
-    rewrite fold_right_app.
-    sfirstorder.
+  induction l; hauto lq: on use: fold_right_app.
 Qed.
 
 Lemma Snot_in_empty: forall n, ~ S.In n S.empty.
