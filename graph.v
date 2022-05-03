@@ -432,22 +432,35 @@ Qed.
 (** **** Exercise: 3 stars, standard (Sin_domain)  *)
 Lemma Sin_domain: forall A n (g: M.t A), S.In n (Mdomain g) <-> M.In n g.
 Proof.
+(** To reason about [M.fold], used in the definition of [Mdomain],
+    a useful theorem is [WP.fold_rec_bis]. *)
   intros A n g.
   unfold Mdomain.
   split.
-  - ssimpl.
-    pose proof (WP.fold_identity g).
-    Search M.fold.
-    admit.
   - intros H.
+    rewrite M.fold_1 in H.
+    rewrite fold_right_rev_left in H.
+    assert ((fun (x : M.key * A) (y : S.t) => S.add (fst x) y) = WP.uncurry (fun a b c => S.add a c)) by sfirstorder.
+    rewrite H0 in H.
+    clear H0.
+    rewrite <- WP.fold_spec_right in H.
+    generalize dependent n.
     apply WP.fold_rec_bis.
-    + scongruence.
-    + admit.
-    + hauto use: PositiveSet.add_2 unfold: PositiveMap.key, PositiveSet.elt.
-(** To reason about [M.fold], used in the definition of [Mdomain],
-    a useful theorem is [WP.fold_rec_bis]. *)
-
-(* FILL IN HERE *) Admitted.
+    + hauto lq: on use: WF.In_m unfold: PositiveSet.elt.
+    + sauto q: on.
+    + intros k e a m' H H0 H1 n H2.
+      destruct (E.eq_dec n k).
+      * hfcrush use: WF.add_in_iff.
+      * qauto use: PositiveSet.add_3, WF.add_neq_in_iff unfold: PositiveSet.elt, PositiveMap.key.
+  - intros H.
+    generalize dependent n.
+    apply WP.fold_rec_bis; intros.
+    + hauto lq: on use: WP.F.In_m, WF.Equal_sym unfold: PositiveMap.key, PositiveMap.Equal, PositiveSet.elt.
+    + sauto q: on.
+    + destruct (E.eq_dec n k).
+      * subst. sfirstorder use: PositiveSet.add_spec, diff_false_true unfold: PositiveMap.key, PositiveSet.elt, PositiveSet.t.
+      * hauto use: WF.add_neq_in_iff, PositiveSet.add_2 unfold: PositiveMap.key, PositiveSet.elt.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
