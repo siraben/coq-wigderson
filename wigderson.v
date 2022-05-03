@@ -388,6 +388,11 @@ Definition Mkeys {A} (f : M.t A) := fold_right S.add S.empty (map fst (M.element
 (* Two maps are disjoint if their keys have no intersection. *)
 Definition Mdisjoint {A} (f g : M.t A) := S.inter (Mkeys f) (Mkeys g) = S.empty.
 
+Example Mdisjoint_test1 :
+  Mdisjoint (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(1,1);(2,2)])
+    (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(3,3);(4,4)]).
+Proof. hauto l: on. Qed.
+
 Lemma Munion_case {A} (c d : M.t A) i v : M.find i (Munion c d) = Some v -> M.In i c \/ M.In i d.
 Proof.
   intros H.
@@ -399,6 +404,7 @@ Proof.
     + (* i is in d *)
       auto.
     + (* i is not in d, but this is a contradiction *)
+      exfalso.
       admit.
 Admitted.
 
@@ -559,4 +565,56 @@ we will have to show that:
 random lemmas that we have to show:
 - it's decidable to check whether a node is colored or not (WF.In_Dec)
 
-*)
+ *)
+
+(* Lifting two-color maps *)
+Lemma two_color_up f g c :
+  undirected g ->
+  coloring_ok two_colors g f ->
+  {h | coloring_ok (fold_right S.add S.empty [c;c+1]) g h}.
+Proof.
+  intros Ug Hf.
+  remember (fun n => match n with
+                  | 1 => c
+                  | 2 => c + 1
+                  | _ => n
+                  end) as up.
+  exists (M.map up f).
+  intros v.
+  split.
+  - intros ci Hv.
+    assert (M.In v f) by hauto l: on use: M.map_2.
+    destruct H0 as [cj Hcj].
+    unfold M.MapsTo in Hcj.
+    assert (ci = c \/ ci = c+1).
+    {
+      unfold coloring_ok in Hf.
+      pose proof (map_o f v up).
+      assert (Some ci = option_map up (M.find v f)) by qauto l: on.
+      pose proof (proj1 (Hf v j H) cj Hcj).
+      sauto.
+    }
+    destruct H0; hauto use: PositiveSet.add_2, PositiveSet.add_1 unfold: PositiveSet.elt.
+  - intros ci cj Hci Hcj.
+    assert (M.In v f) by hauto l: on use: M.map_2.
+    assert (M.In j f) by hauto l: on use: M.map_2.
+    destruct H0 as [ci' Hci'].
+    destruct H1 as [cj' Hcj'].
+    unfold M.MapsTo in *.
+    assert (Some ci = option_map up (M.find v f)) by sauto lq: on use: map_o.
+    assert (Some cj = option_map up (M.find j f)) by sauto lq: on use: map_o.
+    pose proof (proj2 (Hf v j H) ci' cj' Hci' Hcj').
+    assert (ci' = 1 \/ ci' = 2).
+    {
+      pose proof (proj1 (Hf _ _ H) _ Hci').
+      sauto.
+    }
+    (* Here we use the fact that the graph is undirected so we can
+       go from j being adjacent to v to v being adjacent to j. *)
+    assert (cj' = 1 \/ cj' = 2).
+    {
+      pose proof (proj1 (Hf _ _ (Ug _ _ H)) _ Hcj').
+      sauto.
+    }
+    sauto b: on dep: on.
+Qed.
