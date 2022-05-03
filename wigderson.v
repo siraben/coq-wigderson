@@ -567,32 +567,27 @@ random lemmas that we have to show:
 
  *)
 
-(* Lifting two-color maps *)
-Lemma two_color_up f g c :
+(* Lifting two color maps with any injective function *)
+Lemma two_color_up_inj f g (inj : S.elt -> S.elt) :
+  injective inj ->
   undirected g ->
   coloring_ok two_colors g f ->
-  {h | coloring_ok (fold_right S.add S.empty [c;c+1]) g h}.
+  {h | coloring_ok (fold_right S.add S.empty [inj 1;inj 2]) g h}.
 Proof.
-  intros Ug Hf.
-  remember (fun n => match n with
-                  | 1 => c
-                  | 2 => c + 1
-                  | _ => n
-                  end) as up.
-  exists (M.map up f).
+  intros Hm Ug Hf.
+  exists (M.map inj f).
   intros v.
   split.
   - intros ci Hv.
     assert (M.In v f) by hauto l: on use: M.map_2.
     destruct H0 as [cj Hcj].
     unfold M.MapsTo in Hcj.
-    assert (ci = c \/ ci = c+1).
+    assert (ci = inj 1 \/ ci = inj 2).
     {
       unfold coloring_ok in Hf.
-      pose proof (map_o f v up).
-      assert (Some ci = option_map up (M.find v f)) by qauto l: on.
-      pose proof (proj1 (Hf v j H) cj Hcj).
-      sauto.
+      pose proof (map_o f v inj).
+      assert (Some ci = option_map inj (M.find v f)) by qauto l: on.
+      sauto q: on.
     }
     destruct H0; hauto use: PositiveSet.add_2, PositiveSet.add_1 unfold: PositiveSet.elt.
   - intros ci cj Hci Hcj.
@@ -601,8 +596,8 @@ Proof.
     destruct H0 as [ci' Hci'].
     destruct H1 as [cj' Hcj'].
     unfold M.MapsTo in *.
-    assert (Some ci = option_map up (M.find v f)) by sauto lq: on use: map_o.
-    assert (Some cj = option_map up (M.find j f)) by sauto lq: on use: map_o.
+    assert (Some ci = option_map inj (M.find v f)) by sauto lq: on use: map_o.
+    assert (Some cj = option_map inj (M.find j f)) by sauto lq: on use: map_o.
     pose proof (proj2 (Hf v j H) ci' cj' Hci' Hcj').
     assert (ci' = 1 \/ ci' = 2).
     {
@@ -616,5 +611,11 @@ Proof.
       pose proof (proj1 (Hf _ _ (Ug _ _ H)) _ Hcj').
       sauto.
     }
-    sauto b: on dep: on.
+    sauto.
 Qed.
+
+
+(* To make "without loss of generality" type arguments, we'll need to
+turn any 2-coloring into ones that involve just the colors 1,2 then
+use appropriate lemmas to turn them into c, c+1.
+*)
