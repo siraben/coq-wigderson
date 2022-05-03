@@ -293,7 +293,25 @@ Coloring should be defined as an equivalence class.  A map is a
 2-coloring if it's in some equivalence with the canonical two-coloring
 map that sends things to 1 or 2.
 
- *)
+Alternatively we can use the proof that a graph is 2-colorable then
+produce a novel 2-coloring using a forcing algorithm then show that we
+only use two colors i, i+1 in that novel coloring.
+
+Then for the last part of Wigderson's algorithm we have to show that
+since there are no more vertices of degree greater than sqrt(K) we
+only need at most sqrt(K) new colors.
+
+To prove that we use a lemma that says that if a graph has no vertices
+of degree greater than some constant c then we need at c+1 colors to
+color it.  To do this, we take the max degree vertex (degree d <= c),
+color it c+1 then color its neighbors 1,...d, then continue.
+
+It's not hard to show that we never use a color more than c+1 because
+we continually use the fact that the max degree is never more than c,
+so we are done.
+
+*)
+
 
 Definition coloring_equiv (f g : coloring) :=
   exists to from,
@@ -340,7 +358,7 @@ Proof.
 Admitted.
 
 (*
-  Prove that every two-coloring map is 
+  Prove that every two-coloring map is
  *)
 
 (* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
@@ -365,3 +383,180 @@ Lemma nbd_2_colorable_3 :
 Proof.
 Admitted.
 
+Definition Munion {A} (f g : M.t A) := M.fold (fun k v => M.add k v) f g.
+Definition Mkeys {A} (f : M.t A) := fold_right S.add S.empty (map fst (M.elements f)).
+(* Two maps are disjoint if their keys have no intersection. *)
+Definition Mdisjoint {A} (f g : M.t A) := S.inter (Mkeys f) (Mkeys g) = S.empty.
+
+Lemma Munion_case {A} (c d : M.t A) i v : M.find i (Munion c d) = Some v -> M.In i c \/ M.In i d.
+Proof.
+  intros H.
+  destruct (WF.In_dec c i).
+  - (* i is in c *)
+    auto.
+  - (* i is not in c *)
+    destruct (WF.In_dec d i).
+    + (* i is in d *)
+      auto.
+    + (* i is not in d, but this is a contradiction *)
+      admit.
+Admitted.
+
+(* Proof that the union of two disjoint and OK colorings is an OK coloring. *)
+(* The keys have to be disjoint and the palettes have to be disjoint*)
+Lemma coloring_union (c d : coloring) p1 p2 g :
+  coloring_ok p1 g c ->
+  coloring_ok p2 g d ->
+  Mdisjoint c d ->
+  coloring_ok (S.union p1 p2) g (Munion c d).
+Proof.
+  intros cOK dOK Hdisj.
+  intros v Nv Hv.
+  split.
+  - (* Proving that the color given by the union of the maps is in the
+    union of the palettes. *)
+    intros ci Hci.
+    assert (M.In v c \/ M.In v d).
+    {
+      hauto l: on use: Munion_case.
+    }
+    assert (S.In ci p1 \/ S.In ci p2).
+    {
+      destruct H.
+      - (* v is in the first coloring *)
+        left.
+        unfold coloring_ok in cOK.
+        admit.
+      - admit.
+    }
+    sfirstorder use: PositiveSet.union_3, PositiveSet.union_2 unfold: node.
+  - admit.
+Admitted.
+
+(* More abstract definition of two colorability *)
+Definition two_colorable' (g : graph) := exists p f, S.cardinal p = 2%nat -> coloring_ok p g f.
+
+Print S.Equal.
+(* Elements of a 2-element set can be extracted *)
+Lemma two_elem_set_enumerable s :
+  S.cardinal s = 2%nat ->
+  {(a,b) : S.elt * S.elt | S.Equal s (fold_right S.add S.empty [a;b])}.
+Proof.
+  intros Hs.
+  assert (length (S.elements s) = 2%nat) by scongruence use: PositiveSet.cardinal_1.
+  remember (S.elements s).
+  destruct l as [|a b].
+  - scongruence.
+  - assert ({y | [y] = b}) by sauto q: on.
+    destruct X as [y Hy].
+    exists (a,y).
+    subst.
+    split.
+    + intros HH.
+      assert (In a0 [a; y]).
+      {
+        sauto l: on use: S.elements_1.
+      }
+      assert (a0 = a \/ a0 = y) by sfirstorder.
+      destruct H1; subst.
+      * sauto use: S.elements_2, PositiveSet.add_1, PositiveSet.elements_1 unfold: PositiveSet.elements, PositiveOrderedTypeBits.eq.
+      * cbn.
+        assert (a <> y).
+        {
+          intros contra.
+          subst.
+          pose proof (S.elements_3w s).
+          rewrite <- Heql in H1.
+          sauto lq: on rew: off.
+        }
+        sauto use: PositiveSet.add_2, PositiveSet.add_1.
+    + intros HH.
+      apply S.elements_2.
+      assert (a <> y).
+      {
+        intros contra.
+        subst.
+        pose proof (S.elements_3w s).
+        rewrite <- Heql in H0.
+        sauto lq: on rew: off.
+      }
+      cbn in HH.
+      pose proof PositiveSet.add_3.
+      pose proof S.add_spec.
+      ecrush.
+Defined.
+
+(* Wigderson's algorithm definition
+
+let G be a graph, |G.v| = k
+a vertex v is high-degree if deg(v) > k^2
+phase1 is selecting the high-degree vertices and coloring their neighborhoods
+phase2 is coloring the remaining nodes with at most sqrt(k) colors
+ *)
+
+Lemma selectW_terminates:
+  forall (K: nat) (g : graph) (n : S.elt),
+   S.choose (subset_nodes (high_deg K) g) = Some n ->
+   (M.cardinal (remove_node n g) < M.cardinal g)%nat.
+Proof. Admitted.
+
+Function selectW (K: nat) (g: graph) {measure M.cardinal g} : list node :=
+  match S.choose (subset_nodes (high_deg K) g) with
+  | Some n => n :: selectW K (remove_node n g)
+  | None => nil
+  end.
+Proof. apply selectW_terminates.
+Defined.
+
+
+(* Some notes about how the algorithm will be written:
+
+- we will not pass proofs that the graph is 3-colorable all the time,
+  since later we want to talk about robustness
+
+- we want to break down algorithm enough to reason about the graph and
+  the coloring at each step while still making the overall algorithm
+  clear
+
+- an important lemma we will use repeatedly is that we can combine OK
+  disjoint colorings into larger colorings, and that the number of
+  colors used is the size of the palette
+
+- to show that the coloring is complete, we show that a vertex must be
+  one of the following:
+
+1) a high-degree vertex, in which case it's colored by phase 1
+2) a neighbor of a high-degree vertex, in which case it's colored by phase 1
+3) a low-degree vertex, in which case it's colored by phase 2
+ *)
+
+(*
+We define phase 1 of the algorithm in several pieces:
+
+two_color_step takes:
+  - a graph g
+  - a high-degree vertex v
+  - the current color number c
+two_color_step outputs:
+  - a complete coloring of N(v) using colors c+1, c+2
+note:
+  - phase 1 will color v with c
+  - the expectation is that two_color_step will be called with another
+    vertex and c+2
+
+so phase 1 will fold over the list of high-degree vertices Lv and do:
+- the state of the fold will be (c,m), where c is a number and m is the coloring
+- call two_color_step on each vertex to produce the coloring and update m
+- update c to c+2
+
+we will have to show that:
+
+- the resulting tuple will be (d,m), where d is the number of high-degree
+  vertices and m is the coloring of all the neighbors of high-degree vertices
+- d*d <= k
+- the number of colors used is 2*d
+
+random lemmas that we have to show:
+- it's decidable to check whether a node is colored or not (WF.In_Dec)
+
+*)
