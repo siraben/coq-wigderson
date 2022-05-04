@@ -176,17 +176,12 @@ Lemma subgraph_colorable : forall (g : graph) f p s,
 Proof.
   intros g f p s H H0.
   unfold coloring_ok in *.
-  split.
-  - assert (S.In j (adj g i)).
-    {
-      sfirstorder use: subgraph_edges unfold: PositiveSet.Subset.
-    }
-    hauto l: on.
-  - assert (S.In j (adj g i)).
-    {
-      sfirstorder use: subgraph_edges unfold: PositiveSet.Subset.
-    }
-    hauto l: on.
+  intros i j Hi.
+  assert (S.In j (adj g i)).
+  {
+    sfirstorder use: subgraph_edges unfold: PositiveSet.Subset.
+  }
+  hauto l: on.
 Qed.
     
 Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
