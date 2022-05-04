@@ -140,6 +140,36 @@ Proof.
   split; sblast use: M.elements_correct.
 Qed.
 
+(* An empty graph is colorable by any coloring. *)
+Lemma empty_graph_colorable : forall p f, coloring_ok f empty_graph p.
+Proof.
+  intros p f.
+  unfold empty_graph.
+  cbn.
+  split.
+  - intros ci H0.
+    unfold adj in H.
+    ssimpl.
+    scongruence use: PositiveMap.gempty unfold: node, PositiveMap.key, PositiveOrderedTypeBits.t.
+  - unfold adj in H.
+    ssimpl.
+    scongruence use: PositiveMap.gempty unfold: PositiveMap.key, node, PositiveOrderedTypeBits.t.
+Qed.
+
+(* A subgraph of an undirected graph is undirected *)
+Lemma subgraph_undirected : forall g s, undirected g -> undirected (subgraph_of g s).
+Proof.
+  unfold subgraph_of.
+  intros g s H.
+  apply WP.fold_rec_bis.
+  - auto.
+  - hauto lq: on use: PositiveMap.gempty unfold: fold_right, PositiveOrderedTypeBits.t, PositiveSet.empty, PositiveMap.key, node, empty_graph, adj, mk_graph, nodeset, PositiveSet.mem, PositiveSet.In, undirected.
+  - intros k e a m' H0 H1 H2.
+    (* This fails because it's not true!  One step of the subgraph
+       function does not preserve undirectedness. *)
+    admit.
+Admitted.
+  
 (* A subgraph of a graph is colorable under the same coloring *)
 Lemma subgraph_colorable : forall (g : graph) f p s,
     undirected g ->
