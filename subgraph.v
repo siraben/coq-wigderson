@@ -118,20 +118,9 @@ Proof.
   hecrush use: WF.map_o use: M.grs.
 Qed.
 
-(* A subgraph of an undirected graph is undirected *)
-Lemma subgraph_undirected : forall g g', undirected g -> is_subgraph g' g -> undirected g'.
+(* An induced subgraph of an undirected graph is undirected. *)
+Lemma subgraph_of_undirected : forall g s, undirected g -> undirected (subgraph_of g s).
 Proof.
-  intros g g' H H0.
-  unfold undirected.
-  intros i j Ug.
-  assert (S.In j (adj g i)).
-  {
-    sfirstorder.
-  }
-  assert (S.In i (adj g j)).
-  {
-    hauto l: on.
-  }
 Admitted.
   
 (* A subgraph of a graph is colorable under the same coloring *)
