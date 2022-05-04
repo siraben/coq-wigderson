@@ -188,55 +188,9 @@ Proof.
     }
     hauto l: on.
 Qed.
+    
 Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
 
-Inductive two := N | M.
-Inductive three := N' | M' | P'.
-
-Require Import Program.
-
-Program Definition three_to_two : forall {A} (f : A -> three) (p : {y | forall x, f x <> y}),
-  {p : (two -> three) * (A -> two) | let (i,c) := p in forall x, i (c x) = f x} :=
-  fun A f y =>
-    (* y is the value not reached by f *)
-    (* want to create an injection that agrees on f *)
-    match y with
-    | N' => exist _ (fun (x : two) =>
-                      match x with
-                      | N => P'
-                      | M => M'
-                      end,
-                      (fun (a : A) =>
-                         match f a with
-                         | N' => _
-                         | M' => M
-                         | P' => N
-                         end)) ltac:(hauto)
-    | M' => exist _ (fun (x : two) =>
-                      match x with
-                      | N => N'
-                      | M => P'
-                      end,
-                      (fun (a : A) =>
-                         match f a with
-                         | N' => N
-                         | M' => _
-                         | P' => M
-                         end)) ltac:(hauto)
-    | P' => exist _ (fun (x : two) =>
-                      match x with
-                      | N => N'
-                      | M => M'
-                      end,
-                      (fun (a : A) =>
-                         match f a with
-                         | N' => N
-                         | M' => M
-                         | P' => _
-                         end)) ltac:(hauto)
-    end.
-
-Print Module M.
 Definition two_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2.
 Definition three_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2 \/ c = 3.
 
@@ -364,15 +318,6 @@ Proof.
     |apply two_coloring_from_three_2
     |apply two_coloring_from_three_3]; sfirstorder.
 Qed.
-
-Definition example_f (b : bool) : three := if b then N' else M'.
-
-Definition f_restricted_pair :=
-  ` (three_to_two example_f ltac:(exists P'; hauto unfold: example_f q: on)).
-
-Compute (let (i, c) := f_restricted_pair in (c true, c false, i (c true), i (c false))).
-     (* = (N, M, N', M') *)
-(* : two * two * three * three *)
 
 (* NOTE:
 
@@ -540,9 +485,10 @@ Definition two_colorable' (g : graph) := exists p f, S.cardinal p = 2%nat -> col
 
 Print S.Equal.
 (* Elements of a 2-element set can be extracted *)
+Require Import Program.
 Lemma two_elem_set_enumerable s :
   S.cardinal s = 2%nat ->
-  {(a,b) : S.elt * S.elt | S.Equal s (fold_right S.add S.empty [a;b])}.
+  { (a,b) : S.elt * S.elt | S.Equal s (fold_right S.add S.empty [a;b])}.
 Proof.
   intros Hs.
   assert (length (S.elements s) = 2%nat) by scongruence use: PositiveSet.cardinal_1.
