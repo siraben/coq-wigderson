@@ -453,20 +453,18 @@ Example Mdisjoint_test1 :
     (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(3,3);(4,4)]).
 Proof. hauto l: on. Qed.
 
-Lemma Munion_case {A} (c d : M.t A) i v : M.find i (Munion c d) = Some v -> M.In i c \/ M.In i d.
+Lemma Munion_case {A} : forall (c d : M.t A) i v, M.find i (Munion c d) = Some v -> M.In i c \/ M.In i d.
 Proof.
-  intros H.
-  destruct (WF.In_dec c i).
-  - (* i is in c *)
-    auto.
-  - (* i is not in c *)
-    destruct (WF.In_dec d i).
-    + (* i is in d *)
-      auto.
-    + (* i is not in d, but this is a contradiction *)
-      exfalso.
-      admit.
-Admitted.
+  intros c d i.
+  unfold Munion.
+  apply WP.fold_rec_bis.
+  - hauto unfold: PositiveMap.MapsTo, PositiveMap.In, PositiveMap.Equal.
+  - hauto l: on.
+  - intros k e a m' H H0 H1 v H2.
+    destruct (E.eq_dec i k).
+    + hauto use: PositiveMap.gss unfold: PositiveMap.In, PositiveMap.MapsTo.
+    + hauto use: PositiveMap.gso, WF.add_neq_in_iff.
+Qed.
 
 (* Proof that the union of two disjoint and OK colorings is an OK coloring. *)
 (* The keys have to be disjoint and the palettes have to be disjoint*)
