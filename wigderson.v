@@ -32,7 +32,6 @@ Definition neighbors (g : graph) v := S.remove v (adj g v).
 Definition subgraph_of (g : graph) (s : S.t) :=
   M.fold (fun v adj g' => if S.mem v s then M.add v (S.filter (fun u => S.mem u s) adj) g' else g') g empty_graph.
 
-
 (* Some lemmas about induced subgraphs. *)
 (* The nodes of a subgraph are a subset of the original graph. *)
 Lemma subgraph_vertices_subset : forall g s, S.Subset (nodes (subgraph_of g s)) (nodes g).
@@ -98,15 +97,14 @@ Proof.
       specialize (H3 a').
       unfold adj in *.
       destruct (E.eq_dec v k).
-      * scongruence.
+      * fcrush.
       * apply H3 in Ha'.
-        assert  (M.find v (M.add k e m') = M.find v m').
+        assert (M.find v (M.add k e m') = M.find v m').
         {
           hauto lq: on rew: off use: PositiveMap.gso unfold: PositiveSet.elt, PositiveMap.key.
         }
         unfold nodeset in *.
-        rewrite H.
-        scongruence.
+        hauto lq: on.
 Qed.
 
 (* The (open) neighborhood of a vertex v in a graph consists of the
