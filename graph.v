@@ -622,6 +622,8 @@ Definition add_edge (e: (E.t*E.t)) (g: graph) : graph :=
 Definition mk_graph (el: list (E.t*E.t)) :=
   fold_right add_edge (M.empty _) el.
 
+Definition empty_graph := mk_graph [].
+
 Definition G := 
     mk_graph [ (5,6); (6,2); (5,2); (1,5); (1,2); (2,4); (1,4)].
 

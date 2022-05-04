@@ -1,4 +1,5 @@
 Require Import graph.
+Require Import subgraph.
 Require Import List.
 Require Import Setoid.  (* Generalized rewriting *)
 Require Import FSets.   (* Efficient functional sets *)
@@ -23,100 +24,6 @@ Definition three_colors: S.t := fold_right S.add S.empty [1; 2; 3]%positive.
 (* A graph is bipartite if it is 2-colorable. *)
 Definition two_colorable (g : graph) := exists f, coloring_ok two_colors g f.
 
-Definition empty_graph := mk_graph [].
-
-(* The neighbors of a vertex v in a graph g. *)
-Definition neighbors (g : graph) v := S.remove v (adj g v).
-
-(* Subgraph induced by a set of vertices *)
-Definition subgraph_of (g : graph) (s : S.t) :=
-  M.fold (fun v adj g' => if S.mem v s then M.add v (S.filter (fun u => S.mem u s) adj) g' else g') g empty_graph.
-
-(* Some lemmas about induced subgraphs. *)
-(* The nodes of a subgraph are a subset of the original graph. *)
-Lemma subgraph_vertices_subset : forall g s, S.Subset (nodes (subgraph_of g s)) (nodes g).
-Proof.
-  intros g s.
-  unfold subgraph_of.
-  apply WP.fold_rec_bis.
-  - intros m m' a H H0.
-    sauto unfold: M.In, M.MapsTo, nodes, S.Subset use: Sin_domain.
-  - sfirstorder.
-  - intros k e a m' H H0 H1.
-    intros a' Ha'.
-    sdestruct (S.mem k s).
-    + destruct (E.eq_dec a' k).
-      * subst.
-        unfold nodes.
-        apply Sin_domain.
-        hauto lq: on rew: off use: WF.add_in_iff.
-      * unfold nodes in *.
-        unfold S.Subset in H1.
-        assert (S.In a' (Mdomain m')).
-        {
-          hauto l: on use: WP.F.add_neq_in_iff, Sin_domain.
-        }
-        hauto lq: on rew: off use: WP.F.add_neq_in_iff, Sin_domain.
-    + apply H1 in Ha'.
-      apply Sin_domain.
-      apply Sin_domain in Ha'.
-      destruct (E.eq_dec a' k); sauto lq: on rew: off use: WP.F.add_neq_in_iff.
-Qed.
-
-Definition M_subset f g := forall i a b, M.find i f = Some a -> M.find i g = Some b -> S.Subset a b.
-
-(* The edges of a subgraph are a subset of the original graph. *)
-(* Note this is defined pointwise: the adjacency set is a subset for every vertex. *)
-Lemma subgraph_edges : forall g s v,
-    S.Subset (adj (subgraph_of g s) v) (adj g v).
-Proof.
-  intros g s v.
-  unfold subgraph_of.
-  apply WP.fold_rec_bis.
-  - intros m m' a H1 H2.
-    unfold adj, nodeset in *.
-    unfold nodeset in *.
-    hauto drew: off.
-  - sfirstorder.
-  - intros k e a m' H1 H2 H3.
-    (* k is the node we're considering to add to the new subgraph *)
-    sdestruct (S.mem k s).
-    + (* suppose it's in the set *)
-      unfold adj.
-      intros a' Ha'.
-      destruct (E.eq_dec v k).
-      * subst.
-        unfold nodeset in *.
-        rewrite PositiveMap.gss in *.
-        strivial use: PositiveSet.xfilter_spec unfold: PositiveSet.elt, PositiveSet.filter.
-      * rewrite PositiveMap.gso in *; auto.
-    + (* suppose it's not in the set *)
-      ssimpl.
-      unfold S.Subset in *.
-      intros a' Ha'.
-      specialize (H3 a').
-      unfold adj in *.
-      destruct (E.eq_dec v k).
-      * fcrush.
-      * apply H3 in Ha'.
-        assert (M.find v (M.add k e m') = M.find v m').
-        {
-          hauto lq: on rew: off use: PositiveMap.gso unfold: PositiveSet.elt, PositiveMap.key.
-        }
-        unfold nodeset in *.
-        hauto lq: on.
-Qed.
-
-(* The (open) neighborhood of a vertex v in a graph consists of the
-   subgraph induced by the vertices adjacent to v.  It does not
-   include v itself. *)
-Definition neighborhood (g : graph) v := remove_node v (subgraph_of g (neighbors g v)).
-
-(* Neighborhoods do not include their vertex *)
-Lemma nbd_not_include_vertex g v : M.find v (neighborhood g v) = None.
-Proof.
-  hecrush use: WF.map_o use: M.grs.
-Qed.
 
 (* Definition of a 3-colorable graph *)
 Definition three_colorable (g : graph) := exists f, coloring_ok three_colors g f.
@@ -154,36 +61,6 @@ Proof.
     scongruence use: PositiveMap.gempty unfold: PositiveMap.key, node, PositiveOrderedTypeBits.t.
 Qed.
 
-(* A subgraph of an undirected graph is undirected *)
-Lemma subgraph_undirected : forall g s, undirected g -> undirected (subgraph_of g s).
-Proof.
-  unfold subgraph_of.
-  intros g s H.
-  apply WP.fold_rec_bis.
-  - auto.
-  - hauto lq: on use: PositiveMap.gempty unfold: fold_right, PositiveOrderedTypeBits.t, PositiveSet.empty, PositiveMap.key, node, empty_graph, adj, mk_graph, nodeset, PositiveSet.mem, PositiveSet.In, undirected.
-  - intros k e a m' H0 H1 H2.
-    (* This fails because it's not true!  One step of the subgraph
-       function does not preserve undirectedness. *)
-    admit.
-Admitted.
-  
-(* A subgraph of a graph is colorable under the same coloring *)
-Lemma subgraph_colorable : forall (g : graph) f p s,
-    undirected g ->
-    coloring_ok p g f ->
-    coloring_ok p (subgraph_of g s) f.
-Proof.
-  intros g f p s H H0.
-  unfold coloring_ok in *.
-  intros i j Hi.
-  assert (S.In j (adj g i)).
-  {
-    sfirstorder use: subgraph_edges unfold: PositiveSet.Subset.
-  }
-  hauto l: on.
-Qed.
-    
 Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
 
 Definition two_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2.
