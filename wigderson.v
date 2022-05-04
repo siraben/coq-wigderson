@@ -29,10 +29,12 @@ Definition empty_graph := mk_graph [].
 Definition neighbors (g : graph) v := S.remove v (adj g v).
 
 (* Subgraph induced by a set of vertices *)
-Definition subgraph_of (g : graph) (s : nodeset) :=
+Definition subgraph_of (g : graph) (s : S.t) :=
   M.fold (fun v adj g' => if S.mem v s then M.add v (S.filter (fun u => S.mem u s) adj) g' else g') g empty_graph.
 
-Definition vertices := nodes.
+
+(* Some lemmas about induced subgraphs. *)
+(* The nodes of a subgraph are a subset of the original graph. *)
 Lemma subgraph_vertices_subset : forall g s, S.Subset (nodes (subgraph_of g s)) (nodes g).
 Proof.
   intros g s.
@@ -53,14 +55,9 @@ Proof.
         unfold S.Subset in H1.
         assert (S.In a' (Mdomain m')).
         {
-          apply H1.
-          apply Sin_domain in Ha'.
-          apply Sin_domain.
-          apply WP.F.add_neq_in_iff in Ha'; auto.
+          hauto l: on use: WP.F.add_neq_in_iff, Sin_domain.
         }
-        apply Sin_domain.
-        apply Sin_domain in H3.
-        best use: WP.F.add_neq_in_iff.
+        hauto lq: on rew: off use: WP.F.add_neq_in_iff, Sin_domain.
     + apply H1 in Ha'.
       apply Sin_domain.
       apply Sin_domain in Ha'.
