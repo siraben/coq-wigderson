@@ -15,7 +15,7 @@ Definition high_deg (K: nat) (n: node) (adj: nodeset) : bool := sqrt K <? S.card
 
 (* A coloring is complete if every vertex is colored. *)
 Definition coloring_complete (palette: S.t) (g: graph) (f: coloring) :=
- ( forall i, M.In i f) /\ coloring_ok palette g f.
+ (forall i, M.In i f) /\ coloring_ok palette g f.
 
 Definition two_colors: S.t := fold_right S.add S.empty [1; 2]%positive.
 Definition three_colors: S.t := fold_right S.add S.empty [1; 2; 3]%positive.
