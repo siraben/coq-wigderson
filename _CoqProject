@@ -1,5 +1,6 @@
 -R . Widgerson
 graph.v
 subgraph.v
+coloring.v
 bounds.v
 wigderson.v

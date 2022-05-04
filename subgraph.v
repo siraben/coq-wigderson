@@ -123,16 +123,6 @@ Lemma subgraph_of_undirected : forall g s, undirected g -> undirected (subgraph_
 Proof.
 Admitted.
   
-(* A subgraph of a graph is colorable under the same coloring *)
-Lemma subgraph_colorable : forall (g g' : graph) f p,
-    undirected g ->
-    is_subgraph g' g ->
-    coloring_ok p g f ->
-    coloring_ok p g' f.
-Proof.
-  intros g g' f p H H0 H1.
-  hfcrush use: subgraph_of_is_subgraph unfold: is_subgraph, PositiveSet.Subset, coloring_ok, undirected.
-Qed.
 
 Definition remove_subgraph (g : graph) s :=
   M.fold (fun v e m' => if S.mem v s then m' else M.add v (S.diff e s) m') (@M.empty _) g.
