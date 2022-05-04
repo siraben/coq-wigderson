@@ -153,3 +153,9 @@ Proof.
     + intros k e a m' H H0 H1 v.
       sauto q: on.
 Qed.
+
+(* Removing a subgraph preserves undirectedness *)
+Lemma remove_subgraph_undirected : forall g s, undirected g -> undirected (remove_subgraph g s).
+Proof.
+  hauto q: on.
+Qed.
