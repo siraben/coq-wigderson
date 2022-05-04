@@ -443,17 +443,19 @@ Lemma nbd_2_colorable_3 :
 Proof.
 Admitted.
 
+(* union of maps (left-heavy) *)
 Definition Munion {A} (f g : M.t A) := M.fold (fun k v => M.add k v) f g.
-Definition Mkeys {A} (f : M.t A) := fold_right S.add S.empty (map fst (M.elements f)).
 (* Two maps are disjoint if their keys have no intersection. *)
-Definition Mdisjoint {A} (f g : M.t A) := S.inter (Mkeys f) (Mkeys g) = S.empty.
+(* Mkeys is just Mdomain *)
+Definition Mdisjoint {A} (f g : M.t A) := S.inter (Mdomain f) (Mdomain g) = S.empty.
 
 Example Mdisjoint_test1 :
   Mdisjoint (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(1,1);(2,2)])
-    (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(3,3);(4,4)]).
+            (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(3,3);(4,4)]).
 Proof. hauto l: on. Qed.
 
-Lemma Munion_case {A} : forall (c d : M.t A) i v, M.find i (Munion c d) = Some v -> M.In i c \/ M.In i d.
+Lemma Munion_case {A} : forall (c d : M.t A) i v,
+    M.find i (Munion c d) = Some v -> M.MapsTo i v c \/ M.MapsTo i v d.
 Proof.
   intros c d i.
   unfold Munion.
@@ -463,39 +465,48 @@ Proof.
   - intros k e a m' H H0 H1 v H2.
     destruct (E.eq_dec i k).
     + hauto use: PositiveMap.gss unfold: PositiveMap.In, PositiveMap.MapsTo.
-    + hauto use: PositiveMap.gso, WF.add_neq_in_iff.
+    + qauto use: WP.F.add_neq_mapsto_iff, PositiveMap.gss unfold: PositiveMap.In, PositiveMap.MapsTo.
 Qed.
 
 (* Proof that the union of two disjoint and OK colorings is an OK coloring. *)
-(* The keys have to be disjoint and the palettes have to be disjoint*)
+(* The keys have to be disjoint and the palettes have to be disjoint *)
 Lemma coloring_union (c d : coloring) p1 p2 g :
+  undirected g ->
+  S.inter p1 p2 = S.empty ->
   coloring_ok p1 g c ->
   coloring_ok p2 g d ->
   Mdisjoint c d ->
   coloring_ok (S.union p1 p2) g (Munion c d).
 Proof.
-  intros cOK dOK Hdisj.
-  intros v Nv Hv.
+  intros Ug HI cOK dOK Hdisj.
+  unfold Munion.
+  unfold coloring_ok.
   split.
-  - (* Proving that the color given by the union of the maps is in the
-    union of the palettes. *)
-    intros ci Hci.
-    assert (M.In v c \/ M.In v d).
-    {
-      hauto l: on use: Munion_case.
-    }
-    assert (S.In ci p1 \/ S.In ci p2).
-    {
-      destruct H.
-      - (* v is in the first coloring *)
-        left.
-        unfold coloring_ok in cOK.
-        admit.
-      - admit.
-    }
-    sfirstorder use: PositiveSet.union_3, PositiveSet.union_2 unfold: node.
-  - admit.
-Admitted.
+  - intros ci H0.
+    apply Munion_case in H0.
+    destruct H0.
+    + sfirstorder use: PositiveSet.union_2 unfold: coloring_ok, PositiveMap.MapsTo, node, PositiveOrderedTypeBits.t, PositiveSet.elt.
+    + sfirstorder use: PositiveSet.union_3 unfold: PositiveSet.elt, coloring_ok, PositiveMap.MapsTo, PositiveOrderedTypeBits.t, node.
+  - intros ci cj H0 H1.
+    apply Munion_case in H0.
+    apply Munion_case in H1.
+    destruct H0, H1.
+    + sfirstorder unfold: coloring_ok, PositiveMap.MapsTo.
+    + unfold Mdisjoint in Hdisj.
+      assert (S.In ci p1) by sfirstorder.
+      assert (S.In cj p2).
+      {
+        hauto unfold: node, PositiveSet.elt, PositiveOrderedTypeBits.t, undirected, PositiveMap.MapsTo, coloring_ok.
+      }
+      qauto use: PositiveSet.inter_3, Snot_in_empty unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
+    + assert (S.In ci p2) by sfirstorder.
+      assert (S.In cj p1).
+      {
+        hauto unfold: node, PositiveSet.elt, PositiveOrderedTypeBits.t, undirected, PositiveMap.MapsTo, coloring_ok.
+      }
+      qauto use: PositiveSet.inter_3, Snot_in_empty unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
+    + sfirstorder unfold: PositiveMap.MapsTo, coloring_ok.
+Qed.
 
 (* More abstract definition of two colorability *)
 Definition two_colorable' (g : graph) := exists p f, S.cardinal p = 2%nat -> coloring_ok p g f.
