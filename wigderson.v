@@ -67,6 +67,54 @@ Proof.
       destruct (E.eq_dec a' k); sauto lq: on rew: off use: WP.F.add_neq_in_iff.
 Qed.
 
+Definition M_subset f g := forall i a b, M.find i f = Some a -> M.find i g = Some b -> S.Subset a b.
+
+(* The edges of a subgraph are a subset of the original graph. *)
+(* Note this is defined pointwise: the adjacency set is a subset for every vertex. *)
+Lemma subgraph_edges : forall g s v,
+    S.In v s -> M.In v g ->
+    S.Subset (adj (subgraph_of g s) v) (adj g v).
+Proof.
+  intros g s v H H0.
+  unfold subgraph_of.
+  apply WP.fold_rec_bis.
+  - intros m m' a H1 H2.
+    unfold adj in *.
+    ssimpl.
+    + sauto l: on dep: on.
+    + sauto l: on dep: on.
+    + sauto l: on dep: on.
+  - sfirstorder.
+  - intros k e a m' H1 H2 H3.
+    (* k is the node we're considering to add to the new subgraph *)
+    sdestruct (S.mem k s).
+    + (* suppose it's in the set *)
+      unfold adj.
+      intros a' Ha'.
+      destruct (E.eq_dec v k).
+      * subst.
+        unfold nodeset in *.
+        rewrite PositiveMap.gss in *.
+        strivial use: PositiveSet.xfilter_spec unfold: PositiveSet.elt, PositiveSet.filter.
+      * rewrite PositiveMap.gso in *; auto.
+    + (* suppose it's not in the set *)
+      ssimpl.
+      unfold S.Subset in *.
+      intros a' Ha'.
+      specialize (H3 a').
+      unfold adj in *.
+      destruct (E.eq_dec v k).
+      * scongruence.
+      * apply H3 in Ha'.
+        assert  (M.find v (M.add k e m') = M.find v m').
+        {
+          hauto lq: on rew: off use: PositiveMap.gso unfold: PositiveSet.elt, PositiveMap.key.
+        }
+        unfold nodeset in *.
+        rewrite H.
+        scongruence.
+Qed.
+
 (* The (open) neighborhood of a vertex v in a graph consists of the
    subgraph induced by the vertices adjacent to v.  It does not
    include v itself. *)
@@ -97,16 +145,6 @@ Example ex_coloring_good : coloring_ok three_colors ex_graph ex_coloring.
 Proof.
   split; sblast use: M.elements_correct.
 Qed.
-
-(* For a vertex i in a nodeset, the subgraph induced by the nodeset
-   contains i if and only if vertex i was in the original graph. *)
-Lemma subgraph_induced_find : forall i g s, S.In i s -> M.find i (subgraph_of g s) = M.find i g.
-Proof.
-  intros i g s Hi.
-
-  destruct (M.find i g) eqn:E.
-  - unfold subgraph_of.
-Admitted.
 
 (* A subgraph of a graph is colorable under the same coloring *)
 Lemma subgraph_colorable : forall (g : graph) p f s, coloring_ok f g p -> coloring_ok f (subgraph_of g s) p.
