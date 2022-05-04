@@ -69,18 +69,15 @@ Definition M_subset f g := forall i a b, M.find i f = Some a -> M.find i g = Som
 (* The edges of a subgraph are a subset of the original graph. *)
 (* Note this is defined pointwise: the adjacency set is a subset for every vertex. *)
 Lemma subgraph_edges : forall g s v,
-    S.In v s -> M.In v g ->
     S.Subset (adj (subgraph_of g s) v) (adj g v).
 Proof.
-  intros g s v H H0.
+  intros g s v.
   unfold subgraph_of.
   apply WP.fold_rec_bis.
   - intros m m' a H1 H2.
-    unfold adj in *.
-    ssimpl.
-    + sauto l: on dep: on.
-    + sauto l: on dep: on.
-    + sauto l: on dep: on.
+    unfold adj, nodeset in *.
+    unfold nodeset in *.
+    hauto drew: off.
   - sfirstorder.
   - intros k e a m' H1 H2 H3.
     (* k is the node we're considering to add to the new subgraph *)
@@ -144,23 +141,25 @@ Proof.
 Qed.
 
 (* A subgraph of a graph is colorable under the same coloring *)
-Lemma subgraph_colorable : forall (g : graph) p f s, coloring_ok f g p -> coloring_ok f (subgraph_of g s) p.
+Lemma subgraph_colorable : forall (g : graph) f p s,
+    undirected g ->
+    coloring_ok p g f ->
+    coloring_ok p (subgraph_of g s) f.
 Proof.
-  intros g p f s H.
+  intros g f p s H H0.
   unfold coloring_ok in *.
-  intros i j H0.
   split.
   - assert (S.In j (adj g i)).
     {
-      pose proof (subgraph_vertices_subset g s).
-      admit.
+      sfirstorder use: subgraph_edges unfold: PositiveSet.Subset.
     }
-    pose proof (H i j H1).
-    intros ci H3.
-    firstorder.
-  - admit.
-Admitted.
-
+    hauto l: on.
+  - assert (S.In j (adj g i)).
+    {
+      sfirstorder use: subgraph_edges unfold: PositiveSet.Subset.
+    }
+    hauto l: on.
+Qed.
 Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
 
 Inductive two := N | M.
