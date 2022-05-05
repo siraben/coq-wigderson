@@ -29,6 +29,9 @@ Module S <: FSetInterface.S := PositiveSet.
 Print Module S.
 Print S.elt.
 
+(* Import properties about sets *)
+Module SP := FSetProperties.Properties S.
+
 (** And similarly for functional maps over positives *)
 
 Module M <: FMapInterface.S := PositiveMap.
@@ -336,15 +339,10 @@ Qed.
 
 (** **** Exercise: 4 stars, standard (Sremove_cardinal_less)  *)
 Lemma Sremove_cardinal_less: forall i s,
-        S.In i s ->    S.cardinal (S.remove i s) < S.cardinal s.
+        S.In i s -> S.cardinal (S.remove i s) < S.cardinal s.
 Proof.
-intros.
-repeat rewrite S.cardinal_1.
-generalize (Sremove_elements _ _ H); intro.
-rewrite H0; clear H0.
-rewrite <- Sremove_elements by auto.
-pose proof (@S.remove_1 s i i eq_refl).
-(* FILL IN HERE *) Admitted.
+  sfirstorder use: SP.remove_cardinal_1, le_n unfold: lt.
+Qed.
 (** [] *)
 
 (** We have a lemma [SortA_equivlistA_eqlistA] that talks about

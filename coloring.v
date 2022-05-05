@@ -71,13 +71,12 @@ Definition three_coloring (f : coloring) : Prop := forall v c, M.find v f = Some
 
 (* A subgraph of a graph is colorable under the same coloring *)
 Lemma subgraph_colorable : forall (g g' : graph) f p,
-    undirected g ->
     is_subgraph g' g ->
     coloring_ok p g f ->
     coloring_ok p g' f.
 Proof.
   intros g g' f p H H0 H1.
-  hfcrush use: subgraph_of_is_subgraph unfold: is_subgraph, PositiveSet.Subset, coloring_ok, undirected.
+  qauto unfold: PositiveSet.Subset, coloring_ok, is_subgraph.
 Qed.
 
 (* (ignored 1) Restricting a 3-coloring map to a 2-coloring map. *)
@@ -282,14 +281,15 @@ Then for every vertex v there is a coloring c and map (i : 2 -> 3) such that:
 - c is a complete coloring on N(v)
  *)
 Lemma nbd_2_colorable_3 :
-  forall (g : graph) (f : coloring),
+  forall (cnt : positive) (g : graph) (f : coloring),
     three_coloring f -> coloring_complete three_colors g f ->
     (forall v,
         {p : (M.key -> M.key) * coloring |
+          (* exists injection i into canonical coloring using colors 1 and 2 *)
           let (i,c) := p in
           two_coloring c
           /\ M.Equal (M.map i c) f
-          /\ coloring_complete two_colors (neighborhood g v) c
+          /\ coloring_complete (fold_right S.add S.empty [cnt; cnt + 2]) (neighborhood g v) c
     }).
 Proof.
 Admitted.
