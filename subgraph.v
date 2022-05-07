@@ -20,7 +20,7 @@ Definition subgraph_of (g : graph) (s : S.t) :=
 
 (* g' is a subgraph of g if:
 - the vertex set of g' is a subset of the vertex set of g
-- for every vertex v in g', the 
+- the adjacency set of every v in g' is a subset of adjacency set of every v in g
  *)
 Definition is_subgraph (g' g : graph) :=
   (S.Subset (nodes g') (nodes g)) /\ (forall v, S.Subset (adj g' v) (adj g v)).
@@ -193,30 +193,6 @@ Proof.
 Qed.
 
 
-(* If a vertex j is in the neighborhood of i then j is in i's adjacency set. *)
-Lemma nbd_adj : forall g i j, S.In j (nodes (neighborhood g i)) -> S.In j (adj g i).
-Proof.
-  intros g i j H.
-  unfold neighborhood in H.
-  unfold neighbors in H.
-  unfold nodes in H.
-  rewrite Sin_domain in H.
-  unfold remove_node in H.
-  rewrite WF.map_in_iff in H.
-  destruct (E.eq_dec j i).
-  - subst.
-    sauto q: on use: M.grs.
-  - assert (M.In j (subgraph_of g (adj g i))) by sauto use: M.gro.
-    clear H.
-    pose proof (proj2 (subgraph_of_is_subgraph g (adj g i)) i).
-    specialize (H j).
-    apply Sin_domain in H0.
-    apply H.
-    clear H.
-    unfold adj.
-    admit.
-Admitted.
-
 (* Neighborhood subgraph is a subgraph *)
 Lemma nbd_subgraph : forall g i, is_subgraph (neighborhood g i) g.
 Proof.
@@ -248,6 +224,12 @@ Proof.
     + assumption.
 Qed.
 
+Lemma subgraph_of_nodes : forall g i s,
+    S.In i (nodes (subgraph_of g s)) -> S.In i s.
+Proof.
+  hauto l: on use: subgraph_vertices_set, subgraph_of_is_subgraph unfold: PositiveMap.key, is_subgraph, PositiveSet.Subset, PositiveSet.elt.
+Qed.
+
 (* The adjacency set of any vertex of in an induced subgraph is a subset of s. *)
 Lemma subgraph_vertices_adj : forall g s i, S.Subset (adj (subgraph_of g s) i) s.
 Proof.
@@ -267,6 +249,21 @@ Proof.
     + assumption.
 Qed.
 
+(* If a vertex j is in the neighborhood of i then j is in i's adjacency set. *)
+Lemma nbd_adj : forall g i j, S.In j (nodes (neighborhood g i)) -> S.In j (adj g i).
+Proof.
+  intros g i j H.
+  unfold neighborhood in H.
+  unfold neighbors in H.
+  remember (adj g i) as s.
+  apply subgraph_of_nodes with (g := g).
+  destruct (E.eq_dec j i).
+  - subst.
+    hauto lq: on use: Sin_domain, remove_node_neq2 unfold: nodes.
+  - apply Sin_domain.
+    rewrite remove_node_neq by eauto.
+    strivial use: Sin_domain unfold: nodes, neighbors, nodemap, graph, neighborhood.
+Qed.
 
 (* When is an edge in the induced subgraph?
 - if i, j in S and (i,j) in G then (i,j) in G|s
@@ -274,32 +271,6 @@ Qed.
 - if vertex v in G|s then v in S
 - if v in S and v in G then v in G|s
  *)
-
-
-(* An induced subgraph of an undirected graph is undirected. *)
-Lemma subgraph_of_undirected : forall g s, undirected g -> undirected (subgraph_of g s).
-Proof.
-  intros g s H.
-  unfold undirected.
-  intros i j Hij.
-  assert (S.In j (adj g i)).
-  {
-    strivial use: subgraph_edges unfold: PositiveSet.Subset.
-  }
-  assert (S.In i (adj g j)) by sfirstorder.
-  pose proof (subgraph_edges g s i).
-  (* same issue as before, we need to reason about subgraph_of *)  
-  unfold adj in *.
-  assert (S.In i s).
-  {
-    
-    admit.
-  }
-  assert (S.In j s).
-  {
-    admit.
-  }
-Admitted.  
 
 Definition remove_subgraph (g : graph) s :=
   M.fold (fun v e m' => if S.mem v s then m' else M.add v (S.diff e s) m') (@M.empty _) g.
