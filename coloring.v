@@ -146,71 +146,23 @@ Proof.
   hecrush use: SP.add_cardinal_2, PositiveSet.add_3, Snot_in_empty, SP.singleton_cardinal unfold: PositiveSet.singleton.
 Qed.
 
-Lemma two_coloring_from_three (f : coloring) p :
-  three_coloring' f p -> {c | S.In c p /\ forall x, M.find x f <> Some c}
-  -> {l : coloring * S.t | let (c,p) := l in two_coloring' c p /\ M.Equiv Logic.eq c f}.
+(* Let:
+- f: coloring
+- p: palette of colors
+- c: a color
+
+Assume that f is a 3-coloring wrt. p, c is in p, and c is unused by f.
+Then f is a 2-coloring wrt. c\{p}.
+*)
+Lemma two_coloring_from_three (f : coloring) p c :
+  three_coloring' f p ->
+  S.In c p ->
+  (forall x, M.find x f <> Some c) ->
+  two_coloring' f (S.remove c p).
 Proof.
-  (* Let p3 be the proof that p has cardinality 3, ... *)
-  intros [p3 Hf] [c [Hc Hcm]].
-  pose proof (three_elem_set_enumerable p p3).
-  (* Let x y z be the colors *)
-  destruct X as [[[x y] z] Hp].
-  (* assert that c is one of the colors x,y,z *)
-  assert (c = x \/ c = y \/ c = z).
-  {
-    assert (In c [x;y;z]).
-    {
-      assert (S.In c (fold_right S.add S.empty [x; y; z])) by sfirstorder.
-      rewrite SP.of_list_1 in H.
-      sauto q: on.
-    }
-    hauto q: on.
-  }
-  pose proof (S.elements_3w (SP.of_list [x;y;z])).
-  (* this is so ugly, it's obviously true *)
-  assert (x <> y /\ y <> z /\ x <> z).
-  {
-    split.
-    - intros contra.
-      subst.
-      unfold SP.of_list in *.
-      simpl in H0, Hp.
-      rewrite SP.add_equal in Hp by hauto l: on use: PositiveSet.add_1.
-      destruct (E.eq_dec y z).
-      + subst.
-        rewrite SP.add_equal in Hp by hauto l: on use: PositiveSet.add_1.
-        hecrush use: SP.Add_Equal, SP.Dec.F.empty_iff, SP.cardinal_2 unfold: PositiveSet.elt, PositiveSet.cardinal, PositiveSet.empty.
-      + assert (~ S.In y (S.add z S.empty)) by (sfirstorder use: PositiveSet.add_3, SP.Dec.F.empty_iff).
-        qauto use: SP.add_cardinal_2, SP.Equal_cardinal, SP.Dec.F.empty_iff unfold: PositiveSet.empty, PositiveSet.cardinal.
-    - split; intros contra.
-      + subst.
-        unfold SP.of_list in *.
-        simpl in H0, Hp.
-        destruct (E.eq_dec x z).
-        * subst.
-          hauto use: PositiveSet.add_spec, SP.Equal_cardinal, SP.Dec.F.empty_iff, SP.add_cardinal_2, SP.add_equal unfold: PositiveSet.empty, PositiveSet.cardinal.
-        * assert (~ S.In x (S.add z (S.add z S.empty))).
-          {
-            qauto use: SP.Dec.F.empty_iff, SP.add_cardinal_2, SP.Equal_cardinal, SP.add_cardinal_1, PositiveSet.add_1 unfold: PositiveSet.cardinal, PositiveSet.empty.
-          }
-          rewrite <- sadd_same in Hp.
-          hauto use: SP.Equal_cardinal, scardinal_2.
-      + subst.
-        unfold SP.of_list in *.
-        simpl in H0, Hp.
-        destruct (E.eq_dec y z).
-        * subst.
-          hauto use: PositiveSet.add_spec, SP.Equal_cardinal, SP.Dec.F.empty_iff, SP.add_cardinal_2, SP.add_equal unfold: PositiveSet.empty, PositiveSet.cardinal.
-        * rewrite SP.add_add in Hp.
-          assert (~ S.In y (S.add z (S.add z S.empty))).
-          {
-            qauto use: SP.Dec.F.empty_iff, SP.add_cardinal_2, SP.Equal_cardinal, SP.add_cardinal_1, PositiveSet.add_1 unfold: PositiveSet.cardinal, PositiveSet.empty.
-          }
-          hauto use: SP.Equal_cardinal, SP.add_cardinal_2, scardinal_2, sadd_same, PositiveSet.add_spec.
-  }
-  exists (f, S.remove c p).
-  destruct H as [Hx|[Hy|Hz]]; qauto l: on use: SP.remove_cardinal_1, S.remove_spec.
-Defined.
+  intros [p3 Hf] Hc Hcm.
+  qauto l: on use: SP.remove_cardinal_1, S.remove_spec, three_elem_set_enumerable.
+Qed.
 
 (* NOTE:
 
