@@ -312,7 +312,6 @@ Proof.
 
 (** Hint:  To prove this theorem, I used these lemmas.  
      You might find a different way. *)
-
 pose proof M.elements_1.
 pose proof M.elements_2.
 pose proof M.elements_3.
@@ -391,14 +390,14 @@ Check M.eqke_equiv.
 Check M.ltk_strorder.
 Check Proper_eq_key_elt.
 Check filter_InA.
-
 (* FILL IN HERE *) Admitted.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (Mremove_cardinal_less)  *)
 Lemma Mremove_cardinal_less: forall A i (s: M.t A), M.In i s -> 
         M.cardinal (M.remove i s) < M.cardinal s.
-
+Proof.
+  intros A i s H.
 (** Look at the proof of [Sremove_cardinal_less], if you succeeded
    in that, for an idea of how to do this one.   *)
 
@@ -533,6 +532,8 @@ Lemma select_terminates:
    S.choose (subset_nodes (low_deg K) g) = Some n -> 
    M.cardinal (remove_node n g) < M.cardinal g.
 Proof.
+  intros K g n H.
+  
 (* FILL IN HERE *) Admitted.
 (** [] *)
 

@@ -19,60 +19,6 @@ Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
 
 Local Open Scope positive_scope.
 
-(* Elements of a 2-element set can be extracted *)
-Require Import Program.
-Lemma two_elem_set_enumerable s :
-  S.cardinal s = 2%nat ->
-  { (a,b) : S.elt * S.elt | S.Equal s (fold_right S.add S.empty [a;b])}.
-Proof.
-  intros Hs.
-  assert (length (S.elements s) = 2%nat) by scongruence use: PositiveSet.cardinal_1.
-  remember (S.elements s).
-  destruct l as [|a b].
-  - scongruence.
-  - assert ({y | [y] = b}) by sauto q: on.
-    destruct X as [y Hy].
-    exists (a,y).
-    subst.
-    split.
-    + intros HH.
-      assert (In a0 [a; y]).
-      {
-        sauto l: on use: S.elements_1.
-      }
-      assert (a0 = a \/ a0 = y) by sfirstorder.
-      destruct H1; subst.
-      * sauto use: S.elements_2, PositiveSet.add_1, PositiveSet.elements_1 unfold: PositiveSet.elements, PositiveOrderedTypeBits.eq.
-      * cbn.
-        assert (a <> y).
-        {
-          intros contra.
-          subst.
-          pose proof (S.elements_3w s).
-          rewrite <- Heql in H1.
-          sauto lq: on rew: off.
-        }
-        sauto use: PositiveSet.add_2, PositiveSet.add_1.
-    + intros HH.
-      apply S.elements_2.
-      assert (a <> y).
-      {
-        intros contra.
-        subst.
-        pose proof (S.elements_3w s).
-        rewrite <- Heql in H0.
-        sauto lq: on rew: off.
-      }
-      cbn in HH.
-      pose proof PositiveSet.add_3.
-      pose proof S.add_spec.
-      ecrush.
-Defined.
-
-Print Module S.
-
-Compute (` (two_elem_set_enumerable (fold_right S.add S.empty [3;4]) _)).
-
 (* Wigderson's algorithm definition
 
 let G be a graph, |G.v| = k
@@ -190,7 +136,8 @@ phase1(g,c):
   else:
     return empty coloring
 
-*)
+ *)
+Require Import Program.
 Program Fixpoint phase1
   (* The criterion for high-degree vertices *)
   (k : nat)

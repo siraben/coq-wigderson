@@ -5,8 +5,10 @@ Require Import Setoid.  (* Generalized rewriting *)
 Require Import FSets.   (* Efficient functional sets *)
 Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
+Require Import Decidable.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
+From Hammer Require Import Reflect.
 Import Arith.
 Import ListNotations.
 Import Nat.
@@ -23,12 +25,11 @@ Qed.
 Definition coloring_complete (palette: S.t) (g: graph) (f: coloring) :=
  (forall i, M.In i f) /\ coloring_ok palette g f.
 
-Definition two_colors: S.t := fold_right S.add S.empty [1; 2]%positive.
-Definition three_colors: S.t := fold_right S.add S.empty [1; 2; 3]%positive.
+Definition two_colors: S.t := SP.of_list [1; 2]%positive.
+Definition three_colors: S.t := SP.of_list [1; 2; 3]%positive.
 
 (* A graph is bipartite if it is 2-colorable. *)
 Definition two_colorable (g : graph) := exists f, coloring_ok two_colors g f.
-
 
 (* Definition of a 3-colorable graph *)
 Definition three_colorable (g : graph) := exists f, coloring_ok three_colors g f.
@@ -66,6 +67,48 @@ Proof.
     scongruence use: PositiveMap.gempty unfold: PositiveMap.key, node, PositiveOrderedTypeBits.t.
 Qed.
 
+Lemma set_elemeum s : S.Equal s (fold_right S.add S.empty (S.elements s)).
+Proof.
+  strivial use: SP.of_list_3 unfold: SP.of_list, SP.to_list, PositiveSet.Equal.
+Qed.
+
+  
+(* Elements of a 2-element set can be extracted *)
+Require Import Program.
+Lemma two_elem_set_enumerable s :
+  S.cardinal s = 2%nat ->
+  { (a,b) : S.elt * S.elt | S.Equal s (SP.of_list [a;b])}.
+Proof.
+  intros Hs.
+  assert (length (S.elements s) = 2%nat) by scongruence use: PositiveSet.cardinal_1.
+  remember (S.elements s).
+  destruct l as [|a [|b t]].
+  - scongruence.
+  - scongruence.
+  - assert (t = []) by sauto.
+    subst.
+    exists (a,b).
+    hauto lq: on use: set_elemeum unfold: SP.of_list.
+Defined.
+
+Lemma three_elem_set_enumerable s :
+  S.cardinal s = 3%nat ->
+  { x : S.elt * S.elt * S.elt | let (p,c) := x in let (a,b) := p in S.Equal s (SP.of_list [a;b;c])}.
+Proof.
+  intros Hs.
+  assert (length (S.elements s) = 3%nat) by scongruence use: PositiveSet.cardinal_1.
+  remember (S.elements s).
+  destruct l as [|a [|b [|c d]]].
+  - scongruence.
+  - scongruence.
+  - scongruence.
+  - assert (d = []) by sauto.
+    subst.
+    exists ((a,b),c).
+    hauto lq: on use: set_elemeum.
+Defined.
+
+
 Definition two_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2.
 Definition three_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2 \/ c = 3.
 
@@ -79,123 +122,95 @@ Proof.
   qauto unfold: PositiveSet.Subset, coloring_ok, is_subgraph.
 Qed.
 
-(* (ignored 1) Restricting a 3-coloring map to a 2-coloring map. *)
-Lemma two_coloring_from_three_1 (f : coloring) :
-  three_coloring f -> (forall x, M.find x f <> Some 1%positive)
-  -> {p : (M.key -> M.key) * coloring | let (i,c) := p in two_coloring c /\ M.Equiv Logic.eq (M.map i c) f}.
-Proof.
-  intros H H0.
-  remember (fun i => match i with
-                  | 2 => 1
-                  | 3 => 2
-                  | _ => i
-                  end) as down.
-  remember (fun i => match i with
-                  | 1 => 2
-                  | 2 => 3
-                  | _ => i
-                  end) as up.
-  refine (exist _ (up, M.map down f) _).
-  split.
-  - unfold two_coloring.
-    intros v c HH.
-    unfold three_coloring in H.
-    pose proof (M.map_2 f down ltac:(hauto l:on)).
-    destruct H1 as [e He].
-    pose proof (M.map_2 f down ltac:(hauto l:on)).
-    assert (e = 2 \/ e = 3) by (hauto lq: on rew: off).
-    hecrush use: map_o unfold: M.MapsTo.
-  - unfold M.Equiv.
-    split.
-    + sauto use: M.map_1, M.map_2.
-    + intros k e e' H1 H2.
-      assert (up (down e') = e') by (hauto lq: on).
-      pose proof (M.map_1 down H2).
-      pose proof (@M.map_1 M.key M.key _ k (down e') up H4).
-      scongruence.
-Defined.
+(* A 3-coloring uses 3 colors *)
+Definition three_coloring' (f : coloring) p := S.cardinal p = 3%nat /\ forall v c, M.find v f = Some c -> S.In c p.
+Definition two_coloring' (f : coloring) p :=  S.cardinal p = 2%nat /\ forall v c, M.find v f = Some c -> S.In c p.
 
-(* (ignored 2) Restricting a 3-coloring map to a 2-coloring map. *)
-Lemma two_coloring_from_three_2 (f : coloring) :
-  three_coloring f -> (forall x, M.find x f <> Some 2)
-  -> {p : (M.key -> M.key) * coloring | let (i,c) := p in two_coloring c /\ M.Equiv Logic.eq (M.map i c) f}.
+Lemma nodupa_nodup : forall l, NoDupA S.E.eq l -> NoDup l.
 Proof.
-  intros H H0.
-  remember (fun i => match i with
-                  | 1 => 1
-                  | 3 => 2
-                  | _ => i
-                  end) as down.
-  remember (fun i => match i with
-                  | 1 => 1
-                  | 2 => 3
-                  | _ => i
-                  end) as up.
-  refine (exist _ (up, M.map down f) _).
-  split.
-  - unfold two_coloring.
-    intros v c HH.
-    unfold three_coloring in H.
-    pose proof (M.map_2 f down ltac:(hauto l:on)).
-    destruct H1 as [e He].
-    pose proof (M.map_2 f down ltac:(hauto l:on)).
-    assert (e = 1 \/ e = 3) by (hauto lq: on rew: off).
-    hecrush use: map_o unfold: M.MapsTo.
-  - unfold M.Equiv.
-    split.
-    + sauto use: M.map_1, M.map_2.
-    + intros k e e' H1 H2.
-      assert (up (down e') = e') by (hauto lq: on).
-      pose proof (M.map_1 down H2).
-      pose proof (@M.map_1 M.key M.key _ k (down e') up H4).
-      scongruence.
-Defined.
-
-(* (ignored 3) Restricting a 3-coloring map to a 2-coloring map. *)
-Lemma two_coloring_from_three_3 (f : coloring) :
-  three_coloring f -> (forall x, M.find x f <> Some 3)
-  -> {p : (M.key -> M.key) * coloring | let (i,c) := p in two_coloring c /\ M.Equiv Logic.eq (M.map i c) f}.
-Proof.
-  intros H H0.
-  remember (fun i => match i with
-                  | 1 => 1
-                  | 2 => 2
-                  | _ => i
-                  end) as down.
-  remember (fun i => match i with
-                  | 1 => 1
-                  | 2 => 2
-                  | _ => i
-                  end) as up.
-  refine (exist _ (up, M.map down f) _).
-  split.
-  - unfold two_coloring.
-    intros v c HH.
-    unfold three_coloring in H.
-    pose proof (M.map_2 f down ltac:(hauto l:on)).
-    destruct H1 as [e He].
-    pose proof (M.map_2 f down ltac:(hauto l:on)).
-    assert (e = 1 \/ e = 2) by (hauto lq: on rew: off).
-    hecrush use: map_o unfold: M.MapsTo.
-  - unfold M.Equiv.
-    split.
-    + sauto use: M.map_1, M.map_2.
-    + intros k e e' H1 H2.
-      assert (up (down e') = e') by (hauto lq: on).
-      pose proof (M.map_1 down H2).
-      pose proof (@M.map_1 M.key M.key _ k (down e') up H4).
-      scongruence.
-Defined.
-
-Lemma two_coloring_from_three (f : coloring) y :
-  three_coloring f -> ({y = 1} + {y = 2} + {y = 3}) -> (forall x, M.find x f <> Some y)
-  -> {p : (M.key -> M.key) * coloring | let (i,c) := p in two_coloring c /\ M.Equiv Logic.eq (M.map i c) f}.
-Proof.
-  intros H [[A|B]|C] H1;
-    [apply two_coloring_from_three_1
-    |apply two_coloring_from_three_2
-    |apply two_coloring_from_three_3]; sfirstorder.
+  intros l H.
+  induction H.
+  - sfirstorder.
+  - sfirstorder use: NoDup_cons, PositiveMap.ME.MO.ListIn_In unfold: PositiveOrderedTypeBits.eq.
 Qed.
+
+Lemma sadd_same : forall x s, S.Equal (S.add x s) (S.add x (S.add x s)).
+Proof.
+  intros x s.
+  sauto lq: on rew: off use: SP.add_equal, PositiveSet.add_1, SP.equal_sym.
+Qed.
+
+Lemma scardinal_2 : forall x y, x <> y -> S.cardinal (S.add x (S.add y S.empty)) = 2%nat.
+Proof.
+  intros x y H.
+  hecrush use: SP.add_cardinal_2, PositiveSet.add_3, Snot_in_empty, SP.singleton_cardinal unfold: PositiveSet.singleton.
+Qed.
+
+Lemma two_coloring_from_three (f : coloring) p :
+  three_coloring' f p -> {c | S.In c p /\ forall x, M.find x f <> Some c}
+  -> {l : coloring * S.t | let (c,p) := l in two_coloring' c p /\ M.Equiv Logic.eq c f}.
+Proof.
+  (* Let p3 be the proof that p has cardinality 3, ... *)
+  intros [p3 Hf] [c [Hc Hcm]].
+  pose proof (three_elem_set_enumerable p p3).
+  (* Let x y z be the colors *)
+  destruct X as [[[x y] z] Hp].
+  (* assert that c is one of the colors x,y,z *)
+  assert (c = x \/ c = y \/ c = z).
+  {
+    assert (In c [x;y;z]).
+    {
+      assert (S.In c (fold_right S.add S.empty [x; y; z])) by sfirstorder.
+      rewrite SP.of_list_1 in H.
+      sauto q: on.
+    }
+    hauto q: on.
+  }
+  pose proof (S.elements_3w (SP.of_list [x;y;z])).
+  (* this is so ugly, it's obviously true *)
+  assert (x <> y /\ y <> z /\ x <> z).
+  {
+    split.
+    - intros contra.
+      subst.
+      unfold SP.of_list in *.
+      simpl in H0, Hp.
+      rewrite SP.add_equal in Hp by hauto l: on use: PositiveSet.add_1.
+      destruct (E.eq_dec y z).
+      + subst.
+        rewrite SP.add_equal in Hp by hauto l: on use: PositiveSet.add_1.
+        hecrush use: SP.Add_Equal, SP.Dec.F.empty_iff, SP.cardinal_2 unfold: PositiveSet.elt, PositiveSet.cardinal, PositiveSet.empty.
+      + assert (~ S.In y (S.add z S.empty)) by (sfirstorder use: PositiveSet.add_3, SP.Dec.F.empty_iff).
+        qauto use: SP.add_cardinal_2, SP.Equal_cardinal, SP.Dec.F.empty_iff unfold: PositiveSet.empty, PositiveSet.cardinal.
+    - split; intros contra.
+      + subst.
+        unfold SP.of_list in *.
+        simpl in H0, Hp.
+        destruct (E.eq_dec x z).
+        * subst.
+          hauto use: PositiveSet.add_spec, SP.Equal_cardinal, SP.Dec.F.empty_iff, SP.add_cardinal_2, SP.add_equal unfold: PositiveSet.empty, PositiveSet.cardinal.
+        * assert (~ S.In x (S.add z (S.add z S.empty))).
+          {
+            qauto use: SP.Dec.F.empty_iff, SP.add_cardinal_2, SP.Equal_cardinal, SP.add_cardinal_1, PositiveSet.add_1 unfold: PositiveSet.cardinal, PositiveSet.empty.
+          }
+          rewrite <- sadd_same in Hp.
+          hauto use: SP.Equal_cardinal, scardinal_2.
+      + subst.
+        unfold SP.of_list in *.
+        simpl in H0, Hp.
+        destruct (E.eq_dec y z).
+        * subst.
+          hauto use: PositiveSet.add_spec, SP.Equal_cardinal, SP.Dec.F.empty_iff, SP.add_cardinal_2, SP.add_equal unfold: PositiveSet.empty, PositiveSet.cardinal.
+        * rewrite SP.add_add in Hp.
+          assert (~ S.In y (S.add z (S.add z S.empty))).
+          {
+            qauto use: SP.Dec.F.empty_iff, SP.add_cardinal_2, SP.Equal_cardinal, SP.add_cardinal_1, PositiveSet.add_1 unfold: PositiveSet.cardinal, PositiveSet.empty.
+          }
+          hauto use: SP.Equal_cardinal, SP.add_cardinal_2, scardinal_2, sadd_same, PositiveSet.add_spec.
+  }
+  exists (f, S.remove c p).
+  destruct H as [Hx|[Hy|Hz]]; qauto l: on use: SP.remove_cardinal_1, S.remove_spec.
+Defined.
 
 (* NOTE:
 
@@ -272,14 +287,14 @@ Admitted.
  *)
 
 (* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
-(* The statement is more subtle than that, we have:
-
-Let g be a graph, f be a 3-coloring that is complete (every node has a color).
+(* The statement is more subtle than that, we have: *)
+(* Let g be a graph, f be a 3-coloring that is complete (every node has a color).
 Then for every vertex v there is a coloring c and map (i : 2 -> 3) such that:
 - c is a 2-coloring of the neighborhood of v, N(v)
 - (M.map i c) and f agree on N(v)
 - c is a complete coloring on N(v)
  *)
+
 Lemma nbd_2_colorable_3 :
   forall (cnt : positive) (g : graph) (f : coloring),
     three_coloring f -> coloring_complete three_colors g f ->
@@ -288,22 +303,101 @@ Lemma nbd_2_colorable_3 :
           (* exists injection i into canonical coloring using colors 1 and 2 *)
           let (i,c) := p in
           two_coloring c
-          /\ M.Equal (M.map i c) f
-          /\ coloring_complete (fold_right S.add S.empty [cnt; cnt + 2]) (neighborhood g v) c
+          /\ M.Equal (M.map i c) f (* make it agree on the restriction *)
+          /\ coloring_complete (SP.of_list [cnt; cnt + 1]) (neighborhood g v) c
     }).
 Proof.
 Admitted.
+
+(* A graph is bipartite if it is 2-colorable. *)
+Definition completely_two_colorable (g : graph) :=
+  exists f, coloring_complete two_colors g f.
+
+(* Definition of a 3-colorable graph *)
+Definition completely_three_colorable (g : graph) :=
+  exists f, coloring_complete three_colors g f.
+
+(* Restrict a map by a set of keys*)
+Definition restrict_m {A} (m : M.t A) s :=
+  M.fold (fun v e m' => if S.mem v s then M.add v e m' else m') m (@M.empty _).
+
+(* Lemma restrict_m_subset_nodes : forall  *)
+
+
+Lemma compl_two_col_dec : forall (g : graph), decidable (completely_two_colorable g).
+Proof.
+  (* use forcing algorithm *)
+  
+Admitted.
+
+Lemma nbd_not_2_col_3_col : forall (g : graph) v,
+    completely_three_colorable g ->
+    completely_two_colorable (neighborhood g v).
+Proof.
+  intros g v.
+  apply contrapositive.
+  - (* prove that completely_two_colorable is decidable *)
+    apply compl_two_col_dec.
+  - (* N2g says that (neighborhood g v) is not two-colorable *)
+    (* assume exists 3-coloring of g called Tg *)
+    intros N2g Tg.
+    (* want to derive contradiction. *)
+    (* Let f be the 3-coloring *)
+    destruct Tg as [f Hf].
+    assert (three_coloring f).
+    {
+      unfold coloring_complete in Hf.
+      admit.
+    }
+    (* since the coloring is complete, the vertex v has a color 1, 2 or 3 *)
+    (* but that would mean that the neighborhood of v is completely 2-colorable *)
+    assert (completely_two_colorable (neighborhood g v)).
+    {
+      unfold completely_two_colorable.
+      unfold coloring_complete in Hf.
+      pose proof (proj1 Hf v).
+      destruct H0 as [c Hc].
+      pose proof (H v c Hc).
+      assert (is_subgraph (neighborhood g v) g).
+      {
+        admit.
+      }
+      unfold coloring_complete.
+      pose proof (subgraph_colorable g (neighborhood g v) f three_colors H1 ltac:(hauto lq: on)).
+      (* create the color map on the neighbors *)
+      remember (nodes (neighborhood g v)) as nv.
+      (* restrict f to the neighbors of v *)
+      remember (restrict_m f nv) as fn'.
+      assert (three_coloring fn').
+      {
+        admit.
+      }
+      destruct H0.
+      - (* case v has color 1 *)
+        admit.
+      - (* case v has color 2 *)
+        admit.
+    }
+    contradiction.
+Admitted.      
+
 
 (* union of maps (left-heavy) *)
 Definition Munion {A} (f g : M.t A) := M.fold (fun k v => M.add k v) f g.
 (* Two maps are disjoint if their keys have no intersection. *)
 (* Mkeys is just Mdomain *)
-Definition Mdisjoint {A} (f g : M.t A) := S.inter (Mdomain f) (Mdomain g) = S.empty.
+Definition Mdisjoint {A} (f g : M.t A) := S.Equal (S.inter (Mdomain f) (Mdomain g)) S.empty.
 
+(* Test case for disjointness *)
 Example Mdisjoint_test1 :
   Mdisjoint (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(1,1);(2,2)])
-            (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(3,3);(4,4)]).
+            (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(3,1);(4,2)]).
 Proof. hauto l: on. Qed.
+
+(* Note: since we're using equality on finite sets can we get for free
+   that map disjointness is decidable *)
+Lemma Mdisjoint_dec {A} (f g : M.t A) : {Mdisjoint f g} + {~ Mdisjoint f g}.
+Proof. apply S.eq_dec. Qed.
 
 Lemma Munion_case {A} : forall (c d : M.t A) i v,
     M.find i (Munion c d) = Some v -> M.MapsTo i v c \/ M.MapsTo i v d.
@@ -335,9 +429,7 @@ Proof.
   split.
   - intros ci H0.
     apply Munion_case in H0.
-    destruct H0.
-    + sfirstorder use: PositiveSet.union_2 unfold: coloring_ok, PositiveMap.MapsTo, node, PositiveOrderedTypeBits.t, PositiveSet.elt.
-    + sfirstorder use: PositiveSet.union_3 unfold: PositiveSet.elt, coloring_ok, PositiveMap.MapsTo, PositiveOrderedTypeBits.t, node.
+    sfirstorder use: PositiveSet.union_3, PositiveSet.union_2 unfold: PositiveOrderedTypeBits.t, PositiveMap.MapsTo, coloring_ok, node, PositiveSet.elt.
   - intros ci cj H0 H1.
     apply Munion_case in H0.
     apply Munion_case in H1.

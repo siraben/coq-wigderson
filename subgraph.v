@@ -27,12 +27,7 @@ Definition is_subgraph (g' g : graph) :=
 
 (* Subgraph vertices are in the original graph, map version *)
 Lemma subgraph_vert_m : forall g' g v, is_subgraph g' g -> M.In v g' -> M.In v g.
-Proof.
-  intros g' g v [H _] H0.
-  apply Sin_domain.
-  apply Sin_domain in H0.
-  sfirstorder.
-Qed.
+Proof. qauto l: on use: Sin_domain. Qed.
 
 (* Some lemmas about induced subgraphs. *)
 (* The nodes of a subgraph are a subset of the original graph. *)
@@ -52,13 +47,7 @@ Proof.
         unfold nodes.
         apply Sin_domain.
         hauto lq: on rew: off use: WF.add_in_iff.
-      * unfold nodes in *.
-        unfold S.Subset in H1.
-        assert (S.In a' (Mdomain m')).
-        {
-          hauto l: on use: WP.F.add_neq_in_iff, Sin_domain.
-        }
-        hauto lq: on rew: off use: WP.F.add_neq_in_iff, Sin_domain.
+      * hauto l: on use: WP.F.add_neq_in_iff, Sin_domain unfold: nodes, S.Subset.
     + apply H1 in Ha'.
       apply Sin_domain.
       apply Sin_domain in Ha'.
@@ -165,7 +154,7 @@ Proof.
       * subst.
         hauto use: PositiveMap.gss, SP.Dec.F.empty_iff, SP.Dec.F.inter_iff unfold: PositiveSet.Subset inv: option.
       * hauto use: SP.subset_empty, PositiveMap.gso unfold: PositiveSet.Subset, PositiveSet.empty, node, PositiveOrderedTypeBits.t, PositiveMap.key inv: option.
-    + hauto lq: on rew: off.
+    + assumption.
 Qed.
 
 
@@ -188,53 +177,33 @@ Proof.
     strivial use: subgraph_edges unfold: PositiveSet.Subset.
   }
   assert (S.In i (adj g j)) by sfirstorder.
-  pose proof subgraph_vertices_set.
-  pose proof subgraph_vertices_adj.
+  pose proof (subgraph_edges g s i).
+  (* same issue as before, we need to reason about subgraph_of *)  
+  unfold adj in *.
   assert (S.In i s).
   {
+    
     admit.
   }
   assert (S.In j s).
   {
     admit.
   }
-  
 Admitted.  
 
 Definition remove_subgraph (g : graph) s :=
   M.fold (fun v e m' => if S.mem v s then m' else M.add v (S.diff e s) m') (@M.empty _) g.
 
 Lemma remove_subgraph_is_subgraph : forall g s, is_subgraph (remove_subgraph g s) g.
-Proof.
-  intros g s.
-  split.
-  - unfold remove_subgraph.
-    apply WP.fold_rec_bis.
-    + hauto lq: on.
-    + scongruence.
-    + sauto q: on.
-  - unfold remove_subgraph.
-    apply WP.fold_rec_bis.
-    + hauto lq: on.
-    + scongruence.
-    + intros k e a m' H H0 H1 v.
-      sauto q: on.
-Qed.
+Proof. split; unfold remove_subgraph; apply WP.fold_rec_bis; scrush. Qed.
 
 (* Removing a subgraph preserves undirectedness *)
 Lemma remove_subgraph_undirected : forall g s, undirected g -> undirected (remove_subgraph g s).
-Proof.
-  hauto q: on.
-Qed.
+Proof. hauto q: on. Qed.
 
 (* Maximum degree of a graph *)
 Definition max_deg' (g : graph) := M.fold (fun _ s n => max (S.cardinal s) n) g 0.
 Definition max_deg (g : graph) := list_max (map (fun p => S.cardinal (snd p)) (M.elements g)).
-
-
-Search "list_max".
-Search (fold_right).
-Print Module SP.
 
 Lemma inl_in i l : S.InL i l <-> In i l.
 Proof.
@@ -247,7 +216,7 @@ Proof.
   unfold S.elt in i.
   pose proof (S.elements_2 s ltac:(hauto l: on use: inl_in)).
   rewrite <- inl_in.
-  sfirstorder use: PositiveSet.elements_1, SP.Dec.FSetDecideTestCases.test_too_complex unfold: PositiveSet.elt.
+  sfirstorder use: PositiveSet.elements_1 unfold: PositiveSet.elt.
 Qed.
 
 (* Maximum degree is maximum *)
@@ -259,8 +228,7 @@ Proof.
   unfold max_deg.
   assert (In e (map snd (M.elements g))) by (exact (in_map snd _ _ H0)).
   rewrite <- map_map.
-  Search list_max.
-  epose proof (proj1 (H1 (map S.cardinal (map snd (M.elements g))) (list_max (map S.cardinal (map snd (M.elements g))))) (@le_refl _)).
+  pose proof (proj1 (H1 (map S.cardinal (map snd (M.elements g))) (list_max (map S.cardinal (map snd (M.elements g))))) (@le_refl _)).
   assert (In (S.cardinal e) (map S.cardinal (map snd (M.elements g)))).
   {
     hauto l: on use: in_map.
@@ -276,49 +244,34 @@ Proof.
   induction l.
   - scongruence.
   - intros H H0.
-    Search list_max.
     clear H.
     replace (a :: l) with ([a] ++ l) in H0 by reflexivity.
     rewrite list_max_app in H0.
     destruct (max_dec (list_max [a]) (list_max l)); sauto lq: on.
 Defined.
 
-    
 (* We can extract a vertex of maximum degree in an non-graph *)
-Lemma max_degree_vert : forall g n, ~ M.Empty g -> max_deg g = n -> {v | M.In v g /\ S.cardinal (adj g v) = n}.
+Lemma max_degree_vert : forall g n, ~ M.Empty g -> max_deg g = n -> exists v, M.In v g /\ S.cardinal (adj g v) = n.
 Proof.
   intros g n H H1.
   unfold max_deg in H1.
   apply list_max_witness in H1.
-  Search list_max.
-Admitted.
-                                                   
-
-(* Whether a map has a key or not is decidable *)
-Lemma has_key_dec : forall (m : graph), {exists k, M.In k m} + {~ exists k, M.In k m}.
-Proof.
-  intros m.
-  epose proof (@WF.Equiv_Equivb _ S.Equal).
-  epose proof (@WF.Equiv_Equivb _ _ _ _ m (@M.empty _)).
-  (* Search "Equiv". *)
-  (* S.eq_dec *)
-  (* Search "eq_dec". *)
-  (* Search "eqdec". *)
-  (* pose proof (@WF.Equal_Equivb_eqdec _ (S.eq_dec) m). *)
-  (* Search "dec". *)
-Admitted.
-
-(* Whether a map is empty or not is decidable. *)
-Lemma mempty_dec : forall {A} (m : M.t A), {M.Empty m} + {~ M.Empty m}.
-Proof.
-  intros A m.
-  
-  Search M.Empty.
-Admitted.
+  - destruct H1 as [x [Hx]].
+    subst.
+    apply in_map_iff in Hx.
+    destruct Hx as [[v ve] [Hx]].
+    exists v.
+    split.
+    + exists ve.
+      hauto lq: on use: M.elements_complete.
+    + unfold adj.
+      apply M.elements_complete in H0.
+      sauto lq: on.
+  - sauto lq: on rew: off use: map_eq_nil, WP.elements_Empty inv: list.
+Qed.
 
 Lemma max_deg_subgraph : forall (g g' : graph), is_subgraph g' g -> max_deg g' <= max_deg g.
 Proof.
-  (* don't do induction *)
   intros g g' H.
   unfold max_deg.
   unfold is_subgraph in H.
@@ -326,47 +279,61 @@ Proof.
   (* use contradiction *)
   apply le_ngt.
   intros HH.
-  assert (g'Ne : ~ M.Empty g').
-  {
-    (* use lemma about decidability of emptiness *)
-    admit.
-  }
-  (* let n be the max degree of the original graph *)
+  (* let d be the max degree of the original graph *)
   remember (list_max (map (fun p : M.key * S.t => S.cardinal (snd p)) (M.elements g))) as d.
+  (* let d' be the max degree of subgraph *)
   remember (list_max (map (fun p : M.key * S.t => S.cardinal (snd p)) (M.elements g'))) as d'.
   (* there is a vertex v in g' that has degree d' *)
   assert (exists v, M.In v g' /\ S.cardinal (adj g' v) = d').
   {
-    
-    admit.
+    (* to do this, we can extract the witness by first showing that g' is non-empty *)
+    destruct (M.elements g') eqn:Mg; [sauto lq: on|].
+    (* hence the witness is realized *)
+    destruct (list_max_witness (map (fun p : M.key * S.t => S.cardinal (snd p)) (p :: l)) d' ltac:(scongruence) (eq_sym Heqd')) as [x [Hx xmax]].
+    subst x.
+    apply in_map_iff in Hx.
+    destruct Hx as [[v ve] [Hv]].
+    assert (M.In v g').
+    {
+      hauto l: on use: M.elements_complete.
+    }
+    rewrite <- Mg in H1.
+    exists v.
+    assert (M.In v g') by (sauto lq: on use: M.elements_2).
+    ssimpl.
+    unfold adj.
+    rewrite H6.
+    assert (M.In v g') by sfirstorder.
+    assert (M.MapsTo v ve g') by (sauto lq: on rew: off use: M.elements_complete).
+    scongruence unfold: M.MapsTo, nodeset.
   }
   destruct H1 as [v [Hv Hv']].
   (* hence v must exist in g *)
-  assert (M.In v g).
-  {
-    hauto lq: on rew: off use: subgraph_vert_m.
-  }
+  assert (M.In v g) by (hauto lq: on rew: off use: subgraph_vert_m).
+  (* let ve' be the adjacency set of v in g' *)
   remember (adj g' v) as ve'.
-  (* hence it has an adjacency set in g as well, call it ve *)
+  (* let ve be the adjacency set of v in g *)
   destruct H1 as [ve Hve].
-  (* and ve' is a subset of ve *)
+  (* ve' is a subset of ve *)
   assert (S.Subset ve' ve).
   {
     qauto unfold: PositiveMap.MapsTo, node, PositiveMap.key, PositiveSet.Subset, adj, PositiveOrderedTypeBits.t.
   }
   pose proof (proj2 H v).
   pose proof (SP.subset_cardinal H2).
-  (* let the degree of v in g be c *)
+  (* let c be the degree of v in g *)
   remember (S.cardinal (adj g v)) as c.
   (* recall that d is the max degree of g, so c <= d *)
   assert (c <= d).
   {
-    admit.
+    pose proof (max_deg_max g v ve ltac:(sfirstorder)).
+    unfold max_deg in H4.
+    rewrite <- Heqd in H4.
+    unfold adj in Heqc.
+    ssimpl.
   }
-  (* since c is the degree of v in g, d' <= c *)
-  assert (d' <= c).
-  {
-    admit.
-  }
+  (* but then d' <= c *)
+  assert (d' <= c) by scongruence.
+  (* but this is a contradiction since we have d < d' <= c < d *)
   lia.
-Admitted.
+Qed.
