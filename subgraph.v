@@ -25,6 +25,12 @@ Definition subgraph_of (g : graph) (s : S.t) :=
 Definition is_subgraph (g' g : graph) :=
   (S.Subset (nodes g') (nodes g)) /\ (forall v, S.Subset (adj g' v) (adj g v)).
 
+Lemma subgraph_refl : forall g, is_subgraph g g.
+Proof. sfirstorder. Qed.
+
+Lemma subgraph_trans : forall g g' g'', is_subgraph g g' -> is_subgraph g' g'' -> is_subgraph g g''.
+Proof. sfirstorder. Qed.
+
 (* Subgraph vertices are in the original graph, map version *)
 Lemma subgraph_vert_m : forall g' g v, is_subgraph g' g -> M.In v g' -> M.In v g.
 Proof. qauto l: on use: Sin_domain. Qed.
@@ -102,6 +108,79 @@ Proof.
   split; [apply subgraph_vertices|apply subgraph_edges].
 Qed.
 
+Lemma remove_node_neq : forall g i j, i <> j -> M.In i g <-> M.In i (remove_node j g).
+Proof.
+  intros g i j H.
+  split; intros H'.
+  - apply WF.map_in_iff.
+    sauto lq: on use: WP.F.remove_neq_in_iff.
+  - unfold remove_node in H'.
+    rewrite WF.map_in_iff in H'.
+    rewrite WP.F.remove_neq_in_iff in H' by auto.
+    assumption.
+Qed.
+
+Lemma remove_node_neq2 : forall g i j, M.In i (remove_node j g) -> i <> j.
+Proof.
+  intros g i j H.
+  unfold remove_node in H.
+  apply WF.map_in_iff in H.
+  destruct (E.eq_dec i j).
+  - subst. apply M.remove_1 in H; sfirstorder.
+  - assumption.
+Qed.
+
+Lemma remove_node_subgraph : forall g v, is_subgraph (remove_node v g) g.
+Proof.
+  intros g v.
+  split.
+  - intros i Hi.
+    unfold nodes in *.
+    apply Sin_domain in Hi.
+    apply Sin_domain.
+    destruct (E.eq_dec i v).
+    * subst. unfold remove_node in Hi.
+      rewrite WF.map_in_iff in Hi.
+      apply M.remove_1 in Hi; sfirstorder.
+    * now apply remove_node_neq in Hi.
+  - intros j i Hi.
+    unfold adj in *.
+    destruct (M.find j (remove_node _ _)) eqn:E.
+    + epose proof (remove_node_neq2 g j v ltac:(sfirstorder)).
+      assert (M.In j g).
+      {
+        rewrite (remove_node_neq _ _ v); sfirstorder.
+      }
+      destruct H0 as [e He].
+      unfold M.MapsTo in He.
+      rewrite He.
+      assert (S.Subset n e).
+      {
+        intros z Hz.
+        unfold remove_node in E.
+        assert (M.find j (M.map (S.remove v) g) = Some (S.remove v e)).
+        {
+          rewrite WF.map_o in E.
+          rewrite WF.map_o.
+          unfold nodeset in *.
+          rewrite He.
+          scongruence.
+        }
+        unfold nodeset, node in *.
+        rewrite WF.map_o in H0, E.
+        rewrite M.gro in E by auto.
+        assert (n = S.remove v e).
+        {
+          scongruence.
+        }
+        subst n.
+        hauto l: on use: PositiveSet.remove_3 unfold: PositiveOrderedTypeBits.t, PositiveSet.elt.
+      }
+      sfirstorder.
+    + sauto.
+Qed.
+
+
 (* The (open) neighborhood of a vertex v in a graph consists of the
    subgraph induced by the vertices adjacent to v.  It does not
    include v itself. *)
@@ -111,6 +190,37 @@ Definition neighborhood (g : graph) v := remove_node v (subgraph_of g (neighbors
 Lemma nbd_not_include_vertex g v : M.find v (neighborhood g v) = None.
 Proof.
   hecrush use: WF.map_o use: M.grs.
+Qed.
+
+
+(* If a vertex j is in the neighborhood of i then j is in i's adjacency set. *)
+Lemma nbd_adj : forall g i j, S.In j (nodes (neighborhood g i)) -> S.In j (adj g i).
+Proof.
+  intros g i j H.
+  unfold neighborhood in H.
+  unfold neighbors in H.
+  unfold nodes in H.
+  rewrite Sin_domain in H.
+  unfold remove_node in H.
+  rewrite WF.map_in_iff in H.
+  destruct (E.eq_dec j i).
+  - subst.
+    sauto q: on use: M.grs.
+  - assert (M.In j (subgraph_of g (adj g i))) by sauto use: M.gro.
+    clear H.
+    pose proof (proj2 (subgraph_of_is_subgraph g (adj g i)) i).
+    specialize (H j).
+    apply Sin_domain in H0.
+    apply H.
+    clear H.
+    unfold adj.
+    admit.
+Admitted.
+
+(* Neighborhood subgraph is a subgraph *)
+Lemma nbd_subgraph : forall g i, is_subgraph (neighborhood g i) g.
+Proof.
+  hauto l: on use: subgraph_of_is_subgraph, remove_node_subgraph, subgraph_trans.
 Qed.
 
 Lemma empty_graph_no_vert : forall v, ~ M.In v empty_graph.
@@ -269,6 +379,8 @@ Proof.
       sauto lq: on.
   - sauto lq: on rew: off use: map_eq_nil, WP.elements_Empty inv: list.
 Qed.
+
+Require Import Psatz.
 
 Lemma max_deg_subgraph : forall (g g' : graph), is_subgraph g' g -> max_deg g' <= max_deg g.
 Proof.
