@@ -7,6 +7,7 @@ Require Import PArith.
 Require Import Psatz.
 Require Import restrict.
 Require Import Program.
+Require Import FunInd.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 Import Arith.
@@ -357,6 +358,9 @@ Proof. Admitted.
 Definition max_deg' (g : graph) := M.fold (fun _ s n => max (S.cardinal s) n) g 0.
 Definition max_deg (g : graph) := list_max (map (fun p => S.cardinal (snd p)) (M.elements g)).
 
+Lemma max_deg_empty : max_deg (@M.empty _) = 0.
+Proof. sfirstorder. Qed.
+
 Lemma inl_in i l : S.InL i l <-> In i l.
 Proof.
   split; induction l; sauto lq: on.
@@ -492,6 +496,24 @@ Qed.
 (* Degree of a vertex *)
 Definition degree (g : graph) (v : node) := S.cardinal (adj g v).
 
+Lemma degree_gt_0_in (g : graph) (v : node) :
+  degree g v > 0 -> M.In v g.
+Proof.
+  sauto unfold: degree, adj.
+Qed.
+
+Lemma max_deg_gt_not_empty (g : graph) : max_deg g > 0 -> ~ M.Empty g.
+Proof.
+  intros H contra.
+  pose proof max_deg_empty.
+  unfold max_deg in H.
+  apply (WP.elements_Empty g) in contra.
+  sauto q: on.
+Qed.
+
+(* If a graph has a maximum degree of greater than 0 then there is a witness *)
+(* Stronger than max_degree_vert *)
+
 (* If a vertex is removed from the graph, all of its neighbors have
    reduced degree. *)
 Lemma vertex_removed_nbs_dec : forall (g : graph) (i j : node) n,
@@ -574,10 +596,12 @@ Defined.
 
 (* Extract vertices of a given degree in a graph, removing it from the
    graph each time. *)
-Function extract_vertices_deg (g : graph) (d : nat) {measure M.cardinal g} :=
+Function extract_vertices_deg (g : graph) (d : nat) {measure M.cardinal g} : list node * graph :=
   match extract_deg_vert_dec g d with
-  | inl v => (`v) :: extract_vertices_deg (remove_node (`v )g) d
-  | inr _ => nil
+  | inl v =>
+      let (l, g') := extract_vertices_deg (remove_node (`v ) g) d in
+      ((`v) :: l, g')
+  | inr _ => (nil, g)
   end.
 Proof.
   intros g d v teq.
@@ -586,6 +610,61 @@ Proof.
   unfold remove_node.
   rewrite cardinal_map.
   hauto lq: on rew: off use: Mremove_cardinal_less.
+Defined.
+
+Functional Scheme extract_vertices_deg_ind := Induction for extract_vertices_deg Sort Prop.
+
+Lemma extract_vertices_deg_exhaust (g : graph) n :
+  n > 0 -> ~ exists v, degree (snd (extract_vertices_deg g n)) v = n.
+Proof.
+  functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
+  - simpl.
+    rewrite e0 in IHp.
+    simpl in IHp.
+    apply IHp.
+  - intros dgt0 contra.
+    destruct d; [sauto q:on|].
+    simpl in *.
+    destruct contra as [v ve].
+    sauto lq: on use: degree_gt_0_in.
+Qed.
+
+Lemma extract_vertices_deg_subgraph (g : graph) n :
+  is_subgraph (snd (extract_vertices_deg g n)) g. 
+Proof.
+  functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
+  - simpl.
+    rewrite e0 in IHp.
+    simpl in IHp.
+    pose proof (remove_node_subgraph g (` v)).
+    hauto l: on use: subgraph_trans.
+  - apply subgraph_refl.
+Qed.
+
+Lemma extract_vertices_max_deg (g : graph) :
+   max_deg g > 0 -> max_deg (snd (extract_vertices_deg g (max_deg g))) < max_deg g.
+Proof.
+  intros H.
+  pose proof (extract_vertices_deg_exhaust g _ H).
+  remember (extract_vertices_deg g (max_deg g)) as g'.
+  pose proof (extract_vertices_deg_subgraph g (max_deg g)).
+  rewrite <- Heqg' in H1.
+  pose proof (max_deg_subgraph g (snd g') H1).
+  apply le_lt_or_eq in H2.
+  destruct  H2.
+  - assumption.
+  - exfalso.
+    (* want to get a contradiction because we ran out of vertices of
+       max degree *)
+    pose proof (max_deg_gt_not_empty _ H).
+    assert (~ M.Empty (snd g')).
+    {
+      rewrite <- H2 in H.
+      apply max_deg_gt_not_empty.
+      assumption.
+    }
+    epose proof (max_degree_vert _ (max_deg g) H4 H2).
+    hauto lq: on rew: off.
 Qed.
 
 (* If a vertex of max degree is removed from a graph then any vertex

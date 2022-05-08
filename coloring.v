@@ -15,6 +15,8 @@ Import Arith.
 Import ListNotations.
 Import Nat.
 
+Definition colors := S.t.
+
 Lemma map_o {A} : forall (m : M.t A) (x : M.key) f,
  @M.find A x (M.map f m) = Datatypes.option_map f (M.find x m).
 Proof.
@@ -22,11 +24,11 @@ Proof.
 Qed.
 
 (* A coloring is complete if every vertex is colored. *)
-Definition coloring_complete (palette: S.t) (g: graph) (f: coloring) :=
+Definition coloring_complete (palette: colors) (g: graph) (f: coloring) :=
  (forall i, M.In i g -> M.In i f) /\ coloring_ok palette g f.
 
-Definition two_colors: S.t := SP.of_list [1; 2]%positive.
-Definition three_colors: S.t := SP.of_list [1; 2; 3]%positive.
+Definition two_colors: colors := SP.of_list [1; 2]%positive.
+Definition three_colors: colors := SP.of_list [1; 2; 3]%positive.
 
 (* A graph is bipartite if it is 2-colorable. *)
 Definition two_colorable (g : graph) := exists f, coloring_ok two_colors g f.
@@ -119,7 +121,7 @@ Proof.
   qauto unfold: PositiveSet.Subset, coloring_ok, is_subgraph.
 Qed.
 
-Definition n_coloring (f : coloring) (p : S.t) (n : nat) :=
+Definition n_coloring (f : coloring) (p : colors) (n : nat) :=
   S.cardinal p = n /\ forall v c, M.find v f = Some c -> S.In c p.
 
 (* A 3-coloring uses 3 colors *)
@@ -165,15 +167,18 @@ Proof.
     qauto use: @restrict_agree unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, PositiveMap.key, nodeset, node, coloring, coloring_ok.
 Qed.
 
-(* The neighborhood of an (n+1)-colorable graph is n-colorable *)
-Lemma nbd_Sn_colorable_n : forall (g : graph) (f : coloring) p n,
+Definition restrict_on_nbd (f : coloring) (g : graph) (v : node) :=
+  restrict f (nodes (neighborhood g v)).
+
+(* The neighborhood of a (n+1)-colorable graph is n-colorable *)
+Lemma nbd_Sn_colorable_n : forall (g : graph) (f : coloring) (p : colors) (n : nat),
     coloring_complete p g f ->
     n_coloring f p (S n) ->
     forall v ci, M.find v f = Some ci ->
-            n_coloring (restrict f (nodes (neighborhood g v))) (S.remove ci p) n
-            /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict f (nodes (neighborhood g v))).
+            n_coloring (restrict_on_nbd f g v) (S.remove ci p) n
+         /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict_on_nbd f g v).
 Proof.
-  intros g f p n H H0 v ci H1.
+  intros g f p k H H0 v ci H1.
   split.
   - apply n_coloring_missed.
     + hauto use: @restrict_agree unfold: node, coloring, n_coloring, PositiveOrderedTypeBits.t, PositiveMap.key, three_coloring'.
@@ -225,7 +230,7 @@ Proof.
   hauto l: on use: SP.remove_cardinal_1, nbd_Sn_colorable_n unfold: PositiveOrderedTypeBits.t, three_coloring', node, two_coloring', n_coloring, PositiveSet.elt inv: nat.
 Qed.
 
-Lemma nbd_not_n_col_graph_not_Sn_col : forall (g : graph) (f : coloring) (p : S.t) n,
+Lemma nbd_not_n_col_graph_not_Sn_col : forall (g : graph) (f : coloring) (p : colors) n,
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
         M.find v f = Some ci /\
@@ -242,7 +247,7 @@ Qed.
    neighborhood is not 2-colorable or the coloring is not complete
    then f cannot be a 3-coloring
  *)
-Lemma nbd_not_2_col_graph_not_3_col : forall (g : graph) (f : coloring) (p : S.t),
+Lemma nbd_not_2_col_graph_not_3_col : forall (g : graph) (f : coloring) (p : colors),
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
         M.find v f = Some ci /\
@@ -255,7 +260,7 @@ Proof.
   qauto l: on use: nbd_2_colorable_3'.
 Qed.
 
-Definition constant_color {A} (s : S.t) c := S.fold (fun v => M.add v c) s (@M.empty A).
+Definition constant_color {A} (s : nodeset) c := S.fold (fun v => M.add v c) s (@M.empty A).
 
 Lemma constant_color_colors {A} s c : forall i, S.In i s -> M.find i (@constant_color A s c) = Some c.
 Proof.
@@ -280,6 +285,19 @@ Proof.
     destruct (E.eq_dec i x).
     + subst. hauto l: on use: PositiveSet.add_1 unfold: PositiveMap.key, PositiveSet.elt.
     + hauto use: WF.add_neq_in_iff, PositiveSet.add_2 unfold: PositiveSet.elt, PositiveMap.key.
+Qed.
+
+Lemma constant_color_inv2 {A} s c : forall i d, M.find i (@constant_color A s c) = Some d -> c = d.
+Proof.
+  intros i d.
+  unfold constant_color.
+  apply SP.fold_rec_bis.
+  - sfirstorder.
+  - sauto dep: on.
+  - intros x a s' H H0 H1 H2.
+    destruct (E.eq_dec i x).
+    + scongruence use: PositiveMap.gss unfold: PositiveSet.elt, PositiveMap.key.
+    + hauto use: PositiveMap.gso unfold: PositiveMap.key, PositiveSet.elt.
 Qed.
 
 (* two_color_step
@@ -372,7 +390,8 @@ Proof.
       scongruence.
     + rewrite two_color_step_colors_adj_c2 in H2, H3 by auto.
       (* Contradiction! We supposed that the graph was 2-colorable to
-         begin with, but where we have two  *)
+         begin with, but here we have a configuration of vertices that
+         cannot be 2-colored. *)
       destruct H0 as [m [p [Hm Hm']]].
       pose proof (Hm i ltac:(sauto use: undirected_adj_in)).
       pose proof (Hm j ltac:(sauto use: undirected_adj_in)).
@@ -396,7 +415,7 @@ Proof.
         pose proof (proj1 (Hm' _ _ H5) vv Hvv).
         hauto l: on use: in_two_set_inv.
       }
-      (* so i and j have colors given by the magic coloring function,
+      (* So i and j have colors given by the magic coloring function,
          but no matter what colors we give them something is going to go
          wrong *)
       destruct H0, H7, H8; strivial unfold: coloring_ok.
@@ -456,8 +475,30 @@ Definition color_d (g : graph) (d : nat) c (v : {v | M.In v g /\ S.cardinal (adj
   : coloring :=
   M.add (`v) c (@M.empty _).
 
-Lemma max_degree_colorable : forall 
+(* TODO: map over a set to produce new sets *)
 
+Definition n_colors (n : nat) := SP.of_list (map Pos.of_nat (seq 0 (n+1))).
+
+(* A graph with maximum degree d is d+1 colorable *)
+Lemma max_degree_colorable : forall (g : graph) d,
+    max_deg g = d ->
+    { f | n_coloring f (n_colors d) (d+1) /\ coloring_complete (n_colors d) g f}.
+Proof.
+  intros g d H.
+  generalize dependent g.
+  induction d; intros g Hg.
+  - pose proof (max_deg_0_constant_col g 1 Hg).
+    exists (constant_color (nodes g) 1).
+    split.
+    + split.
+      * reflexivity.
+      * intros v c H1.
+        apply constant_color_inv2 in H1.
+        qauto l: on.
+    + hauto l: on.
+  - assert ((max_deg g > 0)%nat) by hauto l: on.
+    admit.
+Admitted.
 
 (* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
 (* The statement is more subtle than that, we have: *)
