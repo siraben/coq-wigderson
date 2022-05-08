@@ -7,6 +7,7 @@ Require Import FSets.   (* Efficient functional sets *)
 Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
 Require Import Decidable.
+Require Import Program.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 From Hammer Require Import Reflect.
@@ -73,7 +74,6 @@ Qed.
 
   
 (* Elements of a 2-element set can be extracted *)
-Require Import Program.
 Lemma two_elem_set_enumerable s :
   S.cardinal s = 2%nat ->
   { (a,b) : S.elt * S.elt | S.Equal s (SP.of_list [a;b])}.
@@ -258,12 +258,10 @@ Proof.
     + hauto use: WF.add_neq_in_iff, PositiveSet.add_2 unfold: PositiveSet.elt, PositiveMap.key.
 Qed.
 
-
 (* two_color_step
  - let g be a graph, v be a vertex, c1 and c2 the colors we have
  - this function colors v with c1 and colors its neighbors with c2
  *)
-
 Definition two_color_step (g : graph) (v : node) c1 c2 (f : coloring) : coloring :=
   M.add v c1 (constant_color (adj g v) c2).
 
@@ -380,14 +378,60 @@ Proof.
       destruct H0, H7, H8; strivial unfold: coloring_ok.
 Qed.    
 
-(* Two-coloring algorithm *)
-Lemma two_color_vertex (g : graph) p (f : coloring) (Hf : three_coloring' f p) (Hfc : coloring_complete p g f)
-  (v : node) (Hv : M.In v g) ci (Hci : M.find v f = Some ci) (a b : positive)  :
-  {N | two_coloring' N (S.remove ci p) /\ coloring_complete (S.remove ci p) (neighborhood g v) N}.
+(* If a coloring is not complete then it misses a vertex (constructively *)
+Lemma not_complete_has_uncolored (f : coloring) (g : graph) p :
+  ~ coloring_complete p g f ->
+  ~ M.Empty g ->
+  { v | M.In v g /\ ~ M.In v f }.
 Proof.
-  hauto l: on use: nbd_2_colorable_3'.
-  Show Proof.
+  intros Hf Hg.
+  unfold coloring_complete in Hf.
+Admitted.
+
+(* If a graph has max degree 0 then the constant coloring is a complete coloring. *)
+Lemma max_deg_0_constant_col : forall (g : graph) c,
+    max_deg g = 0%nat ->
+    coloring_complete (S.singleton c) g (constant_color (nodes g) c).
+Proof.
+  intros g c H.
+  unfold coloring_complete.
+  split.
+  - intros i H0.
+    exists c.
+    unfold M.MapsTo.
+    apply constant_color_colors.
+    unfold nodes.
+    apply Sin_domain.
+    assumption.
+  - split.
+    + intros ci H1.
+      assert (S.In i (nodes g)).
+      {
+        unfold adj in H0.
+        destruct (M.find i g) eqn:E.
+        - pose proof (max_deg_max _ _ _ E).
+          rewrite H in H2.
+          hfcrush use: SP.remove_cardinal_1 unfold: nodeset inv: Peano.le.
+        - sauto q: on.
+      }
+      pose proof (constant_color_colors (nodes g) c i H2).
+      unfold S.elt, node, E.t in *.
+      assert (ci = c) by scongruence.
+      sfirstorder use: PositiveSet.singleton_2 unfold: PositiveSet.elt.
+    + intros ci cj H1 H2.
+      unfold adj in H0.
+      destruct (M.find i g) eqn:E.
+      * pose proof (max_deg_max _ _ _ E).
+        rewrite H in H3.
+        hauto use: SP.remove_cardinal_1 unfold: nodeset inv: Peano.le.
+      * fcrush.
 Qed.
+
+(* If a graph has a vertex of degree d then color that vertex with c *)
+Definition color_d (g : graph) (d : nat) c (v : {v | M.In v g /\ S.cardinal (adj g v) = d})
+  : coloring :=
+  M.add (`v) c (@M.empty _).
+
 
 (* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
 (* The statement is more subtle than that, we have: *)

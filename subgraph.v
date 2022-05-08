@@ -6,6 +6,7 @@ Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
 Require Import Psatz.
 Require Import restrict.
+Require Import Program.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 Import Arith.
@@ -335,7 +336,7 @@ Proof.
   apply restrict_in_set in He.
   unfold nodes in He.
   apply Sin_domain in H0.
-  best use: S.diff_spec.
+  hauto l: on use: S.diff_spec.
 Qed.
 
 (* Removing a subgraph *)
@@ -343,6 +344,8 @@ Lemma remove_nodes_lt : forall g s i, S.In i s -> M.In i g -> (M.cardinal (remov
 Proof.
   intros g s i H H0.
   pose proof (remove_nodes_sub g s i H H0).
+  unfold remove_nodes.
+  rewrite cardinal_map.
   admit.
 Admitted.
   
@@ -486,3 +489,121 @@ Proof.
   (* but this is a contradiction since we have d < d' <= c < d *)
   lia.
 Qed.
+(* Degree of a vertex *)
+Definition degree (g : graph) (v : node) := S.cardinal (adj g v).
+
+(* If a vertex is removed from the graph, all of its neighbors have
+   reduced degree. *)
+Lemma vertex_removed_nbs_dec : forall (g : graph) (i j : node) n,
+    undirected g ->
+    no_selfloop g ->
+    M.In i g ->
+    S.In j (adj g i) ->
+    degree g j = S n ->
+    degree (remove_node i g) j = n.
+Proof.
+  intros g i j n H Hl H0 H1 H2.
+  assert (S.In i (adj g j)) by sfirstorder.
+  unfold degree in *.
+  (* the adjacency set of j in the new graph has i removed *)
+  assert (S.Equal (adj (remove_node i g) j) (S.remove i (adj g j))).
+  {
+    unfold remove_node.
+    unfold adj in H3.
+    unfold adj.
+    destruct (M.find j g) eqn:E; [|sauto q:on].
+    rewrite WF.map_o.
+    destruct (E.eq_dec i j); [scongruence|].
+    rewrite M.gro by auto.
+    rewrite E.
+    reflexivity.
+  }
+  hauto use: SP.Equal_cardinal, SP.remove_cardinal_1 unfold: degree, adj, PositiveSet.elt, nodeset, PositiveOrderedTypeBits.t, node.
+Qed.
+
+Definition extract_deg_vert (g : graph) (d : nat) :=
+  find (fun p => Nat.eqb (S.cardinal (snd p)) d) (M.elements g).
+
+Lemma InA_in_iff {A} : forall p (l : list (M.key * A)), (InA (@M.eq_key_elt A) p l) <-> In p l.
+Proof.
+  intros p.
+  induction l; sauto q: on.
+Qed.
+
+(* Extract a degree of vertex d in a graph or fail *)
+Lemma extract_deg_vert_dec : forall (g : graph) (d : nat),
+    {v | M.In v g /\ degree g v = d} + ~ exists v, M.In v g /\ degree g v = d.
+Proof.
+  intros g d.
+  destruct (extract_deg_vert g d) eqn:E.
+  - destruct p as [v k].
+    left. exists v.
+    unfold extract_deg_vert in E.
+    pose proof (find_some _ _ E).
+    unfold degree.
+    unfold adj.
+    destruct H.
+    assert (InA (@M.eq_key_elt _) (v,k) (M.elements g)).
+    {
+      now apply InA_in_iff.
+    }
+    apply WF.elements_mapsto_iff in H1.
+    split; [exists k; sfirstorder|].
+    destruct (M.find v g) eqn:E2.
+    + apply eqb_eq in H0.
+      scongruence.
+    + sfirstorder.
+  - right.
+    intros contra.
+    destruct contra as [v e].
+    unfold degree in e.
+    unfold extract_deg_vert in E.
+    unfold adj in e.
+    destruct (M.find v g) eqn:E2.
+    + assert (In (v,n) (M.elements g)).
+      {
+        apply InA_in_iff.
+        apply WF.elements_mapsto_iff.
+        sfirstorder.
+      }
+      pose proof (find_none _ _ E _ H).
+      simpl in H0.
+      hauto lb: on.
+    + sfirstorder.
+Defined.
+
+(* Extract vertices of a given degree in a graph, removing it from the
+   graph each time. *)
+Function extract_vertices_deg (g : graph) (d : nat) {measure M.cardinal g} :=
+  match extract_deg_vert_dec g d with
+  | inl v => (`v) :: extract_vertices_deg (remove_node (`v )g) d
+  | inr _ => nil
+  end.
+Proof.
+  intros g d v teq.
+  destruct v as [v Hv].
+  simpl.
+  unfold remove_node.
+  rewrite cardinal_map.
+  hauto lq: on rew: off use: Mremove_cardinal_less.
+Qed.
+
+(* If a vertex of max degree is removed from a graph then any vertex
+   with max degree in the new graph cannot be adjacent to it. *)
+Lemma remove_max_deg_adj : forall (g : graph) (i j : node) (d : nat),
+    (d > 0)%nat ->
+    undirected g ->
+    no_selfloop g ->
+    max_deg g = d ->
+    M.In i g ->
+    M.In j g ->
+    degree g j = d ->
+    degree (remove_node i g) j = d ->
+    ~ (S.In j (adj g i)).
+Proof.
+  intros g i j d H H0 H1 H2 H3 H4 H5 H6 contra.
+  destruct d; [inversion H|clear H].
+  assert (degree (remove_node i g) j = d) by (now apply vertex_removed_nbs_dec).
+  qauto use: le_ngt, le_refl unfold: Peano.lt.
+Qed.
+  
