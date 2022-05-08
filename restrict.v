@@ -123,14 +123,11 @@ Lemma restrict_m {A} : forall s s',
     forall k k' : M.t A, M.Equal k k' -> M.Equal (restrict k s) (restrict k' s').
 Proof.
   intros s s' H k k' H0.
-  unfold restrict.
-  (* Need to strengthen induction hypothesis, the maps are equal at every stage. *)
-  apply SP.fold_rec_bis.
-  - scongruence.
-  - admit.
-  - admit.
-Admitted.
-    
+  apply WF.Equal_mapsto_iff.
+  intros k0 e.
+  unfold M.MapsTo.
+  hauto lq: on use: @restrict_agree_2, @restrict_in_set unfold: PositiveSet.elt, PositiveMap.key, PositiveMap.Equal, PositiveSet.Equal.
+Qed.
 
 Lemma restrict_map_comm {A B} : forall (m : M.t A) (f : A -> B) s,
     M.Equal (M.map f (restrict m s)) (restrict (M.map f m) s).
