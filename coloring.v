@@ -165,15 +165,17 @@ Proof.
     qauto use: @restrict_agree unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, PositiveMap.key, nodeset, node, coloring, coloring_ok.
 Qed.
 
-Lemma nbd_2_colorable_3' : forall (g : graph) (f : coloring) p,
+(* The neighborhood of an (n+1)-colorable graph is n-colorable *)
+Lemma nbd_Sn_colorable_n : forall (g : graph) (f : coloring) p n,
     coloring_complete p g f ->
-    three_coloring' f p ->
+    n_coloring f p (S n) ->
     forall v ci, M.find v f = Some ci ->
-            two_coloring' (restrict f (nodes (neighborhood g v))) (S.remove ci p) /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict f (nodes (neighborhood g v))).
+            n_coloring (restrict f (nodes (neighborhood g v))) (S.remove ci p) n
+            /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict f (nodes (neighborhood g v))).
 Proof.
-  intros g f p H H0 v ci H1.
+  intros g f p n H H0 v ci H1.
   split.
-  - apply two_coloring_from_three.
+  - apply n_coloring_missed.
     + hauto use: @restrict_agree unfold: node, coloring, n_coloring, PositiveOrderedTypeBits.t, PositiveMap.key, three_coloring'.
     + sfirstorder.
     + (* let x be a neighbor of v *)
@@ -212,6 +214,28 @@ Proof.
         qauto use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: PositiveSet.elt, node, PositiveOrderedTypeBits.t, coloring_ok, coloring, nodes, coloring_complete, PositiveMap.key.
       * intros ci0 cj H5 H6.
         qauto use: @restrict_agree unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key, PositiveSet.elt, coloring, coloring_ok.
+Qed.
+  
+Lemma nbd_2_colorable_3' : forall (g : graph) (f : coloring) p,
+    coloring_complete p g f ->
+    three_coloring' f p ->
+    forall v ci, M.find v f = Some ci ->
+            two_coloring' (restrict f (nodes (neighborhood g v))) (S.remove ci p) /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict f (nodes (neighborhood g v))).
+Proof.
+  hauto l: on use: SP.remove_cardinal_1, nbd_Sn_colorable_n unfold: PositiveOrderedTypeBits.t, three_coloring', node, two_coloring', n_coloring, PositiveSet.elt inv: nat.
+Qed.
+
+Lemma nbd_not_n_col_graph_not_Sn_col : forall (g : graph) (f : coloring) (p : S.t) n,
+    coloring_complete p g f ->
+    (exists (v : M.key) (ci : node),
+        M.find v f = Some ci /\
+          (~ n_coloring (restrict f (nodes (neighborhood g v))) (S.remove ci p) n
+           \/ ~ coloring_complete (S.remove ci p)
+                                 (neighborhood g v)
+                                 (restrict f (nodes (neighborhood g v))))) ->
+    ~ n_coloring f p (S n).
+Proof.
+  qauto l: on use: nbd_Sn_colorable_n.
 Qed.
 
 (* if f is a complete coloring of g, then if there is a vertex whose
@@ -431,6 +455,8 @@ Qed.
 Definition color_d (g : graph) (d : nat) c (v : {v | M.In v g /\ S.cardinal (adj g v) = d})
   : coloring :=
   M.add (`v) c (@M.empty _).
+
+Lemma max_degree_colorable : forall 
 
 
 (* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
