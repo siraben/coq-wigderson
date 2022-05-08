@@ -1,4 +1,4 @@
--R . Widgerson
+-R . Wigderson
 graph.v
 subgraph.v
 coloring.v
