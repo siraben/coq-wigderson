@@ -6,6 +6,7 @@ Require Import Setoid.  (* Generalized rewriting *)
 Require Import FSets.   (* Efficient functional sets *)
 Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
+Require Import FunInd.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 Import Arith.
@@ -31,7 +32,26 @@ Lemma selectW_terminates:
   forall (K: nat) (g : graph) (n : S.elt),
    S.choose (subset_nodes (high_deg K) g) = Some n ->
    (M.cardinal (remove_node n g) < M.cardinal g)%nat.
-Proof. Admitted.
+Proof.
+  intros K g n H.
+  unfold remove_node.
+  assert (~ M.In n (remove_node n g)).
+  {
+    strivial use: remove_node_neq2 unfold: PositiveOrderedTypeBits.t, PositiveMap.key, PositiveSet.elt, node.
+  }
+  assert (M.In n g).
+  {
+    assert (S.In n (subset_nodes (high_deg K) g)).
+    {
+      hauto l: on use: S.choose_1.
+    }
+    pose proof (subset_nodes_sub (high_deg K) g n H1).
+    unfold nodes, Mdomain in H2.
+    now apply Sin_domain in H2.
+  }
+  rewrite cardinal_map.
+  now apply Mremove_cardinal_less.
+Qed.
 
 Function selectW (K: nat) (g: graph) {measure M.cardinal g} : list node :=
   match S.choose (subset_nodes (high_deg K) g) with
@@ -41,21 +61,18 @@ Function selectW (K: nat) (g: graph) {measure M.cardinal g} : list node :=
 Proof. apply selectW_terminates.
 Defined.
 
-Require Import FunInd.
-Functional Scheme selectW_ind := Induction for selectW Sort Prop.
-Check selectW_ind.
-
 Lemma subset_nodes_prop : forall (P: node -> nodeset -> bool) (g: graph) v,
     S.In v (subset_nodes P g) -> P v (adj g v) = true.
 Proof.
-  intros P g v.
-  unfold subset_nodes.
-  apply WP.fold_rec_bis.
-  - hauto use: WF.find_m unfold: PositiveSet.elt, graph, node, PositiveOrderedTypeBits.t, adj, nodemap.
-  - sfirstorder.
-  - unfold S.elt, nodeset, nodemap in *.
-    intros k e a m' H H0 H1 H2.
-Admitted.
+  intros P g v H.
+  unfold subset_nodes in H.
+  apply Sin_domain in H.
+  destruct H as [e He].
+  epose proof (@WP.filter_iff _ P _ g v e).
+  rewrite H in He.
+  unfold adj.
+  sauto.
+Qed.
 
 (* If a node m is removed from the graph then the cardinality of the
   adj set of a vertex v is decreasing. *)
@@ -73,25 +90,10 @@ Proof.
     (* Note: why is this not more automatic *)
     destruct (E.eq_dec v m).
     + ecrush use: map_o, M.grs.
-    + rewrite map_o in Heqo.
-      rewrite M.gro in Heqo by auto.
-      unfold option_map in Heqo.
-      unfold nodeset in *.
-      ssimpl.
-      sfirstorder use: PositiveSet.remove_3, SP.subset_cardinal unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.Subset.
-  - assert (M.find v (remove_node m g) = None).
-    {
-      unfold remove_node.
-      rewrite map_o.
-      unfold nodeset, node in *.
-      destruct (E.eq_dec v m).
-      - subst.
-        hauto lq: on use: M.grs.
-      - rewrite M.gro by auto.
-        unfold option_map.
-        hauto l: on.
-    }
-    sauto lq: on drew: off.
+    + unfold nodeset in *.
+      rewrite map_o, M.gro in Heqo by auto.
+      qauto use: SP.subset_cardinal, PositiveSet.remove_3 unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, option_map, PositiveSet.Subset.
+  - hauto lq: on use: remove_node_subgraph, SP.subset_cardinal unfold: PositiveMap.In, PositiveSet.t, is_subgraph, nodeset, PositiveMap.MapsTo, PositiveSet.Subset, adj inv: option.
 Qed.
 
 (* If v is in the list returned by selectW then the cardinality of v is indeed high. *)
@@ -154,17 +156,19 @@ Program Fixpoint phase1
       let nbhd := neighborhood g v in
       (* i is the map that turns the coloring using colors 1,2 into c+1, c+2 *)
       let (i, coloring_of_nbhd) := (``(nbd_2_colorable_3 c g f Hf H1 v)) in
-      let g' := remove_subgraph g (nodes nbhd) in
+      let g' := remove_nodes g (nodes nbhd) in
       (* color the high-degree vertex 1 each time *)
       Munion (M.add v 1 (M.map i coloring_of_nbhd)) (phase1 k (c+2) g' f _ _ _)
   | None => (@M.empty _)
   end.
 Next Obligation.
-  (* Removing subgraph reduces size of the graph *)
+Admitted.
+Next Obligation.
+Admitted.
+Next Obligation.
 Admitted.
 Check phase1.
 
-Require Import FunInd.
 Functional Scheme phase1_ind := Induction for phase1 Sort Prop.
 Check phase1_ind.
 (* maybe create robust algorithm, if the 2-coloring failed then output

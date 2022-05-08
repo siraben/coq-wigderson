@@ -166,8 +166,8 @@ Proof.
 Qed.
 
 Lemma nbd_2_colorable_3' : forall (g : graph) (f : coloring) p,
-    three_coloring' f p ->
     coloring_complete p g f ->
+    three_coloring' f p ->
     forall v ci, M.find v f = Some ci ->
             two_coloring' (restrict f (nodes (neighborhood g v))) (S.remove ci p) /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict f (nodes (neighborhood g v))).
 Proof.
@@ -212,6 +212,181 @@ Proof.
         qauto use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: PositiveSet.elt, node, PositiveOrderedTypeBits.t, coloring_ok, coloring, nodes, coloring_complete, PositiveMap.key.
       * intros ci0 cj H5 H6.
         qauto use: @restrict_agree unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key, PositiveSet.elt, coloring, coloring_ok.
+Qed.
+
+(* if f is a complete coloring of g, then if there is a vertex whose
+   neighborhood is not 2-colorable or the coloring is not complete
+   then f cannot be a 3-coloring
+ *)
+Lemma nbd_not_2_col_graph_not_3_col : forall (g : graph) (f : coloring) (p : S.t),
+    coloring_complete p g f ->
+    (exists (v : M.key) (ci : node),
+        M.find v f = Some ci /\
+          (~ two_coloring' (restrict f (nodes (neighborhood g v))) (S.remove ci p)
+           \/ ~ coloring_complete (S.remove ci p)
+                                 (neighborhood g v)
+                                 (restrict f (nodes (neighborhood g v))))) ->
+    ~ three_coloring' f p.
+Proof.
+  qauto l: on use: nbd_2_colorable_3'.
+Qed.
+
+Definition constant_color {A} (s : S.t) c := S.fold (fun v => M.add v c) s (@M.empty A).
+
+Lemma constant_color_colors {A} s c : forall i, S.In i s -> M.find i (@constant_color A s c) = Some c.
+Proof.
+  intros i Hi.
+  unfold constant_color.
+  generalize dependent Hi.
+  apply SP.fold_rec_bis.
+  - sfirstorder.
+  - sauto q: on.
+  - intros x a s' H H0 H1 Hi.
+    qauto use: WF.add_o, PositiveSet.add_3, PositiveMap.gss unfold: PositiveMap.key, PositiveSet.elt inv: sumbool.
+Qed.
+
+Lemma constant_color_inv {A} s c : forall i, M.In i (@constant_color A s c) -> S.In i s.
+Proof.
+  intros i.
+  unfold constant_color.
+  apply SP.fold_rec_bis.
+  - sfirstorder.
+  - sauto q: on.
+  - intros x a s' H H0 H1 H2.
+    destruct (E.eq_dec i x).
+    + subst. hauto l: on use: PositiveSet.add_1 unfold: PositiveMap.key, PositiveSet.elt.
+    + hauto use: WF.add_neq_in_iff, PositiveSet.add_2 unfold: PositiveSet.elt, PositiveMap.key.
+Qed.
+
+
+(* two_color_step
+ - let g be a graph, v be a vertex, c1 and c2 the colors we have
+ - this function colors v with c1 and colors its neighbors with c2
+ *)
+
+Definition two_color_step (g : graph) (v : node) c1 c2 (f : coloring) : coloring :=
+  M.add v c1 (constant_color (adj g v) c2).
+
+Lemma two_color_step_colors_v_c1 : forall g v c1 c2 f, M.find v (two_color_step g v c1 c2 f) = Some c1.
+Proof.
+  intros g v c1 c2 f.
+  unfold two_color_step.
+  scongruence use: PositiveMap.gss unfold: PositiveMap.key, nodeset, node, adj, PositiveOrderedTypeBits.t.
+Qed.
+
+Lemma two_color_step_colors_adj_c2 : forall g v c1 c2 f i,
+    no_selfloop g -> S.In i (adj g v) -> M.find i (two_color_step g v c1 c2 f) = Some c2.
+Proof.
+  hauto use: PositiveMap.gso, @constant_color_colors unfold: two_color_step, PositiveSet.In, PositiveOrderedTypeBits.t, nodeset, node, PositiveSet.t, PositiveMap.key, PositiveSet.empty, PositiveSet.elt, no_selfloop, adj.
+Qed.
+
+Lemma two_color_step_inv : forall g v c1 c2 f ci j,
+    ~ M.In v f ->
+    M.find j (two_color_step g v c1 c2 f) = Some ci ->
+    j = v \/ S.In j (adj g v).
+Proof.
+  intros g v c1 c2 f ci j H H0.
+  unfold two_color_step in H0.
+  destruct (E.eq_dec j v).
+  - subst. left. reflexivity.
+  - right.
+    rewrite M.gso in H0 by auto.
+    qauto use: WF.in_find_iff, @constant_color_inv unfold: nodeset, adj, node, PositiveMap.key, PositiveOrderedTypeBits.t.
+Qed.    
+
+Lemma undirected_adj_in : forall (g : graph) (v : node) i , undirected g -> S.In i (adj g v) -> M.In i g.
+Proof.
+  intros g v i H H0.
+  hauto use: SP.Dec.F.empty_iff unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, undirected, node, PositiveMap.MapsTo, adj, PositiveMap.In.
+Qed.
+
+Lemma in_two_set_inv : forall i a b, S.In i (SP.of_list [a;b]) -> i = a \/ i = b.
+Proof.
+  intros i a b H.
+  qauto use: PositiveSet.singleton_1, PositiveSet.add_spec, PositiveSet.cardinal_1 unfold: fold_right, PositiveSet.empty, length, SP.of_list, PositiveSet.cardinal, PositiveSet.singleton.
+Qed.
+
+Lemma two_color_step_correct : forall (g : graph) (v : node) c1 c2,
+    c1 <> c2 ->
+    no_selfloop g ->
+    undirected g ->
+    M.In v g ->
+    (exists m, two_coloring' m (SP.of_list [c1;c2]) /\ coloring_complete (SP.of_list [c1;c2]) g m) ->
+    coloring_ok (SP.of_list [c1;c2]) g (two_color_step g v c1 c2 (@M.empty _)).
+Proof.
+  intros g v c1 c2 Hc H Hu magic H0.
+  split.
+  - intros ci H2.
+    unfold two_color_step in H2.
+    destruct (E.eq_dec i v).
+    + subst. hauto use: PositiveMap.gss, PositiveSet.add_1 unfold: PositiveSet.empty, PositiveOrderedTypeBits.t, PositiveMap.key, node, adj, PositiveSet.elt, nodeset, PositiveSet.t, fold_right, SP.of_list.
+    + rewrite M.gso in H2 by auto.
+      pose proof (constant_color_inv (adj g v) c2 i ltac:(sfirstorder)).
+      pose proof (constant_color_colors (adj g v) c2 _ H3).
+      qauto use: @constant_color_colors, PositiveSet.add_2, PositiveSet.add_1 unfold: PositiveSet.elt, node, adj, PositiveOrderedTypeBits.t, nodeset, fold_right, SP.of_list.
+  - intros ci cj H2 H3.
+    remember (two_color_step g v c1 c2 (M.empty node)) as f.
+    assert (Hv: M.find v f = Some c1).
+    {
+      subst.
+      apply two_color_step_colors_v_c1.
+    }
+    assert (Cadj: forall x, S.In x (adj g v) -> M.find x f = Some c2).
+    {
+      intros x Hx.
+      hauto l: on use: two_color_step_colors_adj_c2, two_color_step_colors_v_c1 unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, PositiveMap.key, coloring.
+    }
+    assert (~ M.In v (M.empty node)) by hauto l: on use: WF.empty_in_iff.
+    destruct (E.eq_dec i j); [scongruence|].
+    subst f.
+    pose proof (two_color_step_inv g _ _ _ _ _ _ H4 H3).
+    pose proof (two_color_step_inv g _ _ _ _ _ _ H4 H2).
+    destruct H5, H6; subst.
+    + contradiction.
+    + rewrite two_color_step_colors_adj_c2 in H2 by auto.
+      sfirstorder.
+    + rewrite two_color_step_colors_v_c1 in H2.
+      rewrite two_color_step_colors_adj_c2 in H3 by auto.
+      scongruence.
+    + rewrite two_color_step_colors_adj_c2 in H2, H3 by auto.
+      (* Contradiction! We supposed that the graph was 2-colorable to
+         begin with, but where we have two  *)
+      destruct H0 as [m [p [Hm Hm']]].
+      pose proof (Hm i ltac:(sauto use: undirected_adj_in)).
+      pose proof (Hm j ltac:(sauto use: undirected_adj_in)).
+      destruct H0 as [ii Hii].
+      destruct H7 as [jj Hjj].
+      unfold M.MapsTo in *.
+      assert (ii = c1 \/ ii = c2).
+      {
+        pose proof (proj1 (Hm' _ _ H1) ii Hii).
+        hauto l: on use: in_two_set_inv.
+      }
+      assert (jj = c1 \/ jj = c2).
+      {
+        pose proof (proj1 (Hm' _ _ (Hu _ _ H1)) jj Hjj).
+        hauto l: on use: in_two_set_inv.
+      }
+      pose proof (Hm v ltac:(sauto use: undirected_adj_in)).
+      destruct H8 as [vv Hvv].
+      assert (vv = c1 \/ vv = c2).
+      {
+        pose proof (proj1 (Hm' _ _ H5) vv Hvv).
+        hauto l: on use: in_two_set_inv.
+      }
+      (* so i and j have colors given by the magic coloring function,
+         but no matter what colors we give them something is going to go
+         wrong *)
+      destruct H0, H7, H8; strivial unfold: coloring_ok.
+Qed.    
+
+(* Two-coloring algorithm *)
+Lemma two_color_vertex (g : graph) p (f : coloring) (Hf : three_coloring' f p) (Hfc : coloring_complete p g f)
+  (v : node) (Hv : M.In v g) ci (Hci : M.find v f = Some ci) (a b : positive)  :
+  {N | two_coloring' N (S.remove ci p) /\ coloring_complete (S.remove ci p) (neighborhood g v) N}.
+Proof.
+  hauto l: on use: nbd_2_colorable_3'.
+  Show Proof.
 Qed.
 
 (* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)

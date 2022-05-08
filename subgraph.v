@@ -5,6 +5,7 @@ Require Import FSets.   (* Efficient functional sets *)
 Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
 Require Import Psatz.
+Require Import restrict.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 Import Arith.
@@ -202,6 +203,18 @@ Qed.
 Lemma empty_graph_no_vert : forall v, ~ M.In v empty_graph.
 Proof. sauto q: on. Qed.
 
+Lemma empty_subgraph_is_subgraph (g : graph) : is_subgraph empty_graph g.
+Proof.
+  unfold is_subgraph.
+  split.
+  - hecrush.
+  - intros v i Hi.
+    unfold adj in Hi.
+    unfold empty_graph in Hi.
+    ssimpl.
+    scongruence use: PositiveMap.gempty unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key.
+Qed.
+
 (* The vertices of an induced subgraph is a subset of s. *)
 Lemma subgraph_vertices_set : forall g s, S.Subset (nodes (subgraph_of g s)) s.
 Proof.
@@ -224,8 +237,7 @@ Proof.
     + assumption.
 Qed.
 
-Lemma subgraph_of_nodes : forall g i s,
-    S.In i (nodes (subgraph_of g s)) -> S.In i s.
+Lemma subgraph_of_nodes : forall g i s, S.In i (nodes (subgraph_of g s)) -> S.In i s.
 Proof.
   hauto l: on use: subgraph_vertices_set, subgraph_of_is_subgraph unfold: PositiveMap.key, is_subgraph, PositiveSet.Subset, PositiveSet.elt.
 Qed.
@@ -258,11 +270,8 @@ Proof.
   remember (adj g i) as s.
   apply subgraph_of_nodes with (g := g).
   destruct (E.eq_dec j i).
-  - subst.
-    hauto lq: on use: Sin_domain, remove_node_neq2 unfold: nodes.
-  - apply Sin_domain.
-    rewrite remove_node_neq by eauto.
-    strivial use: Sin_domain unfold: nodes, neighbors, nodemap, graph, neighborhood.
+  - hauto lq: on use: Sin_domain, remove_node_neq2 unfold: nodes.
+  - hauto lq: on use: Sin_domain, remove_node_neq unfold: nodes.
 Qed.
 
 (* When is an edge in the induced subgraph?
@@ -272,15 +281,74 @@ Qed.
 - if v in S and v in G then v in G|s
  *)
 
-Definition remove_subgraph (g : graph) s :=
-  M.fold (fun v e m' => if S.mem v s then m' else M.add v (S.diff e s) m') (@M.empty _) g.
+(* Remove a set of vertices from a graph. *)
+(* For proving:
+- first restrict the graph by (S.diff (Mdomain g) s)
+- then map subtracting s from every adj set
+ *)
+Definition remove_nodes (g : graph) (s : nodeset) :=
+  M.map (fun ve => S.diff ve s) (restrict g (S.diff (nodes g) s)).
+(* Removing nodes from the subgraph is a subgraph. *)
+Lemma remove_nodes_is_subgraph : forall g s, is_subgraph (remove_nodes g s) g.
+Proof.
+  intros g s.
+  unfold remove_nodes.
+  split.
+  - unfold nodes.
+    intros i Hi.
+    rewrite Sin_domain in *.
+    assert (M.In i (restrict g (S.diff (Mdomain g) s))).
+    {
+      rewrite WF.map_in_iff in Hi.
+      assumption.
+    }
+    apply restrict_incl in H.
+    assumption.
+  - intros v i Hi.
+    unfold adj in *.
+    destruct (M.find v (M.map _ _)) eqn:E.
+    + destruct (M.find v g) eqn:E2.
+      * rewrite WF.map_o in E.
+        destruct (M.find _ (restrict _ _)) eqn:E3; [|scongruence].
+        simpl in E.
+        unfold nodeset in *.
+        apply restrict_agree in E3.
+        hauto use: PositiveSet.diff_1.
+      * exfalso.
+        rewrite WF.map_o in E.
+        destruct (M.find _ (restrict _ _)) eqn:E3; [|scongruence].
+        apply restrict_agree in E3.
+        unfold nodeset in *.
+        hauto l: on.
+    + sauto.
+Qed.
 
-Lemma remove_subgraph_is_subgraph : forall g s, is_subgraph (remove_subgraph g s) g.
-Proof. split; unfold remove_subgraph; apply WP.fold_rec_bis; scrush. Qed.
+Lemma remove_nodes_sub : forall g s i, S.In i s -> M.In i g -> ~ M.In i (remove_nodes g s).
+Proof.
+  intros g s i H H0 contra.
+  unfold nodeset in *.
+  unfold remove_nodes in contra.
+  rewrite WF.map_in_iff in contra.
+  unfold nodes.
+  destruct contra as [e He].
+  unfold M.MapsTo in He.
+  apply restrict_in_set in He.
+  unfold nodes in He.
+  apply Sin_domain in H0.
+  best use: S.diff_spec.
+Qed.
 
+(* Removing a subgraph *)
+Lemma remove_nodes_lt : forall g s i, S.In i s -> M.In i g -> (M.cardinal (remove_nodes g s) < M.cardinal g)%nat.
+Proof.
+  intros g s i H H0.
+  pose proof (remove_nodes_sub g s i H H0).
+  admit.
+Admitted.
+  
 (* Removing a subgraph preserves undirectedness *)
-Lemma remove_subgraph_undirected : forall g s, undirected g -> undirected (remove_subgraph g s).
-Proof. hauto q: on. Qed.
+Lemma remove_nodes_undirected : forall g s, undirected g -> undirected (remove_nodes g s).
+Proof. Admitted.
 
 (* Maximum degree of a graph *)
 Definition max_deg' (g : graph) := M.fold (fun _ s n => max (S.cardinal s) n) g 0.
@@ -350,8 +418,6 @@ Proof.
       sauto lq: on.
   - sauto lq: on rew: off use: map_eq_nil, WP.elements_Empty inv: list.
 Qed.
-
-Require Import Psatz.
 
 Lemma max_deg_subgraph : forall (g g' : graph), is_subgraph g' g -> max_deg g' <= max_deg g.
 Proof.
