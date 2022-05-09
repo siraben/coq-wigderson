@@ -13,7 +13,7 @@ Import Arith.
 Import ListNotations.
 Import Nat.
 
-(* Predicate that takes a vertex with high degree (> sqrt K) *)
+(* Predicate that takes a vertex with high degree (> K) *)
 Definition high_deg (K: nat) (n: node) (adj: nodeset) : bool := K <? S.cardinal adj.
 
 Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.

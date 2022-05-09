@@ -8,6 +8,7 @@ Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
 Require Import Decidable.
 Require Import Program.
+Require Import FunInd.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 From Hammer Require Import Reflect.
@@ -225,7 +226,7 @@ Lemma nbd_2_colorable_3' : forall (g : graph) (f : coloring) p,
     coloring_complete p g f ->
     three_coloring' f p ->
     forall v ci, M.find v f = Some ci ->
-            two_coloring' (restrict f (nodes (neighborhood g v))) (S.remove ci p) /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict f (nodes (neighborhood g v))).
+            two_coloring' (restrict_on_nbd f g v) (S.remove ci p) /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict_on_nbd f g v).
 Proof.
   hauto l: on use: SP.remove_cardinal_1, nbd_Sn_colorable_n unfold: PositiveOrderedTypeBits.t, three_coloring', node, two_coloring', n_coloring, PositiveSet.elt inv: nat.
 Qed.
@@ -234,10 +235,7 @@ Lemma nbd_not_n_col_graph_not_Sn_col : forall (g : graph) (f : coloring) (p : co
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
         M.find v f = Some ci /\
-          (~ n_coloring (restrict f (nodes (neighborhood g v))) (S.remove ci p) n
-           \/ ~ coloring_complete (S.remove ci p)
-                                 (neighborhood g v)
-                                 (restrict f (nodes (neighborhood g v))))) ->
+          (~ n_coloring (restrict_on_nbd f g v) (S.remove ci p) n)) ->
     ~ n_coloring f p (S n).
 Proof.
   qauto l: on use: nbd_Sn_colorable_n.
@@ -251,10 +249,7 @@ Lemma nbd_not_2_col_graph_not_3_col : forall (g : graph) (f : coloring) (p : col
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
         M.find v f = Some ci /\
-          (~ two_coloring' (restrict f (nodes (neighborhood g v))) (S.remove ci p)
-           \/ ~ coloring_complete (S.remove ci p)
-                                 (neighborhood g v)
-                                 (restrict f (nodes (neighborhood g v))))) ->
+          (~ two_coloring' (restrict_on_nbd f g v) (S.remove ci p))) ->
     ~ three_coloring' f p.
 Proof.
   qauto l: on use: nbd_2_colorable_3'.
@@ -309,9 +304,7 @@ Definition two_color_step (g : graph) (v : node) c1 c2 (f : coloring) : coloring
 
 Lemma two_color_step_colors_v_c1 : forall g v c1 c2 f, M.find v (two_color_step g v c1 c2 f) = Some c1.
 Proof.
-  intros g v c1 c2 f.
-  unfold two_color_step.
-  scongruence use: PositiveMap.gss unfold: PositiveMap.key, nodeset, node, adj, PositiveOrderedTypeBits.t.
+  scongruence use: PositiveMap.gss unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key, adj, nodeset, two_color_step.
 Qed.
 
 Lemma two_color_step_colors_adj_c2 : forall g v c1 c2 f i,
@@ -321,18 +314,17 @@ Proof.
 Qed.
 
 Lemma two_color_step_inv : forall g v c1 c2 f ci j,
-    ~ M.In v f ->
     M.find j (two_color_step g v c1 c2 f) = Some ci ->
     j = v \/ S.In j (adj g v).
 Proof.
-  intros g v c1 c2 f ci j H H0.
-  unfold two_color_step in H0.
+  intros g v c1 c2 f ci j H.
+  unfold two_color_step in H.
   destruct (E.eq_dec j v).
   - subst. left. reflexivity.
   - right.
-    rewrite M.gso in H0 by auto.
+    rewrite M.gso in H by auto.
     qauto use: WF.in_find_iff, @constant_color_inv unfold: nodeset, adj, node, PositiveMap.key, PositiveOrderedTypeBits.t.
-Qed.    
+Qed.
 
 Lemma undirected_adj_in : forall (g : graph) (v : node) i , undirected g -> S.In i (adj g v) -> M.In i g.
 Proof.
@@ -379,15 +371,12 @@ Proof.
     assert (~ M.In v (M.empty node)) by hauto l: on use: WF.empty_in_iff.
     destruct (E.eq_dec i j); [scongruence|].
     subst f.
-    pose proof (two_color_step_inv g _ _ _ _ _ _ H4 H3).
-    pose proof (two_color_step_inv g _ _ _ _ _ _ H4 H2).
+    pose proof (two_color_step_inv g _ _ _ _ _ _ H3).
+    pose proof (two_color_step_inv g _ _ _ _ _ _ H2).
     destruct H5, H6; subst.
     + contradiction.
-    + rewrite two_color_step_colors_adj_c2 in H2 by auto.
-      sfirstorder.
-    + rewrite two_color_step_colors_v_c1 in H2.
-      rewrite two_color_step_colors_adj_c2 in H3 by auto.
-      scongruence.
+    + hauto l: on use: two_color_step_colors_adj_c2.
+    + hauto l: on use: two_color_step_colors_adj_c2.
     + rewrite two_color_step_colors_adj_c2 in H2, H3 by auto.
       (* Contradiction! We supposed that the graph was 2-colorable to
          begin with, but here we have a configuration of vertices that
@@ -395,31 +384,29 @@ Proof.
       destruct H0 as [m [p [Hm Hm']]].
       pose proof (Hm i ltac:(sauto use: undirected_adj_in)).
       pose proof (Hm j ltac:(sauto use: undirected_adj_in)).
+      pose proof (Hm v ltac:(sauto use: undirected_adj_in)) as H8.
       destruct H0 as [ii Hii].
       destruct H7 as [jj Hjj].
+      destruct H8 as [vv Hvv].
       unfold M.MapsTo in *.
       assert (ii = c1 \/ ii = c2).
       {
-        pose proof (proj1 (Hm' _ _ H1) ii Hii).
-        hauto l: on use: in_two_set_inv.
+        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring', n_coloring.
       }
       assert (jj = c1 \/ jj = c2).
       {
-        pose proof (proj1 (Hm' _ _ (Hu _ _ H1)) jj Hjj).
-        hauto l: on use: in_two_set_inv.
+        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring', n_coloring.
       }
-      pose proof (Hm v ltac:(sauto use: undirected_adj_in)).
-      destruct H8 as [vv Hvv].
       assert (vv = c1 \/ vv = c2).
       {
-        pose proof (proj1 (Hm' _ _ H5) vv Hvv).
-        hauto l: on use: in_two_set_inv.
+        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring', n_coloring.
       }
       (* So i and j have colors given by the magic coloring function,
          but no matter what colors we give them something is going to go
          wrong *)
       destruct H0, H7, H8; strivial unfold: coloring_ok.
-Qed.    
+Qed.
+
 
 (* If a coloring is not complete then it misses a vertex (constructively *)
 Lemma not_complete_has_uncolored (f : coloring) (g : graph) p :
@@ -469,13 +456,6 @@ Proof.
         hauto use: SP.remove_cardinal_1 unfold: nodeset inv: Peano.le.
       * fcrush.
 Qed.
-
-(* If a graph has a vertex of degree d then color that vertex with c *)
-Definition color_d (g : graph) (d : nat) c (v : {v | M.In v g /\ S.cardinal (adj g v) = d})
-  : coloring :=
-  M.add (`v) c (@M.empty _).
-
-(* TODO: map over a set to produce new sets *)
 
 Definition n_colors (n : nat) := SP.of_list (map Pos.of_nat (seq 0 (n+1))).
 
@@ -592,3 +572,106 @@ Proof.
       qauto use: PositiveSet.inter_3, Snot_in_empty unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
     + sfirstorder unfold: PositiveMap.MapsTo, coloring_ok.
 Qed.
+
+
+(* If a graph has a vertex of degree d then color that vertex with c *)
+
+
+
+
+
+(* maybe we just use a "larger unit of operation" on each function call
+   remove all the max degree vertices then color them *)
+
+(* TODO: map over a set to produce new sets *)
+
+
+Function phase2 (g : graph) {measure max_deg g} : coloring * graph :=
+  match (max_deg g)%nat with
+  | 0%nat => (constant_color (nodes g) 1, (@M.empty _))
+  | S n => let (ns, g') := extract_vertices_deg g (S n) in
+          let ns' := SP.of_list (map fst ns) in
+          let (f', g'') := phase2 g' in
+          (Munion (constant_color ns' (Pos.of_nat (S n))) f', g'')
+  end.
+Proof.
+  intros g n teq.
+  intros ns g' teq0.
+  replace g' with (snd (ns, g')) by auto.
+  rewrite <- teq0.
+  hfcrush use: nlt_0_r, max_deg_subgraph, extract_vertices_deg_subgraph, le_lt_or_eq, extract_vertices_max_deg unfold: Peano.lt, snd, extract_vertices_deg inv: sumbool.
+Defined.
+
+(* Functional Scheme phase2_ind := Induction for phase2 Sort Prop. *)
+
+Lemma phase2_0 (g : graph) : max_deg g = 0%nat -> phase2 g = (constant_color (nodes g) 1, @M.empty _).
+Proof.
+  intros H.
+  hauto lq: on use: phase2_equation.
+Qed.
+
+
+(* Need to define an induction principle for graphs on max degree. *)
+(* Given a graph g, to prove P holds on g, then
+ - if max_deg g = 0, then use H0
+ - if max_deg g = Sn, then remove all the vertices of max degree and prove
+   if P holds on the subgraph then it holds on the graph with the vertices placed back,
+ - then P holds on all g.
+ *)
+Lemma max_deg_ind (P : graph -> Prop)
+    (H0: forall g, max_deg g = 0%nat -> P g)
+    (IH: forall g n, (forall g', (max_deg g' <= n)%nat -> P g') -> max_deg g = S n -> P g) :
+    (forall g, P g).
+Proof.
+assert (indnew : forall (n : nat) (g : graph), (max_deg g <= n)%nat -> P g).
+{ induction n; sauto lq: on rew: off. }
+hauto l: on.
+Qed.
+  
+
+Lemma phase2_n_adj : forall g i j,
+  i <> j ->
+  undirected g ->
+  no_selfloop g ->
+  M.In i (fst (phase2 g)) ->
+  M.In j (fst (phase2 g)) ->
+  ~ S.In i (adj g j).
+Proof.
+  (* how to proceed?  without loss of generality i occurs before j,
+  then there is a sequence of extractions of max degree vertices between them*)
+  intros g.
+  pattern g.
+  apply max_deg_ind.
+  - hauto l: on use: max_deg_0_adj.
+  - intros g0 n H H0 i j H1 H2 H3 H4 H5.
+    rewrite phase2_equation in H4, H5.
+    rewrite H0 in H4, H5.
+    simpl in H4, H5.
+    remember (extract_vertices_deg g0 (S n)) as k.
+    destruct k as [ns g'].
+    destruct (phase2 g') as [f' g''] eqn:E.
+    assert ((max_deg g' <= n)%nat).
+    {
+      hauto lq: on use: phase2_tcc, le_ngt unfold: Peano.lt.
+    }
+    remember (map fst ns) as l.
+    remember (constant_color (SP.of_list l)
+                  match n with
+                  | 0%nat => 1
+                  | S _ => Pos.succ (Pos.of_nat n)
+                  end) as mns.
+    simpl in H4, H5.
+    destruct H4 as [ci Hci].
+    destruct H5 as [cj Hcj].
+    apply Munion_case in Hci, Hcj.
+    admit.
+Admitted.
+
+    
+
+  
+(* let d be the max degree,
+   remove, (using other rec algo) vertices of degree d
+   - if you remove a vertex i and some j adj to i then j does not have deg d anymore after removal
+   - so
+ *)

@@ -426,6 +426,7 @@ Proof.
   - sauto lq: on rew: off use: map_eq_nil, WP.elements_Empty inv: list.
 Qed.
 
+(* TODO: can be done as a direct proof *)
 Lemma max_deg_subgraph : forall (g g' : graph), is_subgraph g' g -> max_deg g' <= max_deg g.
 Proof.
   intros g g' H.
@@ -493,6 +494,7 @@ Proof.
   (* but this is a contradiction since we have d < d' <= c < d *)
   lia.
 Qed.
+
 (* Degree of a vertex *)
 Definition degree (g : graph) (v : node) := S.cardinal (adj g v).
 
@@ -502,6 +504,22 @@ Proof.
   sauto unfold: degree, adj.
 Qed.
 
+(* If the max degree of a graph is 0 then every pair of vertices is not adjacent. *)
+Lemma max_deg_0_adj (g : graph) i j : max_deg g = 0 -> ~ S.In i (adj g j).
+Proof.
+  intros H contra.
+  assert (M.In j g).
+  {
+    hfcrush use: SP.remove_cardinal_1, neq_0_lt, degree_gt_0_in, SP.Dec.F.empty_iff unfold: PositiveSet.empty, PositiveSet.In, adj, gt, degree, nodeset.
+  }
+  destruct H0 as [e He].
+  unfold adj in contra.
+  unfold M.MapsTo in He.
+  rewrite He in contra.
+  pose proof (max_deg_max g j e ltac:(sfirstorder)).
+  hauto use: SP.cardinal_inv_1 unfold: nodeset, PositiveSet.Empty inv: Peano.le.
+Qed.
+  
 Lemma max_deg_gt_not_empty (g : graph) : max_deg g > 0 -> ~ M.Empty g.
 Proof.
   intros H contra.
@@ -547,10 +565,7 @@ Definition extract_deg_vert (g : graph) (d : nat) :=
   find (fun p => Nat.eqb (S.cardinal (snd p)) d) (M.elements g).
 
 Lemma InA_in_iff {A} : forall p (l : list (M.key * A)), (InA (@M.eq_key_elt A) p l) <-> In p l.
-Proof.
-  intros p.
-  induction l; sauto q: on.
-Qed.
+Proof. induction l; sauto q: on. Qed.
 
 (* Extract a degree of vertex d in a graph or fail *)
 Lemma extract_deg_vert_dec : forall (g : graph) (d : nat),
@@ -596,11 +611,11 @@ Defined.
 
 (* Extract vertices of a given degree in a graph, removing it from the
    graph each time. *)
-Function extract_vertices_deg (g : graph) (d : nat) {measure M.cardinal g} : list node * graph :=
+Function extract_vertices_deg (g : graph) (d : nat) {measure M.cardinal g} : list (node * graph) * graph :=
   match extract_deg_vert_dec g d with
   | inl v =>
-      let (l, g') := extract_vertices_deg (remove_node (`v ) g) d in
-      ((`v) :: l, g')
+      let (l, g') := extract_vertices_deg (remove_node (`v) g) d in
+      ((`v, g') :: l, g')
   | inr _ => (nil, g)
   end.
 Proof.
@@ -618,10 +633,7 @@ Lemma extract_vertices_deg_exhaust (g : graph) n :
   n > 0 -> ~ exists v, degree (snd (extract_vertices_deg g n)) v = n.
 Proof.
   functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
-  - simpl.
-    rewrite e0 in IHp.
-    simpl in IHp.
-    apply IHp.
+  - qauto l: on.
   - intros dgt0 contra.
     destruct d; [sauto q:on|].
     simpl in *.
@@ -629,6 +641,14 @@ Proof.
     sauto lq: on use: degree_gt_0_in.
 Qed.
 
+(* If a vertex occurs in *)
+(* Lemma extract_vertices_correct (g : graph) n v : In v (fst (extract_vertices_deg g n)) -> degree g v >= n . *)
+(* Proof. *)
+(*   split. *)
+(*   - intros. *)
+(*     admit. *)
+(*   - functional induction (extract_vertices_deg g n). *)
+(*     + hammer. *)
 Lemma extract_vertices_deg_subgraph (g : graph) n :
   is_subgraph (snd (extract_vertices_deg g n)) g. 
 Proof.
@@ -646,14 +666,13 @@ Lemma extract_vertices_max_deg (g : graph) :
 Proof.
   intros H.
   pose proof (extract_vertices_deg_exhaust g _ H).
-  remember (extract_vertices_deg g (max_deg g)) as g'.
   pose proof (extract_vertices_deg_subgraph g (max_deg g)).
-  rewrite <- Heqg' in H1.
+  remember (extract_vertices_deg g (max_deg g)) as g'.
   pose proof (max_deg_subgraph g (snd g') H1).
   apply le_lt_or_eq in H2.
-  destruct  H2.
+  destruct H2.
   - assumption.
-  - exfalso.
+  - exfalso.    
     (* want to get a contradiction because we ran out of vertices of
        max degree *)
     pose proof (max_deg_gt_not_empty _ H).
@@ -685,4 +704,22 @@ Proof.
   assert (degree (remove_node i g) j = d) by (now apply vertex_removed_nbs_dec).
   qauto use: le_ngt, le_refl unfold: Peano.lt.
 Qed.
-  
+
+
+(* If two vertices i, j occur in the list of max degree vertices
+   extracted from the graph, then i is not adjacent to j
+ *)
+Lemma extract_vertices_deg_not_adj (g : graph) (d : nat) i j :
+  i <> j ->
+  d = max_deg g ->
+  undirected g ->
+  no_selfloop g ->
+  In i (map fst (fst (extract_vertices_deg g d))) ->
+  In j (map fst (fst (extract_vertices_deg g d))) ->
+  ~ S.In j (adj g i).
+Proof.
+  intros H H0 H1 H2 H3 H4 contra.
+  (* assume they are adjacent *)
+  (* but one of them was extracted first *)
+  (* *)
+Admitted.
