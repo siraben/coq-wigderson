@@ -26,7 +26,7 @@ Definition subgraph_of (g : graph) (s : S.t) :=
 - the adjacency set of every v in g' is a subset of adjacency set of every v in g
  *)
 Definition is_subgraph (g' g : graph) :=
-  (S.Subset (nodes g') (nodes g)) /\ (forall v, S.Subset (adj g' v) (adj g v)).
+  S.Subset (nodes g') (nodes g) /\ forall v, S.Subset (adj g' v) (adj g v).
 
 Lemma subgraph_refl : forall g, is_subgraph g g.
 Proof. sfirstorder. Qed.

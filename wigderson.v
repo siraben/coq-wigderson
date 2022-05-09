@@ -7,11 +7,14 @@ Require Import FSets.   (* Efficient functional sets *)
 Require Import FMaps.   (* Efficient functional maps *)
 Require Import PArith.
 Require Import FunInd.
+Require Import restrict.
+Require Import munion.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 Import Arith.
 Import ListNotations.
 Import Nat.
+
 
 (* Predicate that takes a vertex with high degree (> K) *)
 Definition high_deg (K: nat) (n: node) (adj: nodeset) : bool := K <? S.cardinal adj.
@@ -19,6 +22,7 @@ Definition high_deg (K: nat) (n: node) (adj: nodeset) : bool := K <? S.cardinal 
 Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
 
 Local Open Scope positive_scope.
+
 
 (* Wigderson's algorithm definition
 
@@ -115,9 +119,6 @@ Proof.
   - sfirstorder.
 Qed.
 
-Check (fun (g : graph) (f : coloring) (H : three_colorable g) Hf H1 v =>
-         `(nbd_2_colorable_3 2 g f Hf H1 v)).
-
 (* Phase 1 of Wigderson *)
 (* Let:
 - k: bound for degree of vertices
@@ -140,39 +141,62 @@ phase1(g,c):
 
  *)
 Require Import Program.
+
+(* Two-coloring of neighborhood *)
+Definition two_color_nbd (g : graph) (v : node) (c1 c2 : positive) : option coloring.
+Admitted.
+
+(* Two coloring of a neighborhood of a 3-colorable graph is complete *)
+(* Let c1, c2, c3 be distinct colors.  Assume the graph can be
+   3-colored and that in this 3-coloring the vertex v has color c3,
+   and that the coloring is complete. Then two_color_nbd colors the
+   neighborhood of v correctly with two colors. *)
+Lemma two_color_nbd_complete : forall (g : graph) (v : node) c1 c2 c3 m,
+    c1 <> c2 ->
+    c1 <> c3 ->
+    c2 <> c3 ->
+    no_selfloop g ->
+    undirected g ->
+    M.In v g ->
+    (exists m, M.find v m = Some c3 /\ coloring_complete (SP.of_list [c1;c2;c3]) g m) ->
+    two_color_nbd g v c1 c2 = Some m ->
+    coloring_complete (SP.of_list [c1;c2]) (subgraph_of g (nodes (neighborhood g v))) m.
+Proof.
+Admitted.
+
+Lemma two_color_nbd_fail_n3_col : forall (g : graph) (v : node) c1 c2 c3,
+    c1 <> c2 ->
+    c1 <> c3 ->
+    c2 <> c3 ->
+    no_selfloop g ->
+    undirected g ->
+    M.In v g ->
+    two_color_nbd g v c1 c2 = None ->
+    ~ (exists m, M.find v m = Some c3 /\ coloring_complete (SP.of_list [c1;c2;c3]) g m).
+Proof.
+Admitted.
+  
 Program Fixpoint phase1
   (* The criterion for high-degree vertices *)
   (k : nat)
   (* Current color count *)
   (c : positive)
-  (g : graph) 
-  (f : coloring)
-  (H : three_colorable g)
-  (H1 : coloring_complete three_colors g f)
-  (Hf : three_coloring f) {measure (M.cardinal g)} : coloring :=
+  (g : graph) {measure (M.cardinal g)} : coloring :=
   (* Choose a high-degree vertex *)
   match S.choose (subset_nodes (high_deg k) g) with
   | Some v =>
       let nbhd := neighborhood g v in
       (* i is the map that turns the coloring using colors 1,2 into c+1, c+2 *)
-      let (i, coloring_of_nbhd) := (``(nbd_2_colorable_3 c g f Hf H1 v)) in
+      let coloring_of_nbhd := two_color_nbd g c (c+1) v in
       let g' := remove_nodes g (nodes nbhd) in
       (* color the high-degree vertex 1 each time *)
-      Munion (M.add v 1 (M.map i coloring_of_nbhd)) (phase1 k (c+2) g' f _ _ _)
+      Munion (M.add v 1 coloring_of_nbhd) (phase1 k (c+2) g')
   | None => (@M.empty _)
   end.
 Next Obligation.
 Admitted.
-Next Obligation.
-Admitted.
-Next Obligation.
-Admitted.
-Check phase1.
 
 Functional Scheme phase1_ind := Induction for phase1 Sort Prop.
-Check phase1_ind.
-(* maybe create robust algorithm, if the 2-coloring failed then output
-   None and prove that the graph is 3-colorable *)
 
 (* things we want to prove:
  - let d be the number of iterations

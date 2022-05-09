@@ -1,6 +1,7 @@
 Require Import graph.
 Require Import subgraph.
 Require Import restrict.
+Require Import munion.
 Require Import List.
 Require Import Setoid.  (* Generalized rewriting *)
 Require Import FSets.   (* Efficient functional sets *)
@@ -30,12 +31,6 @@ Definition coloring_complete (palette: colors) (g: graph) (f: coloring) :=
 
 Definition two_colors: colors := SP.of_list [1; 2]%positive.
 Definition three_colors: colors := SP.of_list [1; 2; 3]%positive.
-
-(* A graph is bipartite if it is 2-colorable. *)
-Definition two_colorable (g : graph) := exists f, coloring_ok two_colors g f.
-
-(* Definition of a 3-colorable graph *)
-Definition three_colorable (g : graph) := exists f, coloring_ok three_colors g f.
 
 Example ex_graph :=
   mk_graph [ (6,4); (4,5); (4,3); (3,2); (5,2); (1,2); (1,5) ]%positive.
@@ -113,13 +108,22 @@ Definition two_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c
 Definition three_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2 \/ c = 3.
 
 (* A subgraph of a graph is colorable under the same coloring *)
-Lemma subgraph_colorable : forall (g g' : graph) f p,
+Lemma subgraph_coloring_ok : forall (g g' : graph) f p,
     is_subgraph g' g ->
     coloring_ok p g f ->
     coloring_ok p g' f.
 Proof.
   intros g g' f p H H0 H1.
   qauto unfold: PositiveSet.Subset, coloring_ok, is_subgraph.
+Qed.
+
+Lemma subgraph_coloring_complete : forall (g g' : graph) f p,
+    is_subgraph g' g ->
+    coloring_complete p g f ->
+    coloring_complete p g' f.
+Proof.
+  intros g g' f p H H0.
+  hauto lq: on use: subgraph_coloring_ok, subgraph_vert_m.
 Qed.
 
 Definition n_coloring (f : coloring) (p : colors) (n : nat) :=
@@ -213,7 +217,7 @@ Proof.
       apply Sin_domain.
       assumption.
     + pose proof (nbd_subgraph g v).
-      pose proof (subgraph_colorable _ _ f p H2 ltac:(sauto)).
+      pose proof (subgraph_coloring_ok _ _ f p H2 ltac:(sauto)).
       split.
       * intros ci0 H6.
         assert (S.In j (adj g i)) by sfirstorder.
@@ -222,11 +226,12 @@ Proof.
         qauto use: @restrict_agree unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key, PositiveSet.elt, coloring, coloring_ok.
 Qed.
   
-Lemma nbd_2_colorable_3' : forall (g : graph) (f : coloring) p,
+Lemma nbd_2_colorable_3 : forall (g : graph) (f : coloring) p,
     coloring_complete p g f ->
     three_coloring' f p ->
     forall v ci, M.find v f = Some ci ->
-            two_coloring' (restrict_on_nbd f g v) (S.remove ci p) /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict_on_nbd f g v).
+            two_coloring' (restrict_on_nbd f g v) (S.remove ci p) /\
+              coloring_complete (S.remove ci p) (neighborhood g v) (restrict_on_nbd f g v).
 Proof.
   hauto l: on use: SP.remove_cardinal_1, nbd_Sn_colorable_n unfold: PositiveOrderedTypeBits.t, three_coloring', node, two_coloring', n_coloring, PositiveSet.elt inv: nat.
 Qed.
@@ -252,7 +257,7 @@ Lemma nbd_not_2_col_graph_not_3_col : forall (g : graph) (f : coloring) (p : col
           (~ two_coloring' (restrict_on_nbd f g v) (S.remove ci p))) ->
     ~ three_coloring' f p.
 Proof.
-  qauto l: on use: nbd_2_colorable_3'.
+  qauto l: on use: nbd_2_colorable_3.
 Qed.
 
 Definition constant_color {A} (s : nodeset) c := S.fold (fun v => M.add v c) s (@M.empty A).
@@ -407,6 +412,21 @@ Proof.
       destruct H0, H7, H8; strivial unfold: coloring_ok.
 Qed.
 
+Lemma two_color_step_complete : forall (g : graph) (v : node) c1 c2,
+    c1 <> c2 ->
+    no_selfloop g ->
+    undirected g ->
+    M.In v g ->
+    (exists m, two_coloring' m (SP.of_list [c1;c2]) /\ coloring_complete (SP.of_list [c1;c2]) g m) ->
+    coloring_complete (SP.of_list [c1;c2]) (subgraph_of g (nodes (neighborhood g v))) (two_color_step g v c1 c2 (@M.empty _)).
+Proof.
+  intros g v c1 c2 H H0 H1 H2 H3.
+  split.
+  - intros i H4.
+    apply Sin_domain in H4.
+    qauto use: two_color_step_colors_adj_c2, nbd_adj, WF.in_find_iff, subgraph_of_nodes.
+  - qauto l: on use: two_color_step_correct, subgraph_of_is_subgraph, subgraph_coloring_ok.
+Qed.
 
 (* If a coloring is not complete then it misses a vertex (constructively *)
 Lemma not_complete_has_uncolored (f : coloring) (g : graph) p :
@@ -424,115 +444,9 @@ Lemma max_deg_0_constant_col : forall (g : graph) c,
     coloring_complete (S.singleton c) g (constant_color (nodes g) c).
 Proof.
   intros g c H.
-  unfold coloring_complete.
   split.
-  - intros i H0.
-    exists c.
-    unfold M.MapsTo.
-    apply constant_color_colors.
-    unfold nodes.
-    apply Sin_domain.
-    assumption.
-  - split.
-    + intros ci H1.
-      assert (S.In i (nodes g)).
-      {
-        unfold adj in H0.
-        destruct (M.find i g) eqn:E.
-        - pose proof (max_deg_max _ _ _ E).
-          rewrite H in H2.
-          hfcrush use: SP.remove_cardinal_1 unfold: nodeset inv: Peano.le.
-        - sauto q: on.
-      }
-      pose proof (constant_color_colors (nodes g) c i H2).
-      unfold S.elt, node, E.t in *.
-      assert (ci = c) by scongruence.
-      sfirstorder use: PositiveSet.singleton_2 unfold: PositiveSet.elt.
-    + intros ci cj H1 H2.
-      unfold adj in H0.
-      destruct (M.find i g) eqn:E.
-      * pose proof (max_deg_max _ _ _ E).
-        rewrite H in H3.
-        hauto use: SP.remove_cardinal_1 unfold: nodeset inv: Peano.le.
-      * fcrush.
-Qed.
-
-Definition n_colors (n : nat) := SP.of_list (map Pos.of_nat (seq 0 (n+1))).
-
-(* A graph with maximum degree d is d+1 colorable *)
-Lemma max_degree_colorable : forall (g : graph) d,
-    max_deg g = d ->
-    { f | n_coloring f (n_colors d) (d+1) /\ coloring_complete (n_colors d) g f}.
-Proof.
-  intros g d H.
-  generalize dependent g.
-  induction d; intros g Hg.
-  - pose proof (max_deg_0_constant_col g 1 Hg).
-    exists (constant_color (nodes g) 1).
-    split.
-    + split.
-      * reflexivity.
-      * intros v c H1.
-        apply constant_color_inv2 in H1.
-        qauto l: on.
-    + hauto l: on.
-  - assert ((max_deg g > 0)%nat) by hauto l: on.
-    admit.
-Admitted.
-
-(* In a 3-colorable graph, the neighborhood of any vertex is 2-colorable. *)
-(* The statement is more subtle than that, we have: *)
-(* Let g be a graph, f be a 3-coloring that is complete (every node has a color).
-Then for every vertex v there is a coloring c and map (i : 2 -> 3) such that:
-- c is a 2-coloring of the neighborhood of v, N(v)
-- (M.map i c) and f agree on N(v)
-- c is a complete coloring on N(v)
- *)
-
-Lemma nbd_2_colorable_3 :
-  forall (cnt : positive) (g : graph) (f : coloring),
-    three_coloring f -> coloring_complete three_colors g f ->
-    (forall v,
-        {p : (M.key -> M.key) * coloring |
-          (* exists injection i into canonical coloring using colors 1 and 2 *)
-          let (i,c) := p in
-          two_coloring c
-          /\ M.Equal (M.map i c) f (* make it agree on the restriction *)
-          /\ coloring_complete (SP.of_list [cnt; cnt + 1]) (neighborhood g v) c
-    }).
-Proof.
-Admitted.
-
-
-(* union of maps (left-heavy) *)
-Definition Munion {A} (f g : M.t A) := M.fold (fun k v => M.add k v) f g.
-(* Two maps are disjoint if their keys have no intersection. *)
-(* Mkeys is just Mdomain *)
-Definition Mdisjoint {A} (f g : M.t A) := S.Equal (S.inter (Mdomain f) (Mdomain g)) S.empty.
-
-(* Test case for disjointness *)
-Example Mdisjoint_test1 :
-  Mdisjoint (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(1,1);(2,2)])
-            (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(3,1);(4,2)]).
-Proof. hauto l: on. Qed.
-
-(* Note: since we're using equality on finite sets can we get for free
-   that map disjointness is decidable *)
-Lemma Mdisjoint_dec {A} (f g : M.t A) : {Mdisjoint f g} + {~ Mdisjoint f g}.
-Proof. apply S.eq_dec. Qed.
-
-Lemma Munion_case {A} : forall (c d : M.t A) i v,
-    M.find i (Munion c d) = Some v -> M.MapsTo i v c \/ M.MapsTo i v d.
-Proof.
-  intros c d i.
-  unfold Munion.
-  apply WP.fold_rec_bis.
-  - hauto unfold: PositiveMap.MapsTo, PositiveMap.In, PositiveMap.Equal.
-  - hauto l: on.
-  - intros k e a m' H H0 H1 v H2.
-    destruct (E.eq_dec i k).
-    + hauto use: PositiveMap.gss unfold: PositiveMap.In, PositiveMap.MapsTo.
-    + qauto use: WP.F.add_neq_mapsto_iff, PositiveMap.gss unfold: PositiveMap.In, PositiveMap.MapsTo.
+  - sauto use: constant_color_colors, Sin_domain.
+  - split; sfirstorder use: max_deg_0_adj.
 Qed.
 
 (* Proof that the union of two disjoint and OK colorings is an OK coloring. *)
@@ -610,6 +524,55 @@ Proof.
   hauto lq: on use: phase2_equation.
 Qed.
 
+Lemma no_selfloop_dec (g : graph) : {no_selfloop g} + {~ no_selfloop g}.
+Proof.
+  unfold no_selfloop.
+  remember (M.elements g) as l.
+  refine (_ (Exists_dec (fun (p : M.key * nodeset) => let (a,b) := p in S.In a b) l _)).
+  - intros H.
+    destruct H.
+    + right.
+      intros contra.
+      apply Exists_exists in e.
+      destruct e as [x [Hx Hx']].
+      destruct x.
+      unfold adj in contra.
+      rewrite Heql in Hx.
+      pose proof (contra k).
+      apply H.
+      apply M.elements_complete in Hx.
+      hauto lq: on.
+    + left.
+      admit.
+Admitted.
+
+  (* Compute (max_deg ex_graph). *)
+Example phase_2_example : coloring_ok (SP.of_list [1;2;3]) ex_graph (fst (phase2 ex_graph)).
+Proof.
+  split.
+  - intros ci Hci.
+    apply M.elements_correct in Hci.
+    remember (M.elements (fst (phase2 ex_graph))) as l.
+    compute in Heql.
+    subst l.
+    sauto lq: on rew: off.
+  - intros ci cj Hci Hcj.
+    apply M.elements_correct in Hci, Hcj.
+    remember (M.elements (fst (phase2 ex_graph))) as l.
+    compute in Heql.
+    subst l.
+    assert (no_selfloop ex_graph).
+    {
+      admit.
+    }
+    unfold adj in H.
+    destruct (M.find i ex_graph) eqn:E.
+    + apply M.elements_correct in E.
+      compute in E.
+      admit.
+    + inversion H.
+      admit.
+Admitted.
 
 (* Need to define an induction principle for graphs on max degree. *)
 (* Given a graph g, to prove P holds on g, then
@@ -667,7 +630,6 @@ Proof.
     admit.
 Admitted.
 
-    
 
   
 (* let d be the max degree,

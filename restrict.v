@@ -41,7 +41,6 @@ Proof.
   hauto lq: on use: @restrict_subset_keys, Sin_domain unfold: PositiveSet.Subset, PositiveSet.elt, PositiveMap.key.
 Qed.
 
-  
 Lemma restrict_restricts {A} :
   forall s (f : M.t A) i, S.In i s -> M.In i f -> M.In i (restrict f s).
 Proof.
