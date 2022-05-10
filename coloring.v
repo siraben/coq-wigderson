@@ -543,8 +543,19 @@ Proof.
       apply M.elements_complete in Hx.
       hauto lq: on.
     + left.
-      admit.
-Admitted.
+      intros i contra.
+      apply n.
+      apply Exists_exists.
+      unfold adj in contra.
+      destruct (M.find i g) eqn:E; [|sauto].
+      exists (i, n0).
+      split.
+      * hauto l: on use: M.elements_correct.
+      * assumption.
+  - intros x.
+    destruct x.
+    apply SP.In_dec.
+Defined.
 
   (* Compute (max_deg ex_graph). *)
 Example phase_2_example : coloring_ok (SP.of_list [1;2;3]) ex_graph (fst (phase2 ex_graph)).
