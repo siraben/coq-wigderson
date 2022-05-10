@@ -1,14 +1,9 @@
-# Graph Coloring Algorithm in Coq
-## Formal Verification of Modified Version of Wigderson's Algorithm for 3-colorable graphs.
+# Formal Verification of Modified Version of Wigderson's Algorithm for 3-colorable graphs.
+**Created by: Ben Siraphob (siraben) and Jamison Homatas (jhomatas48)**
 
-**Created by: Jamison Homatas (jhomatas48) and Ben Siraphob (siraben)**
+We present a formal proof of an approximate a coloring for 3-colorable graphs. Our algorithm is based upon Avi Wigderson's algorithm, and we have modified this to be more explicit and rigorous. We implement this as a functional program in Gallina. This repo includes definitions for graphs and graph components and all other data structures used. See the attached [paper](./paper.pdf) for more information.
 
-Here we present a step by step proof to verify an algorithm to approximate a coloring of 3-colorable graphs. Our algorithm is based upon Avi Wigderson's algorithm, and we have modified this to be more explicit and rigorous. We implement this as a functional program in Gallina. This repo includes definitions for graphs and graph components and all other data structures used. See the attached paper for more information.
+Using Nix, run `nix-shell` then run `make` to compile it.
 
-*include instructions and repo information here*
-
-Associated Paper:
-*include link to paper later*
-
-References:
-*include references here*
+## License
+This software is licensed under the MIT license.
