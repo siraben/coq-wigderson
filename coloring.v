@@ -58,8 +58,7 @@ Proof.
   split.
   - intros ci H0.
     unfold adj in H.
-    ssimpl.
-    scongruence use: PositiveMap.gempty unfold: node, PositiveMap.key, PositiveOrderedTypeBits.t.
+    hauto use: SP.Dec.F.empty_iff, PositiveMap.gempty unfold: PositiveOrderedTypeBits.t, PositiveSet.In, node, PositiveMap.key inv: option.
   - unfold adj in H.
     ssimpl.
     scongruence use: PositiveMap.gempty unfold: PositiveMap.key, node, PositiveOrderedTypeBits.t.
@@ -506,7 +505,7 @@ Function phase2 (g : graph) {measure max_deg g} : coloring * graph :=
   | S n => let (ns, g') := extract_vertices_deg g (S n) in
           let ns' := SP.of_list (map fst ns) in
           let (f', g'') := phase2 g' in
-          (Munion (constant_color ns' (Pos.of_nat (S n))) f', g'')
+          (Munion (constant_color ns' (Pos.of_nat (S (S n)))) f', g'')
   end.
 Proof.
   intros g n teq.
@@ -534,8 +533,7 @@ Proof.
     + right.
       intros contra.
       apply Exists_exists in e.
-      destruct e as [x [Hx Hx']].
-      destruct x.
+      destruct e as [[k n] [Hx Hx']].
       unfold adj in contra.
       rewrite Heql in Hx.
       pose proof (contra k).
@@ -557,35 +555,19 @@ Proof.
     apply SP.In_dec.
 Defined.
 
-  (* Compute (max_deg ex_graph). *)
-Example phase_2_example : coloring_ok (SP.of_list [1;2;3]) ex_graph (fst (phase2 ex_graph)).
+Example phase_2_example : coloring_ok (SP.of_list [1;2;4]) ex_graph (fst (phase2 ex_graph)).
 Proof.
   split.
   - intros ci Hci.
     apply M.elements_correct in Hci.
-    remember (M.elements (fst (phase2 ex_graph))) as l.
-    compute in Heql.
-    subst l.
-    sauto lq: on rew: off.
+    compute in Hci.
+    hauto l: on.
   - intros ci cj Hci Hcj.
     apply M.elements_correct in Hci, Hcj.
-    remember (M.elements (fst (phase2 ex_graph))) as l.
-    compute in Heql.
-    subst l.
-    assert (no_selfloop ex_graph).
-    {
-      admit.
-    }
-    unfold adj in H.
-    inversion Hcj.
-    destruct (M.find i ex_graph) eqn:E.
-    + apply M.elements_correct in E.
-      compute in E.
-      destruct E as [|[|[|[|[|[|a]]]]]]; hauto l: on.
-    + admit.
-    + inversion H.
-      admit.
-Admitted.
+    compute in Hci.
+    compute in Hcj.
+    hauto l: on.
+Qed.
 
 (* Need to define an induction principle for graphs on max degree. *)
 (* Given a graph g, to prove P holds on g, then
