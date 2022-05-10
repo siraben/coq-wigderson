@@ -340,13 +340,14 @@ Proof.
   hauto l: on use: S.diff_spec.
 Qed.
 
-(* Removing a subgraph *)
+(* Removing a non-empty subgraph decreases the size of the graph *)
 Lemma remove_nodes_lt : forall g s i, S.In i s -> M.In i g -> (M.cardinal (remove_nodes g s) < M.cardinal g)%nat.
 Proof.
   intros g s i H H0.
   pose proof (remove_nodes_sub g s i H H0).
   unfold remove_nodes.
   rewrite cardinal_map.
+  assert (~ S.Empty s) by (hauto l: on).
   admit.
 Admitted.
   
@@ -578,8 +579,9 @@ Defined.
 Function extract_vertices_deg (g : graph) (d : nat) {measure M.cardinal g} : list (node * graph) * graph :=
   match extract_deg_vert_dec g d with
   | inl v =>
-      let (l, g') := extract_vertices_deg (remove_node (`v) g) d in
-      ((`v, g') :: l, g')
+      let g' := remove_node (`v) g in
+      let (l, g'') := extract_vertices_deg g' d in
+      ((`v, g') :: l, g'')
   | inr _ => (nil, g)
   end.
 Proof.
@@ -605,14 +607,59 @@ Proof.
     sauto lq: on use: degree_gt_0_in.
 Qed.
 
-(* If a vertex occurs in *)
-(* Lemma extract_vertices_correct (g : graph) n v : In v (fst (extract_vertices_deg g n)) -> degree g v >= n . *)
-(* Proof. *)
-(*   split. *)
-(*   - intros. *)
-(*     admit. *)
-(*   - functional induction (extract_vertices_deg g n). *)
-(*     + hammer. *)
+(* a list of subgraphs (decreasing) *)
+Inductive subgraph_series : list graph -> Prop :=
+| sg_nil : subgraph_series []
+| sg_single : forall g, subgraph_series [g]
+| sg_cons : forall g g' l, is_subgraph g' g -> subgraph_series (g' :: l) -> subgraph_series (g :: g' :: l).
+
+Lemma extract_vertices_deg_subgraph1 g g' g'' n v l :
+  extract_vertices_deg g n = ((v, g') :: l, g'') -> is_subgraph g' g.
+Proof.
+  intros H.
+  rewrite extract_vertices_deg_equation in H.
+  hfcrush drew: off use: remove_node_subgraph inv: sum.
+Qed.
+  
+(* The subgraphs created by the extraction are a subgraph series *)
+Lemma extract_vertices_deg_series g n :
+  subgraph_series (map snd (fst (extract_vertices_deg g n))).
+Proof.
+  functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
+  - destruct l eqn:E.
+    + hauto l: on.
+    + destruct p.
+      simpl.
+      apply sg_cons.
+      * remember (remove_node (` v) g) as g'.
+        hauto l: on use: extract_vertices_deg_subgraph1.
+      * rewrite e0 in IHp.
+        ssimpl.
+  - sauto lq: on rew: off.
+Qed.
+
+Lemma degree_subgraph (g g': graph) v : is_subgraph g g' -> degree g v <= degree g' v.
+Proof.
+  strivial use: SP.subset_cardinal unfold: adj, degree, is_subgraph, nodeset.
+Qed.
+
+(* If a vertex occurs in the subgraph series then the degree is at
+   least n in the original graph. *)
+Lemma extract_vertices_inv (g g' : graph) n v :
+  In (v,g') (fst (extract_vertices_deg g n)) -> degree g v >= n .
+Proof.
+  functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
+  - intros H.
+    rewrite e0 in IHp.
+    simpl in IHp.
+    simpl in H.
+    destruct H.
+    + sauto.
+    + specialize (IHp H).
+      qauto l: on use: degree_subgraph, remove_node_subgraph, le_trans.
+  - hauto q: on.
+Qed.
+
 Lemma extract_vertices_deg_subgraph (g : graph) n :
   is_subgraph (snd (extract_vertices_deg g n)) g. 
 Proof.
