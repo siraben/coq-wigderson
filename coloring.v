@@ -103,9 +103,6 @@ Proof.
     hauto lq: on use: set_elemeum.
 Defined.
 
-Definition two_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2.
-Definition three_coloring (f : coloring) : Prop := forall v c, M.find v f = Some c -> c = 1 \/ c = 2 \/ c = 3.
-
 (* A subgraph of a graph is colorable under the same coloring *)
 Lemma subgraph_coloring_ok : forall (g g' : graph) f p,
     is_subgraph g' g ->
@@ -129,8 +126,8 @@ Definition n_coloring (f : coloring) (p : colors) (n : nat) :=
   S.cardinal p = n /\ forall v c, M.find v f = Some c -> S.In c p.
 
 (* A 3-coloring uses 3 colors *)
-Definition three_coloring' (f : coloring) p := n_coloring f p 3.
-Definition two_coloring' (f : coloring) p := n_coloring f p 2.
+Definition three_coloring (f : coloring) p := n_coloring f p 3.
+Definition two_coloring (f : coloring) p := n_coloring f p 2.
 
 (* Let:
 - f: coloring
@@ -148,27 +145,21 @@ Lemma n_coloring_missed (f : coloring) p c n :
   n_coloring f (S.remove c p) n.
 Proof.
   intros [p3 Hf] Hc Hcm.
-  qauto l: on use: SP.remove_cardinal_1, S.remove_spec, three_elem_set_enumerable unfold: two_coloring'.
+  qauto l: on use: SP.remove_cardinal_1, S.remove_spec, three_elem_set_enumerable unfold: two_coloring.
 Qed.
 
 Lemma two_coloring_from_three (f : coloring) p c :
-  three_coloring' f p ->
+  three_coloring f p ->
   S.In c p ->
   (forall x, M.find x f <> Some c) ->
-  two_coloring' f (S.remove c p).
+  two_coloring f (S.remove c p).
 Proof. apply n_coloring_missed. Qed.
 
 (* A restriction of an OK coloring under a set is OK. *)
 Lemma restrict_coloring_ok : forall (g : graph) (f : coloring) p (s : nodeset),
     coloring_ok p g f -> coloring_ok p g (restrict f s).
 Proof.
-  intros g f p s H.
-  unfold coloring_ok.
-  intros i j H0.
-  split.
-  - qauto use: @restrict_agree unfold: node, PositiveMap.key, coloring_ok, coloring, nodeset, PositiveOrderedTypeBits.t.
-  - intros ci cj H1 H2.
-    qauto use: @restrict_agree unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, PositiveMap.key, nodeset, node, coloring, coloring_ok.
+  hauto lq: on rew: off use: @restrict_agree unfold: coloring_ok.
 Qed.
 
 Definition restrict_on_nbd (f : coloring) (g : graph) (v : node) :=
@@ -185,15 +176,15 @@ Proof.
   intros g f p k H H0 v ci H1.
   split.
   - apply n_coloring_missed.
-    + hauto use: @restrict_agree unfold: node, coloring, n_coloring, PositiveOrderedTypeBits.t, PositiveMap.key, three_coloring'.
+    + hauto use: @restrict_agree unfold: node, coloring, n_coloring, PositiveOrderedTypeBits.t, PositiveMap.key, three_coloring.
     + sfirstorder.
     + (* let x be a neighbor of v *)
       intros x contra.
       assert (S.In x (adj g v)).
       {
-        sauto lq: on rew: off use: nbd_adj, @restrict_in_set, WF.in_find_iff unfold: node, coloring, PositiveMap.key, PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveMap.In, PositiveMap.MapsTo.
+        sauto lq: on rew: off use: nbd_adj, @restrict_in_set, WF.in_find_iff.
       }
-      qauto use: WF.in_find_iff, @restrict_agree unfold: coloring_ok, PositiveOrderedTypeBits.t, PositiveMap.MapsTo, coloring_complete, PositiveSet.elt, PositiveMap.key, coloring, PositiveMap.In, node.
+      qauto use: WF.in_find_iff, @restrict_agree unfold: coloring_ok.
   - split.
     + intros i Hi.
       (* use contradiction *)
@@ -204,13 +195,13 @@ Proof.
       intros contra.
       assert (M.In i g).
       {
-        strivial use: subgraph_vert_m, nbd_subgraph unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key.
+        strivial use: subgraph_vert_m, nbd_subgraph.
       }
       (* contra states that i doesn't have a color in the restriction *)
       (* but that would mean that f was not complete *)
       assert (~ S.In i (nodes (neighborhood g v))).
       {
-        hfcrush use: @restrict_restricts unfold: PositiveMap.key, coloring, node, coloring_complete, PositiveSet.elt, PositiveOrderedTypeBits.t.
+        qauto l: on use: @restrict_restricts.
       }
       apply H3.
       apply Sin_domain.
@@ -220,19 +211,19 @@ Proof.
       split.
       * intros ci0 H6.
         assert (S.In j (adj g i)) by sfirstorder.
-        qauto use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: PositiveSet.elt, node, PositiveOrderedTypeBits.t, coloring_ok, coloring, nodes, coloring_complete, PositiveMap.key.
+        qauto use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: coloring_ok.
       * intros ci0 cj H5 H6.
-        qauto use: @restrict_agree unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key, PositiveSet.elt, coloring, coloring_ok.
+        qauto use: @restrict_agree unfold: coloring_ok.
 Qed.
   
 Lemma nbd_2_colorable_3 : forall (g : graph) (f : coloring) p,
     coloring_complete p g f ->
-    three_coloring' f p ->
+    three_coloring f p ->
     forall v ci, M.find v f = Some ci ->
-            two_coloring' (restrict_on_nbd f g v) (S.remove ci p) /\
+            two_coloring (restrict_on_nbd f g v) (S.remove ci p) /\
               coloring_complete (S.remove ci p) (neighborhood g v) (restrict_on_nbd f g v).
 Proof.
-  hauto l: on use: SP.remove_cardinal_1, nbd_Sn_colorable_n unfold: PositiveOrderedTypeBits.t, three_coloring', node, two_coloring', n_coloring, PositiveSet.elt inv: nat.
+  hauto l: on use: SP.remove_cardinal_1, nbd_Sn_colorable_n.
 Qed.
 
 Lemma nbd_not_n_col_graph_not_Sn_col : forall (g : graph) (f : coloring) (p : colors) n,
@@ -253,8 +244,8 @@ Lemma nbd_not_2_col_graph_not_3_col : forall (g : graph) (f : coloring) (p : col
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
         M.find v f = Some ci /\
-          (~ two_coloring' (restrict_on_nbd f g v) (S.remove ci p))) ->
-    ~ three_coloring' f p.
+          (~ two_coloring (restrict_on_nbd f g v) (S.remove ci p))) ->
+    ~ three_coloring f p.
 Proof.
   qauto l: on use: nbd_2_colorable_3.
 Qed.
@@ -270,7 +261,7 @@ Proof.
   - sfirstorder.
   - sauto q: on.
   - intros x a s' H H0 H1 Hi.
-    qauto use: WF.add_o, PositiveSet.add_3, PositiveMap.gss unfold: PositiveMap.key, PositiveSet.elt inv: sumbool.
+    qauto use: WF.add_o, PositiveSet.add_3, PositiveMap.gss.
 Qed.
 
 Lemma constant_color_inv {A} s c : forall i, M.In i (@constant_color A s c) -> S.In i s.
@@ -282,8 +273,8 @@ Proof.
   - sauto q: on.
   - intros x a s' H H0 H1 H2.
     destruct (E.eq_dec i x).
-    + subst. hauto l: on use: PositiveSet.add_1 unfold: PositiveMap.key, PositiveSet.elt.
-    + hauto use: WF.add_neq_in_iff, PositiveSet.add_2 unfold: PositiveSet.elt, PositiveMap.key.
+    + subst. hauto l: on use: PositiveSet.add_1.
+    + hauto use: WF.add_neq_in_iff, PositiveSet.add_2.
 Qed.
 
 Lemma constant_color_inv2 {A} s c : forall i d, M.find i (@constant_color A s c) = Some d -> c = d.
@@ -295,8 +286,8 @@ Proof.
   - sauto dep: on.
   - intros x a s' H H0 H1 H2.
     destruct (E.eq_dec i x).
-    + scongruence use: PositiveMap.gss unfold: PositiveSet.elt, PositiveMap.key.
-    + hauto use: PositiveMap.gso unfold: PositiveMap.key, PositiveSet.elt.
+    + scongruence use: PositiveMap.gss.
+    + hauto use: PositiveMap.gso.
 Qed.
 
 (* two_color_step
@@ -314,7 +305,7 @@ Qed.
 Lemma two_color_step_colors_adj_c2 : forall g v c1 c2 f i,
     no_selfloop g -> S.In i (adj g v) -> M.find i (two_color_step g v c1 c2 f) = Some c2.
 Proof.
-  hauto use: PositiveMap.gso, @constant_color_colors unfold: two_color_step, PositiveSet.In, PositiveOrderedTypeBits.t, nodeset, node, PositiveSet.t, PositiveMap.key, PositiveSet.empty, PositiveSet.elt, no_selfloop, adj.
+  hauto use: PositiveMap.gso, @constant_color_colors unfold: two_color_step.
 Qed.
 
 Lemma two_color_step_inv : forall g v c1 c2 f ci j,
@@ -327,19 +318,19 @@ Proof.
   - subst. left. reflexivity.
   - right.
     rewrite M.gso in H by auto.
-    qauto use: WF.in_find_iff, @constant_color_inv unfold: nodeset, adj, node, PositiveMap.key, PositiveOrderedTypeBits.t.
+    qauto use: WF.in_find_iff, @constant_color_inv.
 Qed.
 
 Lemma undirected_adj_in : forall (g : graph) (v : node) i , undirected g -> S.In i (adj g v) -> M.In i g.
 Proof.
   intros g v i H H0.
-  hauto use: SP.Dec.F.empty_iff unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, undirected, node, PositiveMap.MapsTo, adj, PositiveMap.In.
+  hauto use: SP.Dec.F.empty_iff unfold: undirected, adj.
 Qed.
 
 Lemma in_two_set_inv : forall i a b, S.In i (SP.of_list [a;b]) -> i = a \/ i = b.
 Proof.
   intros i a b H.
-  qauto use: PositiveSet.singleton_1, PositiveSet.add_spec, PositiveSet.cardinal_1 unfold: fold_right, PositiveSet.empty, length, SP.of_list, PositiveSet.cardinal, PositiveSet.singleton.
+  qauto use: PositiveSet.singleton_1, PositiveSet.add_spec, PositiveSet.cardinal_1.
 Qed.
 
 Lemma two_color_step_correct : forall (g : graph) (v : node) c1 c2,
@@ -347,7 +338,7 @@ Lemma two_color_step_correct : forall (g : graph) (v : node) c1 c2,
     no_selfloop g ->
     undirected g ->
     M.In v g ->
-    (exists m, two_coloring' m (SP.of_list [c1;c2]) /\ coloring_complete (SP.of_list [c1;c2]) g m) ->
+    (exists m, two_coloring m (SP.of_list [c1;c2]) /\ coloring_complete (SP.of_list [c1;c2]) g m) ->
     coloring_ok (SP.of_list [c1;c2]) g (two_color_step g v c1 c2 (@M.empty _)).
 Proof.
   intros g v c1 c2 Hc H Hu magic H0.
@@ -355,11 +346,11 @@ Proof.
   - intros ci H2.
     unfold two_color_step in H2.
     destruct (E.eq_dec i v).
-    + subst. hauto use: PositiveMap.gss, PositiveSet.add_1 unfold: PositiveSet.empty, PositiveOrderedTypeBits.t, PositiveMap.key, node, adj, PositiveSet.elt, nodeset, PositiveSet.t, fold_right, SP.of_list.
+    + subst. hauto use: PositiveMap.gss, PositiveSet.add_1.
     + rewrite M.gso in H2 by auto.
       pose proof (constant_color_inv (adj g v) c2 i ltac:(sfirstorder)).
       pose proof (constant_color_colors (adj g v) c2 _ H3).
-      qauto use: @constant_color_colors, PositiveSet.add_2, PositiveSet.add_1 unfold: PositiveSet.elt, node, adj, PositiveOrderedTypeBits.t, nodeset, fold_right, SP.of_list.
+      qauto use: @constant_color_colors, PositiveSet.add_2, PositiveSet.add_1.
   - intros ci cj H2 H3.
     remember (two_color_step g v c1 c2 (M.empty node)) as f.
     assert (Hv: M.find v f = Some c1).
@@ -370,7 +361,7 @@ Proof.
     assert (Cadj: forall x, S.In x (adj g v) -> M.find x f = Some c2).
     {
       intros x Hx.
-      hauto l: on use: two_color_step_colors_adj_c2, two_color_step_colors_v_c1 unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, PositiveMap.key, coloring.
+      hauto l: on use: two_color_step_colors_adj_c2, two_color_step_colors_v_c1.
     }
     assert (~ M.In v (M.empty node)) by hauto l: on use: WF.empty_in_iff.
     destruct (E.eq_dec i j); [scongruence|].
@@ -395,15 +386,15 @@ Proof.
       unfold M.MapsTo in *.
       assert (ii = c1 \/ ii = c2).
       {
-        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring', n_coloring.
+        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring, n_coloring.
       }
       assert (jj = c1 \/ jj = c2).
       {
-        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring', n_coloring.
+        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring, n_coloring.
       }
       assert (vv = c1 \/ vv = c2).
       {
-        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring', n_coloring.
+        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring, n_coloring.
       }
       (* So i and j have colors given by the magic coloring function,
          but no matter what colors we give them something is going to go
@@ -416,7 +407,7 @@ Lemma two_color_step_complete : forall (g : graph) (v : node) c1 c2,
     no_selfloop g ->
     undirected g ->
     M.In v g ->
-    (exists m, two_coloring' m (SP.of_list [c1;c2]) /\ coloring_complete (SP.of_list [c1;c2]) g m) ->
+    (exists m, two_coloring m (SP.of_list [c1;c2]) /\ coloring_complete (SP.of_list [c1;c2]) g m) ->
     coloring_complete (SP.of_list [c1;c2]) (subgraph_of g (nodes (neighborhood g v))) (two_color_step g v c1 c2 (@M.empty _)).
 Proof.
   intros g v c1 c2 H H0 H1 H2 H3.
@@ -464,7 +455,7 @@ Proof.
   split.
   - intros ci H0.
     apply Munion_case in H0.
-    sfirstorder use: PositiveSet.union_3, PositiveSet.union_2 unfold: PositiveOrderedTypeBits.t, PositiveMap.MapsTo, coloring_ok, node, PositiveSet.elt.
+    sfirstorder use: PositiveSet.union_3, PositiveSet.union_2.
   - intros ci cj H0 H1.
     apply Munion_case in H0.
     apply Munion_case in H1.
@@ -474,16 +465,16 @@ Proof.
       assert (S.In ci p1) by sfirstorder.
       assert (S.In cj p2).
       {
-        hauto unfold: node, PositiveSet.elt, PositiveOrderedTypeBits.t, undirected, PositiveMap.MapsTo, coloring_ok.
+        hauto unfold: undirected, coloring_ok.
       }
-      qauto use: PositiveSet.inter_3, Snot_in_empty unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
+      qauto use: PositiveSet.inter_3, Snot_in_empty.
     + assert (S.In ci p2) by sfirstorder.
       assert (S.In cj p1).
       {
-        hauto unfold: node, PositiveSet.elt, PositiveOrderedTypeBits.t, undirected, PositiveMap.MapsTo, coloring_ok.
+        hauto unfold: undirected, coloring_ok.
       }
-      qauto use: PositiveSet.inter_3, Snot_in_empty unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
-    + sfirstorder unfold: PositiveMap.MapsTo, coloring_ok.
+      qauto use: PositiveSet.inter_3, Snot_in_empty.
+    + sfirstorder unfold: coloring_ok.
 Qed.
 
 
@@ -547,12 +538,8 @@ Proof.
       unfold adj in contra.
       destruct (M.find i g) eqn:E; [|sauto].
       exists (i, n0).
-      split.
-      * hauto l: on use: M.elements_correct.
-      * assumption.
-  - intros x.
-    destruct x.
-    apply SP.In_dec.
+      sfirstorder use: M.elements_correct.
+  - hauto lq: on use: SP.In_dec.
 Defined.
 
 Example phase_2_example : coloring_ok (SP.of_list [1;2;4]) ex_graph (fst (phase2 ex_graph)).
