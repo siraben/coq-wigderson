@@ -1,7 +1,7 @@
 -R . Wigderson
 graph.v
+restrict.v
+munion.v
 subgraph.v
 coloring.v
 wigderson.v
-munion.v
-restrict.v
