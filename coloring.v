@@ -566,10 +566,12 @@ Proof.
       admit.
     }
     unfold adj in H.
+    inversion Hcj.
     destruct (M.find i ex_graph) eqn:E.
     + apply M.elements_correct in E.
       compute in E.
-      admit.
+      destruct E as [|[|[|[|[|[|a]]]]]]; hauto l: on.
+    + admit.
     + inversion H.
       admit.
 Admitted.

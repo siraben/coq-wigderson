@@ -181,7 +181,7 @@ Program Fixpoint phase1
   (k : nat)
   (* Current color count *)
   (c : positive)
-  (g : graph) {measure (M.cardinal g)} : coloring :=
+  (g : graph) {measure (M.cardinal g)} : option coloring :=
   (* Choose a high-degree vertex *)
   match S.choose (subset_nodes (high_deg k) g) with
   | Some v =>
@@ -190,8 +190,11 @@ Program Fixpoint phase1
       let coloring_of_nbhd := two_color_nbd g c (c+1) v in
       let g' := remove_nodes g (nodes nbhd) in
       (* color the high-degree vertex 1 each time *)
-      Munion (M.add v 1 coloring_of_nbhd) (phase1 k (c+2) g')
-  | None => (@M.empty _)
+      match coloring_of_nbhd with
+      | None => None
+      | Some m' => option_map (Munion (M.add v 1 m')) (phase1 k (c+2) g')
+      end
+  | None => Some (@M.empty _)
   end.
 Next Obligation.
 Admitted.
