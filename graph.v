@@ -461,6 +461,46 @@ Proof.
 Qed.
 (** [] *)
 
+Lemma Mcardinal_Scardinal: forall A (m : M.t A) s,
+    (forall k, M.In k m <-> S.In k s) ->
+    M.cardinal m = S.cardinal s.
+Proof.
+  intros A m s H.
+  rewrite WP.cardinal_fold.
+  revert s H.
+  apply WP.fold_rec_bis.
+  - intros m0 m' a H H0 s H1.
+    apply H0. intros k. rewrite <- H1. apply WF.In_m; auto.
+  - intros s H.
+    rewrite SP.cardinal_1. auto.
+    unfold S.Empty. intros k.
+    specialize (H k).
+    rewrite <- H.
+    rewrite WF.empty_in_iff.
+    scongruence.
+  - intros k e a m' H H0 H1 s H2.
+    rewrite <- SP.add_remove with (x := k) by (apply H2; rewrite WF.add_in_iff; auto).
+    rewrite SP.add_cardinal_2 by (rewrite S.remove_spec; sfirstorder).
+    f_equal.
+    apply H1.
+    intros k0.
+    specialize (H2 k0).
+    rewrite S.remove_spec.
+    rewrite <- H2.
+    rewrite WF.add_in_iff.
+    sfirstorder.
+Qed.
+
+Lemma Mcardinal_domain: forall A (m : M.t A),
+    M.cardinal m = S.cardinal (Mdomain m).
+Proof.
+  intros A m.
+  apply Mcardinal_Scardinal.
+  intros k.
+  rewrite Sin_domain.
+  hauto lq: on.
+Qed.
+
 (* ################################################################# *)
 (** * Now Begins the Graph Coloring Program *)
 
@@ -561,6 +601,51 @@ Proof.
   sauto.
 Qed.
 (** [] *)
+
+Lemma in_adj_exists : forall g i j,
+    S.In i (adj g j) -> exists v, M.find j g = Some v /\ S.In i v.
+Proof.
+  intros g i j H.
+  unfold adj in *.
+  destruct M.find eqn:E in *.
+  + eauto.
+  + rewrite SP.FM.empty_iff in H. contradiction.
+Qed.
+
+Lemma find_in_adj : forall g i v j,
+    M.find(A := nodeset) j g = Some v ->
+    S.In i v ->
+    S.In i (adj g j).
+Proof.
+  intros g i v j F I.
+  unfold adj.
+  rewrite F.
+  auto.
+Qed.
+
+Lemma in_adj_in_nodes : forall g i j,
+    S.In i (adj g j) ->
+    S.In j (nodes g).
+Proof.
+  intros g i j.
+  unfold adj.
+  destruct M.find eqn:E; intros H.
+  - unfold nodes.
+    rewrite Sin_domain.
+    sfirstorder.
+  - rewrite SP.FM.empty_iff in H. contradiction.
+Qed.
+
+Lemma adj_map : forall (f : nodeset -> nodeset) g i,
+    f S.empty = S.empty ->
+    adj (M.map f g) i = f (adj g i).
+Proof.
+  intros f g i H.
+  unfold adj.
+  rewrite WF.map_o.
+  unfold option_map.
+  destruct M.find; auto.
+Qed.
 
 (** **** Exercise: 3 stars, standard (in_colors_of_1)  *)
 Lemma in_colors_of_1:

@@ -348,12 +348,37 @@ Proof.
   unfold remove_nodes.
   rewrite cardinal_map.
   assert (~ S.Empty s) by (hauto l: on).
-  admit.
-Admitted.
-  
+  rewrite restrict_cardinal.
+  rewrite SP.inter_sym.
+  rewrite SP.inter_subset_equal by apply SP.diff_subset.
+  rewrite Mcardinal_domain.
+  apply SP.subset_cardinal_lt with (x := i).
+  - apply SP.diff_subset.
+  - unfold nodes. rewrite Sin_domain. auto.
+  - rewrite S.diff_spec. sfirstorder.
+Qed.
+
+Lemma adj_remove_nodes_spec : forall g s i j,
+    S.In i (adj (remove_nodes g s) j) <-> S.In i (adj g j) /\ ~ S.In i s /\ ~ S.In j s.
+Proof.
+  intros g s i j.
+  unfold remove_nodes.
+  rewrite adj_map by hauto lq: on.
+  rewrite S.diff_spec.
+  rewrite adj_restrict.
+  rewrite S.diff_spec.
+  firstorder.
+  eauto using in_adj_in_nodes.
+Qed.
+
 (* Removing a subgraph preserves undirectedness *)
 Lemma remove_nodes_undirected : forall g s, undirected g -> undirected (remove_nodes g s).
-Proof. Admitted.
+Proof.
+  unfold undirected.
+  intros g s U i j IJ.
+  rewrite adj_remove_nodes_spec in *.
+  sfirstorder.
+Qed.
 
 (* Maximum degree of a graph *)
 Definition max_deg' (g : graph) := M.fold (fun _ s n => max (S.cardinal s) n) g 0.

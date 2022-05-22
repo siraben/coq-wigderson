@@ -117,6 +117,15 @@ Proof.
     + hauto use: PositiveSet.add_2, PositiveMap.gso unfold: PositiveMap.key, PositiveSet.elt inv: option.
 Qed.
 
+(* Same as above, rephrased with M.In *)
+Lemma restrict_in_set2 {A} : forall (m : M.t A) s k,
+    M.In k (restrict m s) ->
+    S.In k s.
+Proof.
+  intros m s k [v].
+  eapply restrict_in_set; eauto.
+Qed.
+
 Lemma restrict_m {A} : forall s s',
     S.Equal s s' ->
     forall k k' : M.t A, M.Equal k k' -> M.Equal (restrict k s) (restrict k' s').
@@ -147,4 +156,46 @@ Proof.
     ssimpl.
     qauto use: WF.map_o unfold: PositiveMap.MapsTo, option_map.
   - hfcrush use: WF.map_o, @restrict_in_set, @restrict_agree_2 unfold: PositiveSet.elt, PositiveMap.key.
+Qed.
+
+Lemma restrict_spec : forall {A} (m : M.t A) s k,
+    M.In k (restrict m s) <-> M.In k m /\ S.In k s.
+Proof.
+  intros A m s k.
+  split; intros H.
+  - split.
+    + eauto using restrict_incl.
+    + eauto using restrict_in_set2.
+  - intuition auto using restrict_restricts.
+Qed.
+
+Lemma restrict_cardinal {A} : forall (m : M.t A) s,
+    M.cardinal (restrict m s) = S.cardinal (S.inter (Mdomain m) s).
+Proof.
+  intros m s.
+  apply Mcardinal_Scardinal.
+  intros k.
+  rewrite restrict_spec.
+  rewrite S.inter_spec.
+  rewrite Sin_domain.
+  firstorder.
+Qed.
+
+Lemma adj_restrict : forall g s i j,
+    S.In i (adj (restrict g s) j) <-> S.In i (adj g j) /\ S.In j s.
+Proof.
+  intros g s i j.
+  split.
+  - intros H.
+    apply in_adj_exists in H.
+    destruct H as [v [F I]].
+    split; eauto using restrict_in_set.
+    eauto using restrict_agree, find_in_adj.
+  - intros [I J].
+    apply in_adj_exists in I.
+    destruct I as [v [F I]].
+    eapply find_in_adj.
+    rewrite <- restrict_agree_2 by auto.
+    eauto.
+    auto.
 Qed.
