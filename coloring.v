@@ -497,24 +497,6 @@ Qed.
 (*   pose proof (max_deg_) *)
   
 
-(* Extracting max degree vertices from a graph with max degree 0 *)
-Lemma extract_vertices_deg0 g g' :
-  max_deg g = 0%nat ->
-  extract_vertices_deg g (max_deg g) = ([], g') ->
-  M.Empty g'.
-Proof.
-  functional induction (extract_vertices_deg g (max_deg g)) using extract_vertices_deg_ind.
-  - admit.
-  - intros ->.
-    intros [=->].
-    
-    subst.
-    admit.
-Admitted.  
-  
-
-(* If a graph has a vertex of degree d then color that vertex with c *)
-
 Function hi_deg_list (g : graph) {measure (fun x => (max_deg x + M.cardinal x)%nat) g} : list (coloring * graph) :=
   match extract_deg_vert_dec g (max_deg g) with
   | inr _ => [(@M.empty _, @M.empty _)] (* graph is empty *)
@@ -551,7 +533,6 @@ Proof.
     }
     rewrite WP.cardinal_Empty in H2.
     rewrite H2.
-    Search max_deg.
     assert (max_deg g' = 0%nat).
     {
       apply WP.cardinal_Empty in H2.

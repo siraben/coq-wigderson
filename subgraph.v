@@ -432,7 +432,7 @@ Proof.
     destruct (max_dec (list_max [a]) (list_max l)); sauto lq: on.
 Defined.
 
-(* We can extract a vertex of maximum degree in an non-graph *)
+(* We can extract a vertex of maximum degree in an non-empty graph *)
 Lemma max_degree_vert : forall g n, ~ M.Empty g -> max_deg g = n -> exists v, M.In v g /\ S.cardinal (adj g v) = n.
 Proof.
   intros g n H H1.
@@ -756,10 +756,20 @@ Proof.
   - apply subgraph_refl.
 Qed.
 
+(* If the max degree of a graph is 0 then all the vertices have degree 0 *)
+Lemma max_deg_0_all_0 : forall (g : graph) v, max_deg g = 0 -> M.In v g -> degree g v = Some 0.
+Proof.
+  intros g v H H0.
+  destruct H0 as [e He].
+  pose proof (max_deg_max _ _ _ He).
+  unfold degree.
+  sauto.
+Qed.
+
 Lemma extract_vertices_deg0_empty : forall (g : graph),
   max_deg g = 0 -> M.Empty (snd (extract_vertices_deg g 0)).
 Proof.
-  intros g Hg.
+  intros g Hg.  
   (* destruct ((extract_vertices_deg g 0)) as [ns g'] eqn:He. *)
   (* destruct ns. *)
   (* + rewrite extract_vertices_deg_equation in He. *)
