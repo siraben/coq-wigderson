@@ -426,6 +426,9 @@ Lemma not_complete_has_uncolored (f : coloring) (g : graph) p :
 Proof.
   intros Hf Hg.
   unfold coloring_complete in Hf.
+  (* Proceed by enumerating elements of the graph and checking if
+  they're colored or not.  EWe cannot have that no vertex remains
+  uncovered. *)
 Admitted.
 
 (* If a graph has max degree 0 then the constant coloring is a complete coloring. *)
@@ -477,18 +480,178 @@ Proof.
     + sfirstorder unfold: coloring_ok.
 Qed.
 
+(* (* If a subgraph does not have a vertex of a same degree  *) *)
+(* Lemma max_deg_subgraph_lt g g' : *)
+(*   (max_deg g' < max_deg g)%nat -> *)
+(*   ~ (exists v : node, degree g' v = max_deg g) -> *)
+(*   is_subgraph g' g -> *)
+(*   (M.cardinal g' < M.cardinal g)%nat. *)
+(* Proof. *)
+(*   intros H H0. *)
+(*   destruct (max_deg g) eqn:E; [sauto lq: on|]. *)
+(*   unfold is_subgraph in H0. *)
+(*   destruct H0 as [H1 H2]. *)
+(*   pose proof (max_degree_vert g (S n) ltac:(hauto l: on use: max_deg_gt_not_empty) E). *)
+(*   destruct H0 as [v [Hv1 Hv2]]. *)
+(*   (* assume for contradiction that *) *)
+(*   pose proof (max_deg_) *)
+  
+
+(* Extracting max degree vertices from a graph with max degree 0 *)
+Lemma extract_vertices_deg0 g g' :
+  max_deg g = 0%nat ->
+  extract_vertices_deg g (max_deg g) = ([], g') ->
+  M.Empty g'.
+Proof.
+  functional induction (extract_vertices_deg g (max_deg g)) using extract_vertices_deg_ind.
+  - admit.
+  - intros ->.
+    intros [=->].
+    
+    subst.
+    admit.
+Admitted.  
+  
 
 (* If a graph has a vertex of degree d then color that vertex with c *)
 
+Function hi_deg_list (g : graph) {measure (fun x => (max_deg x + M.cardinal x)%nat) g} : list (coloring * graph) :=
+  match extract_deg_vert_dec g (max_deg g) with
+  | inr _ => [(@M.empty _, @M.empty _)] (* graph is empty *)
+  (* there is a vertex of max degree *)
+  | inl _ => let n := (max_deg g) in
+            let (ns, g') := extract_vertices_deg g n in
+            let ns' := SP.of_list (map fst ns) in
+            let f' := hi_deg_list g' in
+            (constant_color ns' (Pos.of_nat (S (S n))), g') :: f'
+  end.
+Proof.
+  intros g s teq ns g' teq0.
+  assert (~ M.Empty g).
+  {
+    destruct s.
+    hauto use: degree_gt_0_in unfold: degree, extract_vertices_deg, PositiveMap.Empty, fst, degree, PositiveMap.In inv: option, prod, R_extract_vertices_deg, list.
+  }
+  assert ((M.cardinal g > 0)%nat).
+  {
+    clear teq s teq0.
+    apply le_ngt.
+    intros contra.
+    assert ((M.cardinal g = 0)%nat) by hauto l: on.
+    apply WP.cardinal_inv_1 in H0.
+    contradiction.
+  }
+  pose proof (extract_vertices_deg_exhaust g (max_deg g)).
+  destruct (max_deg g) eqn:He.
+  - (* max degree is 0 *)
+    (* in which case extracting all the vertices of degree 0 means g' is empty *)
+    assert (M.Empty g').
+    {
+      hfcrush use: extract_vertices_deg0_empty unfold: extract_vertices_deg, snd inv: R_extract_vertices_deg.
+    }
+    rewrite WP.cardinal_Empty in H2.
+    rewrite H2.
+    Search max_deg.
+    assert (max_deg g' = 0%nat).
+    {
+      apply WP.cardinal_Empty in H2.
+      pose proof max_deg_empty.
+      unfold max_deg.
+      pose proof (proj1 (WP.elements_Empty _) H2).
+      rewrite H4.
+      scongruence.
+    }
+    hauto l: on.
+  - specialize (H1 ltac:(hauto l: on)).
+    assert ((M.cardinal g' < M.cardinal g)%nat).
+    {
+      rewrite teq0 in H1.
+      simpl in H1.
+      destruct s as [v Hv1].
+      assert (is_subgraph g' g).
+      {
+        pose proof (extract_vertices_deg_subgraph g (S n)).
+        rewrite teq0 in H2.
+        assumption.
+      }
+      rewrite <- He in teq0.
+      unfold is_subgraph in H2.
+      destruct H2.
+      apply SP.subset_cardinal in H2.
+      unfold nodes in H2.
+      rewrite <- !Mcardinal_domain in H2.
+      (* obviously true *)
+      admit.
+    }
+    enough ((max_deg g' < S n)%nat).
+    {
+      hauto l: on.
+    }
+    pose proof (extract_vertices_max_deg g ltac:(hauto l: on)).
+    qauto l: on unfold: extract_vertices_deg, snd, gt.
+Admitted.
 
+Functional Scheme hi_deg_list_ind := Induction for hi_deg_list Sort Prop.
 
+Lemma hi_deg_list_series g :
+  subgraph_series (map snd (hi_deg_list g)).
+Proof.
+  functional induction (hi_deg_list g).
+  - hauto l: on.
+  - simpl.
+    destruct (map snd (hi_deg_list g')) eqn:E.
+    + constructor.
+    + destruct (hi_deg_list g') eqn:E2; [scongruence|].
+      apply sg_cons.
+      * pose proof (extract_vertices_deg_subgraph g (max_deg g)).
+        rewrite e0 in H.
+        simpl in H.
+        destruct p.
+        rewrite hi_deg_list_equation in E2.
+        destruct (extract_deg_vert_dec g' (max_deg g')) eqn:E3.
+        ** simpl in E. inversion E.
+           subst.
+           destruct (extract_vertices_deg g' (max_deg g')) eqn:E4.
+           *** inversion E2.
+               subst.
+               pose proof (extract_vertices_deg_subgraph g' (max_deg g')).
+               rewrite E4 in H0.
+               simpl in H0.
+               assumption.
+        ** inversion E2.
+           subst.
+           inversion E.
+           subst.
+           hauto l: on use: empty_subgraph_is_subgraph unfold: PositiveMap.empty, empty_graph.
+      * assumption.
+Qed.
 
+Function phase2' (g : graph) {measure max_deg g} : (list (coloring * graph) * graph) :=
+  match (max_deg g)%nat with
+  | 0%nat => ([(constant_color (nodes g) 1, g)], @M.empty _)
+  | S n => let (ns, g') := extract_vertices_deg g (S n) in
+          let ns' := SP.of_list (map fst ns) in
+          let (f', g'') := phase2' g' in
+          ((constant_color ns' (Pos.of_nat (S (S n))), g') :: f', g'')
+  end.
+Proof.
+  intros g n teq.
+  intros ns g' teq0.
+  replace g' with (snd (ns, g')) by auto.
+  rewrite <- teq0.
+  hfcrush use: nlt_0_r, max_deg_subgraph, extract_vertices_deg_subgraph, le_lt_or_eq, extract_vertices_max_deg unfold: Peano.lt, snd, extract_vertices_deg inv: sumbool.
+Defined.
+(* we keep track of the graph with no more high-degree vertices at
+   each step and partial colorings. we also have a subgraph series: *)
+Lemma phase2'_subgraph_series g :
+  subgraph_series (map snd (fst (phase2' g))).
+Proof.
+Admitted.
 
 (* maybe we just use a "larger unit of operation" on each function call
    remove all the max degree vertices then color them *)
 
 (* TODO: map over a set to produce new sets *)
-
 
 Function phase2 (g : graph) {measure max_deg g} : coloring * graph :=
   match (max_deg g)%nat with
