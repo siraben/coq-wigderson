@@ -104,6 +104,7 @@ Proof.
         hauto lq: on.
 Qed.
 
+(* Subgraph induced by a set of vertices is a subgraph *)
 Lemma subgraph_of_is_subgraph : forall g s, is_subgraph (subgraph_of g s) g.
 Proof.
   intros g s.
@@ -111,6 +112,8 @@ Proof.
   split; [apply subgraph_vertices|apply subgraph_edges].
 Qed.
 
+(* If i and j are distinct vertices then removing j from the graph
+   doesn't affect i's membership *)
 Lemma remove_node_neq : forall g i j, i <> j -> M.In i g <-> M.In i (remove_node j g).
 Proof.
   intros g i j H.
@@ -123,6 +126,7 @@ Proof.
     assumption.
 Qed.
 
+(* If i is in the graph with j removed then i is not equal to j*)
 Lemma remove_node_neq2 : forall g i j, M.In i (remove_node j g) -> i <> j.
 Proof.
   intros g i j H.
@@ -133,6 +137,7 @@ Proof.
   - assumption.
 Qed.
 
+(* Removing a node from a graph results in a subgraph *)
 Lemma remove_node_subgraph : forall g v, is_subgraph (remove_node v g) g.
 Proof.
   intros g v.
@@ -195,16 +200,17 @@ Proof.
   hecrush use: WF.map_o use: M.grs.
 Qed.
 
-
 (* Neighborhood subgraph is a subgraph *)
 Lemma nbd_subgraph : forall g i, is_subgraph (neighborhood g i) g.
 Proof.
   hauto l: on use: subgraph_of_is_subgraph, remove_node_subgraph, subgraph_trans.
 Qed.
 
+(* An empty graph has no vertices *)
 Lemma empty_graph_no_vert : forall v, ~ M.In v empty_graph.
 Proof. sauto q: on. Qed.
 
+(* The empty graph is a subgraph of any graph *)
 Lemma empty_subgraph_is_subgraph (g : graph) : is_subgraph empty_graph g.
 Proof.
   unfold is_subgraph.
@@ -239,6 +245,8 @@ Proof.
     + assumption.
 Qed.
 
+(* If i is in the induced subgraph then i is in the set of inducing
+   vertices. *)
 Lemma subgraph_of_nodes : forall g i s, S.In i (nodes (subgraph_of g s)) -> S.In i s.
 Proof.
   hauto l: on use: subgraph_vertices_set, subgraph_of_is_subgraph unfold: PositiveMap.key, is_subgraph, PositiveSet.Subset, PositiveSet.elt.
@@ -290,6 +298,7 @@ Qed.
  *)
 Definition remove_nodes (g : graph) (s : nodeset) :=
   M.map (fun ve => S.diff ve s) (restrict g (S.diff (nodes g) s)).
+
 (* Removing nodes from the subgraph is a subgraph. *)
 Lemma remove_nodes_is_subgraph : forall g s, is_subgraph (remove_nodes g s) g.
 Proof.
@@ -325,6 +334,8 @@ Proof.
     + sauto.
 Qed.
 
+(* If i is in a set of nodes and the graph then it is not in the graph
+   after removing the set. *)
 Lemma remove_nodes_sub : forall g s i, S.In i s -> M.In i g -> ~ M.In i (remove_nodes g s).
 Proof.
   intros g s i H H0 contra.
@@ -420,6 +431,7 @@ Proof.
   sfirstorder.
 Qed.
 
+(* We can extract a maximum element from a non-empty list *)
 Lemma list_max_witness : forall l n, l <> [] -> list_max l = n -> {x | In x l /\ x = n}.
 Proof.
   intros l n.
@@ -452,6 +464,7 @@ Proof.
   - sauto lq: on rew: off use: map_eq_nil, WP.elements_Empty inv: list.
 Qed.
 
+(* subgraph relation respects maximum degree *)
 Lemma max_deg_subgraph : forall (g g' : graph), is_subgraph g' g -> max_deg g' <= max_deg g.
 Proof.
   intros g g' H.
@@ -495,6 +508,7 @@ Definition degree (g : graph) (v : node) :=
   | Some a => Some (S.cardinal a)
   end.
 
+(* Inversion for degree *)
 Lemma degree_gt_0_in (g : graph) (v : node) n :
   degree g v = Some n -> M.In v g.
 Proof.
@@ -516,7 +530,8 @@ Proof.
   pose proof (max_deg_max g j e ltac:(sfirstorder)).
   hauto use: SP.cardinal_inv_1 unfold: nodeset, PositiveSet.Empty inv: Peano.le.
 Qed.
-  
+
+(* If the maximum degree of a graph is non-zero then the graph is not empty *)
 Lemma max_deg_gt_not_empty (g : graph) : max_deg g > 0 -> ~ M.Empty g.
 Proof.
   intros H contra.
@@ -525,9 +540,6 @@ Proof.
   apply (WP.elements_Empty g) in contra.
   sauto q: on.
 Qed.
-
-(* If a graph has a maximum degree of greater than 0 then there is a witness *)
-(* Stronger than max_degree_vert *)
 
 (* If a vertex is removed from the graph, all of its neighbors have
    reduced degree. *)
@@ -560,7 +572,6 @@ Proof.
   rewrite WF.map_o.
   rewrite M.gro by auto.
   ssimpl.
-  Search (S.cardinal (S.remove _ _)).
   f_equal.
   assert (S.In i n0).
   {
@@ -569,9 +580,11 @@ Proof.
   sfirstorder use: SP.remove_cardinal_1 unfold: PositiveOrderedTypeBits.t, node, nodeset, PositiveSet.elt.
 Qed.
 
+(* Extracting a vertex with a given degree from a graph *)
 Definition extract_deg_vert (g : graph) (d : nat) :=
   find (fun p => Nat.eqb (S.cardinal (snd p)) d) (M.elements g).
 
+(* Annoying lemma *)
 Lemma InA_in_iff {A} : forall p (l : list (M.key * A)), (InA (@M.eq_key_elt A) p l) <-> In p l.
 Proof. induction l; sauto q: on. Qed.
 
@@ -679,6 +692,8 @@ Proof.
   generalize dependent l.
   functional induction (extract_vertices_deg (remove_node v g) n).
   - intros l0 H H0.
+    inversion H0.
+    subst.
     admit.
   - scongruence.
 Admitted.
@@ -709,39 +724,26 @@ Qed.
 (* If a vertex occurs in the subgraph series then the degree is at
    least n in the original graph. *)
 Lemma extract_vertices_inv (g g' : graph) n m v :
-  In (v,g') (fst (extract_vertices_deg g n)) -> degree g v = Some m -> m >= n .
+  In (v,g') (fst (extract_vertices_deg g n)) -> degree g v = Some m -> n <= m .
 Proof.
-  functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
-  - intros H H1.
-    rewrite e0 in IHp.
-    simpl in IHp.
+  (* prove this by knowing that g' is a subgraph of g *)
+  intros H H1.
+  assert (is_subgraph g' g).
+  {
+    pose proof (extract_vertices_deg_series g n).
+    remember (map snd (fst (extract_vertices_deg g n))) as l.
+    induction l eqn:E.
+    - exfalso.
+      destruct (fst (extract_vertices_deg g n)); scongruence.
+    - admit.
+  }
+  rewrite extract_vertices_deg_equation in H.
+  destruct (extract_deg_vert_dec g n) eqn:He.
+  - destruct (extract_vertices_deg (remove_node (` s) g) n).
     simpl in H.
-    destruct H.
-    + (* assert (M.In v g) by hauto l: on unfold: degree. *)
-
-      (* assert (M.In v g) by hauto drew: off unfold: degree. *)
-      (* pose proof (remove_node_subgraph g (` v0)). *)
-      (* epose proof (degree_subgraph (remove_node (` v0) g) g v d m H2). *)
-      admit.
-      (* hammer. *)
-      (* unfold degree in *. *)
-      (* ssimpl. *)
-      (* * rewrite Heqo in H1. *)
-      (*   inversion H1; subst; clear H1. *)
-      (*   destruct (E.eq_dec v x). *)
-      (*   ** subst. *)
-      (*      unfold remove_node in Heqo0. *)
-      (*      exfalso. *)
-      (*      clear e. *)
-      (*      rewrite WF.map_o in Heqo0. *)
-      (*      rewrite M.grs in Heqo0. *)
-      (*      inversion Heqo0. *)
-      (*   ** unfold remove_node in Heqo0. *)
-      (*      exfalso. *)
-      (*      clear e. *)
-  (* best use: degree_subgraph, remove_node_subgraph, le_trans. *)
-    + admit.
-  - hauto q: on.
+    (* ok need to perform induction on the list and have a lemma about
+       the degree of the vertex at each point having degree n
+       (wrt. the graph at that point) *)
 Admitted.
 
 Lemma extract_vertices_deg_subgraph (g : graph) n :
@@ -769,42 +771,29 @@ Qed.
 Lemma extract_vertices_deg0_empty : forall (g : graph),
   max_deg g = 0 -> M.Empty (snd (extract_vertices_deg g 0)).
 Proof.
-  intros g Hg.  
-  (* destruct ((extract_vertices_deg g 0)) as [ns g'] eqn:He. *)
-  (* destruct ns. *)
-  (* + rewrite extract_vertices_deg_equation in He. *)
-  (*   ssimpl. *)
-  (*   destruct (mempty_dec g'). *)
-  (*   * assumption. *)
-  (*   * exfalso. *)
-  (*     (* if g' is not empty but the max degree is 0 and there is no witness, contra *) *)
-  (*     apply max_degree_vert with (n := 0) in n0; auto. *)
-  (* + destruct p as [v g'']. *)
-  (*   pose proof (extract_vertices_deg_subgraph1 g g'' g' _ _ _ He). *)
-  (*   simpl. *)
-    
-  (*     contradiction. *)
-  (*     Search (~ M.Empty _). *)
-      
-  (*   hammer. *)
-  (*   destruct (extract_deg_vert_dec g 0). *)
-  apply Decidable.not_not.
-  - hauto q: on use: mempty_dec.
-  - intros contra.
-    (* if g' is not empty then there is a (v,e) in g' *)
-    (* but then v is in g as well, and since max_deg g = 0 then e is empty *)
-    destruct (extract_vertices_deg g 0) eqn: He.
-    simpl in contra.
-    pose proof (extract_vertices_deg_subgraph g 0).
-    rewrite He in H.
-    simpl in H.
-    assert (max_deg g0 = 0).
+  intros g.
+  remember 0 as d.
+  functional induction (extract_vertices_deg g d) using extract_vertices_deg_ind.
+  - intros H.
+    assert (max_deg (remove_node (` v) g) = 0).
     {
-      hauto l: on use: max_deg_subgraph.
+      enough (max_deg (remove_node (` v) g) <= 0).
+      sauto.
+      rewrite <- H.
+      apply max_deg_subgraph.
+      apply remove_node_subgraph.
     }
-    pose proof (max_degree_vert g0 0 contra H0).
-    destruct H1 as [v [[ve Hve] Hv2]].
-Admitted.
+    specialize (IHp (@eq_refl _) H0).
+    simpl.
+    rewrite e0 in IHp.
+    assumption.
+  - intros H v e' contra.
+    assert (degree g v = Some 0).
+    {
+      sauto lq: on rew: off use: max_deg_0_all_0, extract_vertices_deg_equation unfold: PositiveMap.In, snd, extract_vertices_deg, PositiveMap.MapsTo inv: sum.
+    }
+    sauto.
+Qed.
     
 
 Lemma extract_vertices_max_deg (g : graph) :
