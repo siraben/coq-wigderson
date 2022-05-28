@@ -14,32 +14,56 @@ Import Arith.
 Import ListNotations.
 Import Nat.
 
-(* The neighbors of a vertex v in a graph g. *)
+(** * Properties of subgraphs and degrees *)
+
+(** ** Neighbors of a vertex *)
+
 Definition neighbors (g : graph) v := adj g v.
 
-(* Subgraph induced by a set of vertices *)
-Definition subgraph_of (g : graph) (s : S.t) :=
-  M.fold (fun v adj g' => if S.mem v s then M.add v (S.inter s adj) g' else g') g empty_graph.
-
-(* g' is a subgraph of g if:
-- the vertex set of g' is a subset of the vertex set of g
-- the adjacency set of every v in g' is a subset of adjacency set of every v in g
+(** ** Subgraph predicate
+ [g'] is a subgraph of [g] if:
+- the vertex set of [g'] is a subset of the vertex set of [g]
+- the adjacency set of every [v] in [g'] is a subset of adjacency set of every [v] in [g]
  *)
 Definition is_subgraph (g' g : graph) :=
   S.Subset (nodes g') (nodes g) /\ forall v, S.Subset (adj g' v) (adj g v).
 
+
+(** ** Subgraph relation is reflexive *)
 Lemma subgraph_refl : forall g, is_subgraph g g.
 Proof. sfirstorder. Qed.
+
+(** ** Subgraph relation is transitive *)
 
 Lemma subgraph_trans : forall g g' g'', is_subgraph g g' -> is_subgraph g' g'' -> is_subgraph g g''.
 Proof. sfirstorder. Qed.
 
-(* Subgraph vertices are in the original graph, map version *)
+(** ** Vertices in the subgraph are in original graph *)
+
 Lemma subgraph_vert_m : forall g' g v, is_subgraph g' g -> M.In v g' -> M.In v g.
 Proof. qauto l: on use: Sin_domain. Qed.
 
-(* Some lemmas about induced subgraphs. *)
-(* The nodes of a subgraph are a subset of the original graph. *)
+(** ** Empty graph is a subgraph *)
+
+Lemma empty_subgraph_is_subgraph (g : graph) : is_subgraph empty_graph g.
+Proof.
+  unfold is_subgraph.
+  split.
+  - hecrush.
+  - intros v i Hi.
+    unfold adj in Hi.
+    unfold empty_graph in Hi.
+    ssimpl.
+    scongruence use: PositiveMap.gempty unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key.
+Qed.
+
+(** * Induced subgraphs *)
+(** ** Definition *)
+
+Definition subgraph_of (g : graph) (s : S.t) :=
+  M.fold (fun v adj g' => if S.mem v s then M.add v (S.inter s adj) g' else g') g empty_graph.
+
+(** ** Nodes of an induced subgraph are a subset of the original graph *)
 Lemma subgraph_vertices : forall g s, S.Subset (nodes (subgraph_of g s)) (nodes g).
 Proof.
   intros g s.
@@ -63,8 +87,10 @@ Proof.
       destruct (E.eq_dec a' k); sauto lq: on rew: off use: WP.F.add_neq_in_iff.
 Qed.
 
-(* The edges of a subgraph are a subset of the original graph. *)
-(* Note this is defined pointwise: the adjacency set is a subset for every vertex. *)
+(** ** Edges of an induced subgraph are a subset of the original graph *)
+(** Note that this is defined pointwise: the adjacency set is a subset
+    for every vertex. *)
+
 Lemma subgraph_edges : forall g s v,
     S.Subset (adj (subgraph_of g s) v) (adj g v).
 Proof.
@@ -104,7 +130,8 @@ Proof.
         hauto lq: on.
 Qed.
 
-(* Subgraph induced by a set of vertices is a subgraph *)
+(** ** Induced subgraph is subgraph *)
+
 Lemma subgraph_of_is_subgraph : forall g s, is_subgraph (subgraph_of g s) g.
 Proof.
   intros g s.
@@ -112,8 +139,10 @@ Proof.
   split; [apply subgraph_vertices|apply subgraph_edges].
 Qed.
 
-(* If i and j are distinct vertices then removing j from the graph
-   doesn't affect i's membership *)
+(** ** Removing a distinct vertex from a graph *)
+(** If [i] and [j] are distinct vertices then removing [j] from the
+    graph doesn't affect [i]'s membership. *)
+
 Lemma remove_node_neq : forall g i j, i <> j -> M.In i g <-> M.In i (remove_node j g).
 Proof.
   intros g i j H.
@@ -126,7 +155,8 @@ Proof.
     assumption.
 Qed.
 
-(* If i is in the graph with j removed then i is not equal to j*)
+(** If [i] is in the graph with [j] removed then [i] is not equal to [j]. *)
+
 Lemma remove_node_neq2 : forall g i j, M.In i (remove_node j g) -> i <> j.
 Proof.
   intros g i j H.
@@ -137,7 +167,8 @@ Proof.
   - assumption.
 Qed.
 
-(* Removing a node from a graph results in a subgraph *)
+(** ** Removing a node results in a subgraph *)
+
 Lemma remove_node_subgraph : forall g v, is_subgraph (remove_node v g) g.
 Proof.
   intros g v.
@@ -189,41 +220,30 @@ Proof.
 Qed.
 
 
-(* The (open) neighborhood of a vertex v in a graph consists of the
-   subgraph induced by the vertices adjacent to v.  It does not
-   include v itself. *)
+(** * Neighborhood of a vertex *)
+(** ** Definition *)
+(** The (open) neighborhood of a vertex v in a graph consists of the
+    subgraph induced by the vertices adjacent to v.  It does not
+    include v itself. *)
+
 Definition neighborhood (g : graph) v := remove_node v (subgraph_of g (neighbors g v)).
 
-(* Neighborhoods do not include their vertex *)
+(** ** Neighborhoods do not include the vertex *)
+
 Lemma nbd_not_include_vertex g v : M.find v (neighborhood g v) = None.
 Proof.
   hecrush use: WF.map_o use: M.grs.
 Qed.
 
-(* Neighborhood subgraph is a subgraph *)
+(** ** Neighborhood is a subgraph *)
+
 Lemma nbd_subgraph : forall g i, is_subgraph (neighborhood g i) g.
 Proof.
   hauto l: on use: subgraph_of_is_subgraph, remove_node_subgraph, subgraph_trans.
 Qed.
 
-(* An empty graph has no vertices *)
-Lemma empty_graph_no_vert : forall v, ~ M.In v empty_graph.
-Proof. sauto q: on. Qed.
+(** ** Vertices of an induced subgraph are a subset *)
 
-(* The empty graph is a subgraph of any graph *)
-Lemma empty_subgraph_is_subgraph (g : graph) : is_subgraph empty_graph g.
-Proof.
-  unfold is_subgraph.
-  split.
-  - hecrush.
-  - intros v i Hi.
-    unfold adj in Hi.
-    unfold empty_graph in Hi.
-    ssimpl.
-    scongruence use: PositiveMap.gempty unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key.
-Qed.
-
-(* The vertices of an induced subgraph is a subset of s. *)
 Lemma subgraph_vertices_set : forall g s, S.Subset (nodes (subgraph_of g s)) s.
 Proof.
   intros g s.
@@ -245,14 +265,16 @@ Proof.
     + assumption.
 Qed.
 
-(* If i is in the induced subgraph then i is in the set of inducing
-   vertices. *)
+(** If i is in the induced subgraph then i is in the set of inducing
+    vertices. *)
+
 Lemma subgraph_of_nodes : forall g i s, S.In i (nodes (subgraph_of g s)) -> S.In i s.
 Proof.
   hauto l: on use: subgraph_vertices_set, subgraph_of_is_subgraph unfold: PositiveMap.key, is_subgraph, PositiveSet.Subset, PositiveSet.elt.
 Qed.
 
-(* The adjacency set of any vertex of in an induced subgraph is a subset of s. *)
+(** ** The adjacency set of any vertex of in an induced subgraph is a subset of the vertex set  *)
+
 Lemma subgraph_vertices_adj : forall g s i, S.Subset (adj (subgraph_of g s) i) s.
 Proof.
   intros g s i.
@@ -260,7 +282,8 @@ Proof.
   apply WP.fold_rec_bis.
   - sfirstorder.
   - unfold adj.
-    hecrush use: empty_graph_no_vert.
+    unfold empty_graph.
+    now rewrite M.gempty.
   - intros k e a m' H H0 H1.
     sdestruct (S.mem k s).
     + unfold adj, nodeset in *.
@@ -271,7 +294,8 @@ Proof.
     + assumption.
 Qed.
 
-(* If a vertex j is in the neighborhood of i then j is in i's adjacency set. *)
+(** ** In neighborhood implies in adjacency set *)
+
 Lemma nbd_adj : forall g i j, S.In j (nodes (neighborhood g i)) -> S.In j (adj g i).
 Proof.
   intros g i j H.
@@ -284,22 +308,22 @@ Proof.
   - hauto lq: on use: Sin_domain, remove_node_neq unfold: nodes.
 Qed.
 
-(* When is an edge in the induced subgraph?
+(** When is an edge in the induced subgraph?
 - if i, j in S and (i,j) in G then (i,j) in G|s
 - if (i,j) in G|s then (i,j) in G
 - if vertex v in G|s then v in S
 - if v in S and v in G then v in G|s
  *)
 
-(* Remove a set of vertices from a graph. *)
-(* For proving:
+(** ** Remove a set of vertices from a graph *)
+(** To make it easier to prove things about it,
 - first restrict the graph by (S.diff (Mdomain g) s)
 - then map subtracting s from every adj set
  *)
 Definition remove_nodes (g : graph) (s : nodeset) :=
   M.map (fun ve => S.diff ve s) (restrict g (S.diff (nodes g) s)).
 
-(* Removing nodes from the subgraph is a subgraph. *)
+(** ** Removing nodes results in a subgraph *)
 Lemma remove_nodes_is_subgraph : forall g s, is_subgraph (remove_nodes g s) g.
 Proof.
   intros g s.
@@ -334,8 +358,8 @@ Proof.
     + sauto.
 Qed.
 
-(* If i is in a set of nodes and the graph then it is not in the graph
-   after removing the set. *)
+(** ** Every vertex in the removing set is not in the resulting graph *)
+
 Lemma remove_nodes_sub : forall g s i, S.In i s -> M.In i g -> ~ M.In i (remove_nodes g s).
 Proof.
   intros g s i H H0 contra.
@@ -351,7 +375,8 @@ Proof.
   hauto l: on use: S.diff_spec.
 Qed.
 
-(* Removing a non-empty subgraph decreases the size of the graph *)
+(** ** Removing a non-empty set of vertices decreases the size of the graph *)
+
 Lemma remove_nodes_lt : forall g s i, S.In i s -> M.In i g -> (M.cardinal (remove_nodes g s) < M.cardinal g)%nat.
 Proof.
   intros g s i H H0.
@@ -382,7 +407,8 @@ Proof.
   eauto using in_adj_in_nodes.
 Qed.
 
-(* Removing a subgraph preserves undirectedness *)
+(** ** Removing a subgraph preserves undirectedness *)
+
 Lemma remove_nodes_undirected : forall g s, undirected g -> undirected (remove_nodes g s).
 Proof.
   unfold undirected.
@@ -391,17 +417,23 @@ Proof.
   sfirstorder.
 Qed.
 
-(* Maximum degree of a graph *)
-Definition max_deg' (g : graph) := M.fold (fun _ s n => max (S.cardinal s) n) g 0.
+(** * Maximum degree of a graph *)
+(** ** Definition *)
 Definition max_deg (g : graph) := list_max (map (fun p => S.cardinal (snd p)) (M.elements g)).
+
+(** ** The maximum degree of an empty graph is 0 *)
 
 Lemma max_deg_empty : max_deg (@M.empty _) = 0.
 Proof. sfirstorder. Qed.
+
+(** ** S.InL and In agree *)
 
 Lemma inl_in i l : S.InL i l <-> In i l.
 Proof.
   split; induction l; sauto lq: on.
 Qed.
+
+(** ** Subset respects list inclusion of elements *)
 
 Lemma incl_subset s s' : S.Subset s s' -> incl (S.elements s) (S.elements s').
 Proof.
@@ -412,7 +444,8 @@ Proof.
   sfirstorder use: PositiveSet.elements_1 unfold: PositiveSet.elt.
 Qed.
 
-(* Maximum degree is maximum *)
+(** ** Maximum degree bounds the size of all the adjacency sets *)
+
 Lemma max_deg_max : forall g v e, M.find v g = Some e -> S.cardinal e <= max_deg g.
 Proof.
   intros g v e H.
@@ -431,7 +464,7 @@ Proof.
   sfirstorder.
 Qed.
 
-(* We can extract a maximum element from a non-empty list *)
+(** ** Extract a maximum element from a non-empty list *)
 Lemma list_max_witness : forall l n, l <> [] -> list_max l = n -> {x | In x l /\ x = n}.
 Proof.
   intros l n.
@@ -444,7 +477,8 @@ Proof.
     destruct (max_dec (list_max [a]) (list_max l)); sauto lq: on.
 Defined.
 
-(* We can extract a vertex of maximum degree in an non-empty graph *)
+(** ** Extract a vertex of maximum degree in an non-empty graph *)
+
 Lemma max_degree_vert : forall g n, ~ M.Empty g -> max_deg g = n -> exists v, M.In v g /\ S.cardinal (adj g v) = n.
 Proof.
   intros g n H H1.
@@ -464,7 +498,8 @@ Proof.
   - sauto lq: on rew: off use: map_eq_nil, WP.elements_Empty inv: list.
 Qed.
 
-(* subgraph relation respects maximum degree *)
+(** ** Subgraph relation respects maximum degree *)
+
 Lemma max_deg_subgraph : forall (g g' : graph), is_subgraph g' g -> max_deg g' <= max_deg g.
 Proof.
   intros g g' H.
@@ -498,24 +533,27 @@ Proof.
   - assumption.
 Qed.
 
-(* Degree of a vertex *)
-(* Note that this is a partial function because if the vertex is not
-   in the graph and we return 0, we can't tell whether it's actually
-   in the graph or not. *)
+(** * Degree of a vertex *)
+(** Note that this is a partial function because if the vertex is not
+    in the graph and we return 0, we can't tell whether it's actually
+    in the graph or not. *)
+
 Definition degree (v : node) (g : graph) :=
   match M.find v g with
   | None => None
   | Some a => Some (S.cardinal a)
   end.
 
-(* Inversion for degree *)
+(** ** Inversion lemma for degree *)
+
 Lemma degree_gt_0_in (g : graph) (v : node) n :
   degree v g = Some n -> M.In v g.
 Proof.
   sauto unfold: degree, adj.
 Qed.
 
-(* If the max degree of a graph is 0 then every pair of vertices is not adjacent. *)
+(** ** Max degree being 0 implies non-adjacency of all vertices **)
+
 Lemma max_deg_0_adj (g : graph) i j : max_deg g = 0 -> ~ S.In i (adj g j).
 Proof.
   intros H contra.
@@ -531,7 +569,8 @@ Proof.
   hauto use: SP.cardinal_inv_1 unfold: nodeset, PositiveSet.Empty inv: Peano.le.
 Qed.
 
-(* If the maximum degree of a graph is non-zero then the graph is not empty *)
+(** ** Non-zero max degree implies non-empty graph *)
+
 Lemma max_deg_gt_not_empty (g : graph) : max_deg g > 0 -> ~ M.Empty g.
 Proof.
   intros H contra.
@@ -541,8 +580,8 @@ Proof.
   sauto q: on.
 Qed.
 
-(* If a vertex is removed from the graph, all of its neighbors have
-   reduced degree. *)
+(** ** Removing vertex decreases degree of neighbors *)
+
 Lemma vertex_removed_nbs_dec : forall (g : graph) (i j : node) n,
     undirected g ->
     no_selfloop g ->
@@ -580,7 +619,9 @@ Proof.
   sfirstorder use: SP.remove_cardinal_1 unfold: PositiveOrderedTypeBits.t, node, nodeset, PositiveSet.elt.
 Qed.
 
-(* Extracting a vertex with a given degree from a graph *)
+(** * Vertex extraction *)
+(** ** Definition for a given degree *)
+
 Definition extract_deg_vert (g : graph) (d : nat) :=
   find (fun p => Nat.eqb (S.cardinal (snd p)) d) (M.elements g).
 
@@ -588,7 +629,8 @@ Definition extract_deg_vert (g : graph) (d : nat) :=
 Lemma InA_in_iff {A} : forall p (l : list (M.key * A)), (InA (@M.eq_key_elt A) p l) <-> In p l.
 Proof. induction l; sauto q: on. Qed.
 
-(* Extract a degree of vertex d in a graph or fail *)
+(** ** Decidability of extracting a vertex of a given degree *)
+
 Lemma extract_deg_vert_dec : forall (g : graph) (d : nat),
     {v | degree v g = Some d} + ~ exists v, degree v g = Some d.
 Proof.
@@ -628,8 +670,12 @@ Proof.
     + sfirstorder.
 Defined.
 
-(* Extract vertices of a given degree in a graph, removing it from the
-   graph each time. *)
+(** * Iterated extraction *)
+(** This section concerns functions that extract a list of vertices
+    satisfying a degree criterion and incremental removal from the
+    graph. *)
+
+(** ** Extracting a vertex with a given degree iteratively *)
 Function extract_vertices_deg (g : graph) (d : nat) {measure M.cardinal g} : list (node * graph) * graph :=
   match extract_deg_vert_dec g d with
   | inl v =>
@@ -649,6 +695,7 @@ Defined.
 
 Functional Scheme extract_vertices_deg_ind := Induction for extract_vertices_deg Sort Prop.
 
+(** ** Iteractive extraction exhausts vertices of that (non-zero) degree *)
 Lemma extract_vertices_deg_exhaust (g : graph) n :
   n > 0 -> ~ exists v, degree v (snd (extract_vertices_deg g n)) = Some n.
 Proof.
@@ -678,28 +725,17 @@ Proof.
   hfcrush drew: off use: remove_node_subgraph inv: sum.
 Qed.
 
-(* a list of subgraphs (decreasing) *)
+(** * Subgraph series *)
+(** A subgraph series is a list of subgraphs such that later elements
+    are subgraphs of former elements.  *)
+
 Inductive subgraph_series : list graph -> Prop :=
 | sg_nil : subgraph_series []
 | sg_single : forall g, subgraph_series [g]
 | sg_cons : forall g g' l, is_subgraph g' g -> subgraph_series (g' :: l) -> subgraph_series (g :: g' :: l).
+  
+(** The subgraphs created by the extraction are a subgraph series; *)
 
-Lemma extract_vertices_deg_cardinal g g' l v n :
-  l <> [] ->
-  extract_vertices_deg (remove_node v g) n = (l, g') ->
-  M.cardinal g' < M.cardinal g.
-Proof.
-  generalize dependent l.
-  functional induction (extract_vertices_deg (remove_node v g) n).
-  - intros l0 H H0.
-    inversion H0.
-    subst.
-    admit.
-  - scongruence.
-Admitted.
-  
-  
-(* The subgraphs created by the extraction are a subgraph series *)
 Lemma extract_vertices_deg_series g n :
   subgraph_series (map snd (fst (extract_vertices_deg g n))).
 Proof.
@@ -716,13 +752,16 @@ Proof.
   - sauto lq: on rew: off.
 Qed.
 
-Lemma degree_subgraph (g g': graph) v n m : is_subgraph g g' -> degree v g = Some n -> degree v g' = Some m -> n <= m.
+(** ** Subgraph respects degree of vertices. *)
+
+Lemma degree_subgraph (g g': graph) v n m :
+  is_subgraph g g' -> degree v g = Some n -> degree v g' = Some m -> n <= m.
 Proof.
   hfcrush use: SP.subset_cardinal unfold: degree, adj, nodeset, is_subgraph.
 Qed.
 
-(* If a vertex occurs in the subgraph series then the degree is at
-   least n in the original graph. *)
+(** If a vertex is extracted by [extract_vertices_deg] then the degree
+    is at least [n] in the original graph. *)
 Lemma extract_vertices_inv (g g' : graph) n m v :
   In (v,g') (fst (extract_vertices_deg g n)) -> degree v g = Some m -> n <= m .
 Proof.
@@ -746,6 +785,8 @@ Proof.
        (wrt. the graph at that point) *)
 Admitted.
 
+(** ** The final graph returned by the vertex extraction is a subgraph. *)
+
 Lemma extract_vertices_deg_subgraph (g : graph) n :
   is_subgraph (snd (extract_vertices_deg g n)) g. 
 Proof.
@@ -758,7 +799,8 @@ Proof.
   - apply subgraph_refl.
 Qed.
 
-(* If the max degree of a graph is 0 then all the vertices have degree 0 *)
+(** ** Max degree 0 implies all vertices have degree 0 *)
+
 Lemma max_deg_0_all_0 : forall (g : graph) v, max_deg g = 0 -> M.In v g -> degree v g = Some 0.
 Proof.
   intros g v H H0.
@@ -767,6 +809,8 @@ Proof.
   unfold degree.
   sauto.
 Qed.
+
+(** ** Extracting degree 0 vertices from a max degree 0 graph empties it *)
 
 Lemma extract_vertices_deg0_empty : forall (g : graph),
   max_deg g = 0 -> M.Empty (snd (extract_vertices_deg g 0)).
@@ -795,6 +839,7 @@ Proof.
     sauto.
 Qed.
     
+(** ** Extracting all max degree vertices strictly decreases max degree *)
 
 Lemma extract_vertices_max_deg (g : graph) :
    max_deg g > 0 -> max_deg (snd (extract_vertices_deg g (max_deg g))) < max_deg g.
@@ -828,8 +873,10 @@ Proof.
     scongruence.
 Qed.
 
-(* If a vertex of max degree is removed from a graph then any vertex
-   with max degree in the new graph cannot be adjacent to it. *)
+(** ** Non-adjacency of max degree vertices after one step *)
+(** If a vertex of max degree is removed from a graph then any vertex
+    with max degree in the new graph cannot be adjacent to it. *)
+
 Lemma remove_max_deg_adj : forall (g : graph) (i j : node) (d : nat),
     (d > 0)%nat ->
     undirected g ->
@@ -848,9 +895,10 @@ Proof.
 Qed.
 
 
-(* If two vertices i, j occur in the list of max degree vertices
-   extracted from the graph, then i is not adjacent to j
- *)
+(** ** Non-adjacency of max degree vertices after arbitrary steps *)
+(** If two vertices [i], [j] occur in the list of max degree vertices
+    extracted from the graph, then [i] is not adjacent to [j] *)
+
 Lemma extract_vertices_deg_not_adj (g : graph) (d : nat) i j :
   i <> j ->
   d = max_deg g ->
