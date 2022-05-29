@@ -727,7 +727,7 @@ Inductive subgraph_series : list graph -> Prop :=
 | sg_single : forall g, subgraph_series [g]
 | sg_cons : forall g g' l, is_subgraph g' g -> subgraph_series (g' :: l) -> subgraph_series (g :: g' :: l).
   
-(** The subgraphs created by the extraction are a subgraph series; *)
+(** The subgraphs created by the extraction are a subgraph series *)
 
 Lemma extract_vertices_deg_series g n :
   subgraph_series (map snd (fst (extract_vertices_deg g n))).
@@ -745,7 +745,7 @@ Proof.
   - sauto lq: on rew: off.
 Qed.
 
-(** ** Subgraph respects degree of vertices. *)
+(** ** Subgraph respects degree of vertices *)
 
 Lemma degree_subgraph (g g': graph) v n m :
   is_subgraph g g' -> degree v g = Some n -> degree v g' = Some m -> n <= m.
@@ -876,17 +876,15 @@ Lemma remove_max_deg_adj : forall (g : graph) (i j : node) (d : nat),
     no_selfloop g ->
     max_deg g = d ->
     M.In i g ->
-    M.In j g ->
     degree j g = Some d ->
     degree j (remove_node i g) = Some d ->
     ~ (S.In j (adj g i)).
 Proof.
-  intros g i j d H H0 H1 H2 H3 H4 H5 H6 contra.
+  intros g i j d H H0 H1 H2 H3 H4 H5 contra.
   destruct d; [inversion H|clear H].
   assert (degree j (remove_node i g) = Some d) by (now apply vertex_removed_nbs_dec).
   qauto use: le_ngt, le_refl unfold: Peano.lt.
 Qed.
-
 
 (** ** Non-adjacency of max degree vertices after arbitrary steps *)
 (** If two vertices [i], [j] occur in the list of max degree vertices
