@@ -688,10 +688,14 @@ Defined.
 
 Functional Scheme extract_vertices_deg_ind := Induction for extract_vertices_deg Sort Prop.
 
+Definition remove_deg_n_graph g n := snd (extract_vertices_deg g n).
+Definition remove_deg_n_trace g n := fst (extract_vertices_deg g n).
+
 (** ** Iteractive extraction exhausts vertices of that (non-zero) degree *)
 Lemma extract_vertices_deg_exhaust (g : graph) n :
-  n > 0 -> ~ exists v, degree v (snd (extract_vertices_deg g n)) = Some n.
+  n > 0 -> ~ exists v, degree v (remove_deg_n_graph g n) = Some n.
 Proof.
+  unfold remove_deg_n_graph.
   functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
   - qauto l: on.
   - intros dgt0 contra.
@@ -730,8 +734,9 @@ Inductive subgraph_series : list graph -> Prop :=
 (** The subgraphs created by the extraction are a subgraph series *)
 
 Lemma extract_vertices_deg_series g n :
-  subgraph_series (map snd (fst (extract_vertices_deg g n))).
+  subgraph_series (map snd (remove_deg_n_trace g n)).
 Proof.
+  unfold remove_deg_n_trace.
   functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
   - destruct l eqn:E.
     + hauto l: on.
@@ -756,8 +761,9 @@ Qed.
 (** If a vertex is extracted by [extract_vertices_deg] then the degree
     is at least [n] in the original graph. *)
 Lemma extract_vertices_inv (g g' : graph) n m v :
-  In (v,g') (fst (extract_vertices_deg g n)) -> degree v g = Some m -> n <= m .
+  In (v,g') (remove_deg_n_trace g n) -> degree v g = Some m -> n <= m .
 Proof.
+  unfold remove_deg_n_trace.
   (* prove this by knowing that g' is a subgraph of g *)
   intros H H1.
   assert (is_subgraph g' g).
@@ -781,8 +787,9 @@ Admitted.
 (** ** The final graph returned by the vertex extraction is a subgraph. *)
 
 Lemma extract_vertices_deg_subgraph (g : graph) n :
-  is_subgraph (snd (extract_vertices_deg g n)) g. 
+  is_subgraph (remove_deg_n_graph g n) g. 
 Proof.
+  unfold remove_deg_n_graph.
   functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
   - simpl.
     rewrite e0 in IHp.
@@ -806,8 +813,9 @@ Qed.
 (** ** Extracting degree 0 vertices from a max degree 0 graph empties it *)
 
 Lemma extract_vertices_deg0_empty : forall (g : graph),
-  max_deg g = 0 -> M.Empty (snd (extract_vertices_deg g 0)).
+  max_deg g = 0 -> M.Empty (remove_deg_n_graph g 0).
 Proof.
+  unfold remove_deg_n_graph.
   intros g.
   remember 0 as d.
   functional induction (extract_vertices_deg g d) using extract_vertices_deg_ind.
@@ -835,12 +843,15 @@ Qed.
 (** ** Extracting all max degree vertices strictly decreases max degree *)
 
 Lemma extract_vertices_max_deg (g : graph) :
-   max_deg g > 0 -> max_deg (snd (extract_vertices_deg g (max_deg g))) < max_deg g.
+   max_deg g > 0 -> max_deg (remove_deg_n_graph g (max_deg g)) < max_deg g.
 Proof.
+  unfold remove_deg_n_graph.
   intros H.
   pose proof (extract_vertices_deg_exhaust g _ H).
   pose proof (extract_vertices_deg_subgraph g (max_deg g)).
   remember (extract_vertices_deg g (max_deg g)) as g'.
+  unfold remove_deg_n_graph in H1.
+  rewrite <- Heqg' in H1.
   pose proof (max_deg_subgraph g (snd g') H1).
   apply le_lt_or_eq in H2.
   destruct H2.
@@ -860,10 +871,10 @@ Proof.
     apply H0.
     destruct H5 as [v [[e He] Hv2]].
     exists v.
+    unfold remove_deg_n_graph.
+    rewrite <- Heqg'.
     rewrite He.
-    unfold adj in Hv2.
-    rewrite He in Hv2.
-    scongruence.
+    qauto l: on unfold: adj.
 Qed.
 
 (** ** Non-adjacency of max degree vertices after one step *)

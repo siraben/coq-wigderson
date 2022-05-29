@@ -17,6 +17,10 @@ Import Arith.
 Import ListNotations.
 Import Nat.
 
+Local Open Scope positive_scope.
+
+(** * Properties of coloring maps *)
+(** ** Definition of a set of colors *)
 Definition colors := S.t.
 
 Lemma map_o {A} : forall (m : M.t A) (x : M.key) f,
@@ -25,19 +29,17 @@ Proof.
   scongruence use: WF.map_o.
 Qed.
 
-(* A coloring is complete if every vertex is colored. *)
+(** ** A coloring is complete if every vertex is colored *)
 Definition coloring_complete (palette: colors) (g: graph) (f: coloring) :=
  (forall i, M.In i g -> M.In i f) /\ coloring_ok palette g f.
-
-Definition two_colors: colors := SP.of_list [1; 2]%positive.
-Definition three_colors: colors := SP.of_list [1; 2; 3]%positive.
 
 Example ex_graph :=
   mk_graph [ (6,4); (4,5); (4,3); (3,2); (5,2); (1,2); (1,5) ]%positive.
 
+Definition two_colors: colors := SP.of_list [1; 2]%positive.
+Definition three_colors: colors := SP.of_list [1; 2; 3]%positive.
+
 Local Open Scope positive_scope.
-Compute (M.fold (fun k u y => (k,S.elements u) :: y) ex_graph []).
-Compute (M.fold (fun k u y => (k,S.elements u) :: y) (neighborhood ex_graph 5%positive) []).
 
 (* Example of 3-coloring the example graph and proof with ok_coloring *)
 Example ex_coloring :=
@@ -49,7 +51,7 @@ Proof.
   split; sblast use: M.elements_correct.
 Qed.
 
-(* An empty graph is colorable by any coloring. *)
+(** ** Empty graph is colorable by any coloring *)
 Lemma empty_graph_colorable : forall p f, coloring_ok f empty_graph p.
 Proof.
   intros p f.
@@ -64,28 +66,11 @@ Proof.
     scongruence use: PositiveMap.gempty unfold: PositiveMap.key, node, PositiveOrderedTypeBits.t.
 Qed.
 
+(** ** A set is extensionally equal to folding over its elements *)
 Lemma set_elemeum s : S.Equal s (fold_right S.add S.empty (S.elements s)).
 Proof.
   strivial use: SP.of_list_3 unfold: SP.of_list, SP.to_list, PositiveSet.Equal.
 Qed.
-
-  
-(* Elements of a 2-element set can be extracted *)
-Lemma two_elem_set_enumerable s :
-  S.cardinal s = 2%nat ->
-  { (a,b) : S.elt * S.elt | S.Equal s (SP.of_list [a;b])}.
-Proof.
-  intros Hs.
-  assert (length (S.elements s) = 2%nat) by scongruence use: PositiveSet.cardinal_1.
-  remember (S.elements s).
-  destruct l as [|a [|b t]].
-  - scongruence.
-  - scongruence.
-  - assert (t = []) by sauto.
-    subst.
-    exists (a,b).
-    hauto lq: on use: set_elemeum unfold: SP.of_list.
-Defined.
 
 Lemma three_elem_set_enumerable s :
   S.cardinal s = 3%nat ->
@@ -103,7 +88,7 @@ Proof.
     hauto lq: on use: set_elemeum.
 Defined.
 
-(* A subgraph of a graph is colorable under the same coloring *)
+(** ** Valid coloring carries to subgraphs *)
 Lemma subgraph_coloring_ok : forall (g g' : graph) f p,
     is_subgraph g' g ->
     coloring_ok p g f ->
@@ -113,6 +98,7 @@ Proof.
   qauto unfold: PositiveSet.Subset, coloring_ok, is_subgraph.
 Qed.
 
+(** ** Complete coloring carries to subgraphs *)
 Lemma subgraph_coloring_complete : forall (g g' : graph) f p,
     is_subgraph g' g ->
     coloring_complete p g f ->
@@ -122,22 +108,26 @@ Proof.
   hauto lq: on use: subgraph_coloring_ok, subgraph_vert_m.
 Qed.
 
+(** ** Definition of $n$-coloring *)
 Definition n_coloring (f : coloring) (p : colors) (n : nat) :=
   S.cardinal p = n /\ forall v c, M.find v f = Some c -> S.In c p.
 
-(* A 3-coloring uses 3 colors *)
+(** ** Definition of 3-coloring *)
 Definition three_coloring (f : coloring) p := n_coloring f p 3.
+
+(** ** Definition of 2-coloring *)
 Definition two_coloring (f : coloring) p := n_coloring f p 2.
 
-(* Let:
-- f: coloring
-- p: palette of colors of size n
-- c: a color
-- n: natural number
+(** ** $(n+1)$-coloring not using a color is $n$-coloring *)
+(** Let:
+- [f] be a coloring
+- [p] be palette of colors of size [n]
+- [c] be a color in [p]
 
-Assume that f is a (n+1)-coloring wrt. p, c is in p, and c is unused by f.
-Then f is a n-coloring wrt. c\{p}.
-*)
+Assume that [f] is a $(n+1)$-coloring wrt. [p], [c] is in [p], and [c] is unused by [f].
+Then [f] is a $n$-coloring wrt. [c\{p}].
+ *)
+
 Lemma n_coloring_missed (f : coloring) p c n :
   n_coloring f p (S n) ->
   S.In c p ->
@@ -148,6 +138,8 @@ Proof.
   qauto l: on use: SP.remove_cardinal_1, S.remove_spec, three_elem_set_enumerable unfold: two_coloring.
 Qed.
 
+(** ** Restriction to 3-coloring to 2-coloring *)
+
 Lemma two_coloring_from_three (f : coloring) p c :
   three_coloring f p ->
   S.In c p ->
@@ -155,17 +147,19 @@ Lemma two_coloring_from_three (f : coloring) p c :
   two_coloring f (S.remove c p).
 Proof. apply n_coloring_missed. Qed.
 
-(* A restriction of an OK coloring under a set is OK. *)
+(** ** Restricting a valid coloring on fewer nodes is valid *)
 Lemma restrict_coloring_ok : forall (g : graph) (f : coloring) p (s : nodeset),
     coloring_ok p g f -> coloring_ok p g (restrict f s).
 Proof.
   hauto lq: on rew: off use: @restrict_agree unfold: coloring_ok.
 Qed.
 
+(** ** Restricting a coloring on the neighborhood of a node *)
+
 Definition restrict_on_nbd (f : coloring) (g : graph) (v : node) :=
   restrict f (nodes (neighborhood g v)).
 
-(* The neighborhood of a (n+1)-colorable graph is n-colorable *)
+(** ** Neighborhood of vertex in $(n+1)$-colorable graph is $n$-colorable *)
 Lemma nbd_Sn_colorable_n : forall (g : graph) (f : coloring) (p : colors) (n : nat),
     coloring_complete p g f ->
     n_coloring f p (S n) ->
@@ -215,7 +209,8 @@ Proof.
       * intros ci0 cj H5 H6.
         qauto use: @restrict_agree unfold: coloring_ok.
 Qed.
-  
+
+(** ** Neighborhood of vertex in 3-colorable graph is 2-colorable *)
 Lemma nbd_2_colorable_3 : forall (g : graph) (f : coloring) p,
     coloring_complete p g f ->
     three_coloring f p ->
@@ -226,6 +221,7 @@ Proof.
   hauto l: on use: SP.remove_cardinal_1, nbd_Sn_colorable_n.
 Qed.
 
+(** ** If some neighborhood cannot be $n$-colored then the coloring is not $(n+1)$ *)
 Lemma nbd_not_n_col_graph_not_Sn_col : forall (g : graph) (f : coloring) (p : colors) n,
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
@@ -250,8 +246,10 @@ Proof.
   qauto l: on use: nbd_2_colorable_3.
 Qed.
 
+(** * Constant coloring of a vertex set [s] with [c] *)
 Definition constant_color {A} (s : nodeset) c := S.fold (fun v => M.add v c) s (@M.empty A).
 
+(** ** Constant coloring colors any vertex in the set with [c] *)
 Lemma constant_color_colors {A} s c : forall i, S.In i s -> M.find i (@constant_color A s c) = Some c.
 Proof.
   intros i Hi.
@@ -264,6 +262,7 @@ Proof.
     qauto use: WF.add_o, PositiveSet.add_3, PositiveMap.gss.
 Qed.
 
+(** ** Constant coloring inversion 1 *)
 Lemma constant_color_inv {A} s c : forall i, M.In i (@constant_color A s c) -> S.In i s.
 Proof.
   intros i.
@@ -277,6 +276,7 @@ Proof.
     + hauto use: WF.add_neq_in_iff, PositiveSet.add_2.
 Qed.
 
+(** ** Constant coloring inversion 2 *)
 Lemma constant_color_inv2 {A} s c : forall i d, M.find i (@constant_color A s c) = Some d -> c = d.
 Proof.
   intros i d.
@@ -290,24 +290,28 @@ Proof.
     + hauto use: PositiveMap.gso.
 Qed.
 
-(* two_color_step
- - let g be a graph, v be a vertex, c1 and c2 the colors we have
- - this function colors v with c1 and colors its neighbors with c2
- *)
+(** * 2-color step *)
+(** Let [g] be a graph, [v] be a vertex, $c_1$ and $c_2$ the colors we
+have that this function colors [v] with $c_1$ and colors its neighbors
+with $c_2$. *)
+
 Definition two_color_step (g : graph) (v : node) c1 c2 (f : coloring) : coloring :=
   M.add v c1 (constant_color (adj g v) c2).
 
+(** ** Vertex is colored $c_1$ *)
 Lemma two_color_step_colors_v_c1 : forall g v c1 c2 f, M.find v (two_color_step g v c1 c2 f) = Some c1.
 Proof.
   scongruence use: PositiveMap.gss unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key, adj, nodeset, two_color_step.
 Qed.
 
+(** ** Neighbors are colored $c_2$ *)
 Lemma two_color_step_colors_adj_c2 : forall g v c1 c2 f i,
     no_selfloop g -> S.In i (adj g v) -> M.find i (two_color_step g v c1 c2 f) = Some c2.
 Proof.
   hauto use: PositiveMap.gso, @constant_color_colors unfold: two_color_step.
 Qed.
 
+(** ** Vertex colored by 2-color step is either [v] or a neighbor *)
 Lemma two_color_step_inv : forall g v c1 c2 f ci j,
     M.find j (two_color_step g v c1 c2 f) = Some ci ->
     j = v \/ S.In j (adj g v).
@@ -333,6 +337,7 @@ Proof.
   qauto use: PositiveSet.singleton_1, PositiveSet.add_spec, PositiveSet.cardinal_1.
 Qed.
 
+(** ** Correctness of 2-color step *)
 Lemma two_color_step_correct : forall (g : graph) (v : node) c1 c2,
     c1 <> c2 ->
     no_selfloop g ->
@@ -376,17 +381,17 @@ Proof.
       (* Contradiction! We supposed that the graph was 2-colorable to
          begin with, but here we have a configuration of vertices that
          cannot be 2-colored. *)
-      destruct H0 as [m [p [Hm Hm']]].
+      destruct H0 as (m & p & Hm & Hm').
       pose proof (Hm i ltac:(sauto use: undirected_adj_in)).
       pose proof (Hm j ltac:(sauto use: undirected_adj_in)).
-      pose proof (Hm v ltac:(sauto use: undirected_adj_in)) as H8.
+      pose proof (Hm v ltac:(sauto use: undirected_adj_in)).
       destruct H0 as [ii Hii].
       destruct H7 as [jj Hjj].
       destruct H8 as [vv Hvv].
       unfold M.MapsTo in *.
       assert (ii = c1 \/ ii = c2).
       {
-        sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring, n_coloring.
+        sauto lq: on use: in_two_set_inv unfold: two_coloring, n_coloring.
       }
       assert (jj = c1 \/ jj = c2).
       {
@@ -402,6 +407,7 @@ Proof.
       destruct H0, H7, H8; strivial unfold: coloring_ok.
 Qed.
 
+(** ** Completeness of 2-color step *)
 Lemma two_color_step_complete : forall (g : graph) (v : node) c1 c2,
     c1 <> c2 ->
     no_selfloop g ->
@@ -418,20 +424,7 @@ Proof.
   - qauto l: on use: two_color_step_correct, subgraph_of_is_subgraph, subgraph_coloring_ok.
 Qed.
 
-(* If a coloring is not complete then it misses a vertex (constructively *)
-Lemma not_complete_has_uncolored (f : coloring) (g : graph) p :
-  ~ coloring_complete p g f ->
-  ~ M.Empty g ->
-  { v | M.In v g /\ ~ M.In v f }.
-Proof.
-  intros Hf Hg.
-  unfold coloring_complete in Hf.
-  (* Proceed by enumerating elements of the graph and checking if
-  they're colored or not.  EWe cannot have that no vertex remains
-  uncovered. *)
-Admitted.
-
-(* If a graph has max degree 0 then the constant coloring is a complete coloring. *)
+(** ** Constant coloring is complete on max degree 0 graphs *)
 Lemma max_deg_0_constant_col : forall (g : graph) c,
     max_deg g = 0%nat ->
     coloring_complete (S.singleton c) g (constant_color (nodes g) c).
@@ -442,6 +435,7 @@ Proof.
   - split; sfirstorder use: max_deg_0_adj.
 Qed.
 
+(** ** Union of two valid disjoint colorings is valid *)
 (* Proof that the union of two disjoint and OK colorings is an OK coloring. *)
 (* The keys have to be disjoint and the palettes have to be disjoint *)
 Lemma coloring_union (c d : coloring) p1 p2 g :
@@ -529,7 +523,7 @@ Proof.
     (* in which case extracting all the vertices of degree 0 means g' is empty *)
     assert (M.Empty g').
     {
-      hfcrush use: extract_vertices_deg0_empty unfold: extract_vertices_deg, snd inv: R_extract_vertices_deg.
+      hfcrush use: extract_vertices_deg0_empty unfold: snd, extract_vertices_deg, remove_deg_n_graph inv: R_extract_vertices_deg.
     }
     rewrite WP.cardinal_Empty in H2.
     rewrite H2.
@@ -546,12 +540,14 @@ Proof.
   - specialize (H1 ltac:(hauto l: on)).
     assert ((M.cardinal g' < M.cardinal g)%nat).
     {
+      unfold remove_deg_n_graph in H1.
       rewrite teq0 in H1.
       simpl in H1.
       destruct s as [v Hv1].
       assert (is_subgraph g' g).
       {
         pose proof (extract_vertices_deg_subgraph g (S n)).
+        unfold remove_deg_n_graph in H2.
         rewrite teq0 in H2.
         assumption.
       }
@@ -569,7 +565,7 @@ Proof.
       hauto l: on.
     }
     pose proof (extract_vertices_max_deg g ltac:(hauto l: on)).
-    qauto l: on unfold: extract_vertices_deg, snd, gt.
+    qauto l: on unfold: remove_deg_n_graph, extract_vertices_deg, snd, gt.
 Admitted.
 
 Functional Scheme hi_deg_list_ind := Induction for hi_deg_list Sort Prop.
@@ -585,6 +581,7 @@ Proof.
     + destruct (hi_deg_list g') eqn:E2; [scongruence|].
       apply sg_cons.
       * pose proof (extract_vertices_deg_subgraph g (max_deg g)).
+        unfold remove_deg_n_graph in H.
         rewrite e0 in H.
         simpl in H.
         destruct p.
@@ -596,6 +593,7 @@ Proof.
            *** inversion E2.
                subst.
                pose proof (extract_vertices_deg_subgraph g' (max_deg g')).
+               unfold remove_deg_n_graph in H0.
                rewrite E4 in H0.
                simpl in H0.
                assumption.
@@ -607,6 +605,7 @@ Proof.
       * assumption.
 Qed.
 
+(** ** Phase 2 of Wigderson *)
 Function phase2' (g : graph) {measure max_deg g} : (list (coloring * graph) * graph) :=
   match (max_deg g)%nat with
   | 0%nat => ([(constant_color (nodes g) 1, g)], @M.empty _)
