@@ -14,11 +14,9 @@ Import Arith.
 Import ListNotations.
 Import Nat.
 
+Local Open Scope nat.
+
 (** * Properties of subgraphs and degrees *)
-
-(** ** Neighbors of a vertex *)
-
-Definition neighbors (g : graph) v := adj g v.
 
 (** ** Subgraph predicate
  [g'] is a subgraph of [g] if:
@@ -120,7 +118,7 @@ Proof.
       specialize (H3 a').
       unfold adj in *.
       destruct (E.eq_dec v k).
-      * fcrush.
+      * sauto.
       * apply H3 in Ha'.
         assert (M.find v (M.add k e m') = M.find v m').
         {
@@ -134,11 +132,11 @@ Qed.
 
 Lemma subgraph_of_is_subgraph : forall g s, is_subgraph (subgraph_of g s) g.
 Proof.
-  intros g s.
   unfold is_subgraph.
   split; [apply subgraph_vertices|apply subgraph_edges].
 Qed.
 
+(** * Removal of nodes *)
 (** ** Removing a distinct vertex from a graph *)
 (** If [i] and [j] are distinct vertices then removing [j] from the
     graph doesn't affect [i]'s membership. *)
@@ -219,9 +217,106 @@ Proof.
     + sauto.
 Qed.
 
+(** ** Remove a set of vertices from a graph *)
+(** To make it easier to prove things about it,
+- first restrict the graph by [S.diff (Mdomain g) s]
+- then map subtracting s from every adj set
+ *)
+Definition remove_nodes (g : graph) (s : nodeset) :=
+  M.map (fun ve => S.diff ve s) (restrict g (S.diff (nodes g) s)).
+
+(** ** Removing nodes results in a subgraph *)
+Lemma remove_nodes_is_subgraph : forall g s, is_subgraph (remove_nodes g s) g.
+Proof.
+  intros g s.
+  unfold remove_nodes.
+  split.
+  - unfold nodes.
+    intros i Hi.
+    rewrite Sin_domain in *.
+    assert (M.In i (restrict g (S.diff (Mdomain g) s))).
+    {
+      rewrite WF.map_in_iff in Hi.
+      assumption.
+    }
+    apply restrict_incl in H.
+    assumption.
+  - intros v i Hi.
+    unfold adj in *.
+    destruct (M.find v (M.map _ _)) eqn:E.
+    + rewrite WF.map_o in E.
+      destruct (M.find _ (restrict _ _)) eqn:E3; [|scongruence].
+      destruct (M.find v g) eqn:E2.
+      * qauto l: on use: PositiveSet.diff_1, restrict_agree unfold: nodeset.
+      * hauto q: on use: restrict_agree unfold: nodeset.
+    + sauto.
+Qed.
+
+(** ** Every vertex in the removing set is not in the resulting graph *)
+
+Lemma remove_nodes_sub : forall g s i, S.In i s -> M.In i g -> ~ M.In i (remove_nodes g s).
+Proof.
+  intros g s i H H0 contra.
+  unfold nodeset in *.
+  unfold remove_nodes in contra.
+  rewrite WF.map_in_iff in contra.
+  unfold nodes.
+  destruct contra as [e He].
+  unfold M.MapsTo in He.
+  apply restrict_in_set in He.
+  unfold nodes in He.
+  apply Sin_domain in H0.
+  hauto l: on use: S.diff_spec.
+Qed.
+
+(** ** Removing a non-empty set of vertices decreases the size of the graph *)
+
+Lemma remove_nodes_lt : forall g s i, S.In i s -> M.In i g -> (M.cardinal (remove_nodes g s) < M.cardinal g).
+Proof.
+  intros g s i H H0.
+  pose proof (remove_nodes_sub g s i H H0).
+  unfold remove_nodes.
+  rewrite cardinal_map.
+  assert (~ S.Empty s) by (hauto l: on).
+  rewrite restrict_cardinal.
+  rewrite SP.inter_sym.
+  rewrite SP.inter_subset_equal by apply SP.diff_subset.
+  rewrite Mcardinal_domain.
+  apply SP.subset_cardinal_lt with (x := i).
+  - apply SP.diff_subset.
+  - unfold nodes. rewrite Sin_domain. auto.
+  - rewrite S.diff_spec. sfirstorder.
+Qed.
+
+Lemma adj_remove_nodes_spec : forall g s i j,
+    S.In i (adj (remove_nodes g s) j) <-> S.In i (adj g j) /\ ~ S.In i s /\ ~ S.In j s.
+Proof.
+  intros g s i j.
+  unfold remove_nodes.
+  rewrite adj_map by hauto lq: on.
+  rewrite S.diff_spec.
+  rewrite adj_restrict.
+  rewrite S.diff_spec.
+  firstorder.
+  eauto using in_adj_in_nodes.
+Qed.
+
+(** ** Removing a subgraph preserves undirectedness *)
+
+Lemma remove_nodes_undirected : forall g s, undirected g -> undirected (remove_nodes g s).
+Proof.
+  unfold undirected.
+  intros g s U i j IJ.
+  rewrite adj_remove_nodes_spec in *.
+  sfirstorder.
+Qed.
 
 (** * Neighborhood of a vertex *)
-(** ** Definition *)
+(** ** Definition of neighbors *)
+
+Definition neighbors (g : graph) v := adj g v.
+
+(** ** Definition of neighborhood*)
 (** The (open) neighborhood of a vertex v in a graph consists of the
     subgraph induced by the vertices adjacent to v.  It does not
     include v itself. *)
@@ -309,113 +404,11 @@ Proof.
 Qed.
 
 (** When is an edge in the induced subgraph?
-- if i, j in S and (i,j) in G then (i,j) in G|s
-- if (i,j) in G|s then (i,j) in G
-- if vertex v in G|s then v in S
-- if v in S and v in G then v in G|s
+- if [i], [j] in [S] and [(i,j)] in [G] then [(i,j)] in $G|_S$
+- if [(i,j)] in $G|_S$ then [(i,j)] in [G]
+- if [v] in $G|_S$ then [v] in [S]
+- if [v] in [S] and [v] in [G] then [v] in $G|_S$
  *)
-
-(** ** Remove a set of vertices from a graph *)
-(** To make it easier to prove things about it,
-- first restrict the graph by (S.diff (Mdomain g) s)
-- then map subtracting s from every adj set
- *)
-Definition remove_nodes (g : graph) (s : nodeset) :=
-  M.map (fun ve => S.diff ve s) (restrict g (S.diff (nodes g) s)).
-
-(** ** Removing nodes results in a subgraph *)
-Lemma remove_nodes_is_subgraph : forall g s, is_subgraph (remove_nodes g s) g.
-Proof.
-  intros g s.
-  unfold remove_nodes.
-  split.
-  - unfold nodes.
-    intros i Hi.
-    rewrite Sin_domain in *.
-    assert (M.In i (restrict g (S.diff (Mdomain g) s))).
-    {
-      rewrite WF.map_in_iff in Hi.
-      assumption.
-    }
-    apply restrict_incl in H.
-    assumption.
-  - intros v i Hi.
-    unfold adj in *.
-    destruct (M.find v (M.map _ _)) eqn:E.
-    + destruct (M.find v g) eqn:E2.
-      * rewrite WF.map_o in E.
-        destruct (M.find _ (restrict _ _)) eqn:E3; [|scongruence].
-        simpl in E.
-        unfold nodeset in *.
-        apply restrict_agree in E3.
-        hauto use: PositiveSet.diff_1.
-      * exfalso.
-        rewrite WF.map_o in E.
-        destruct (M.find _ (restrict _ _)) eqn:E3; [|scongruence].
-        apply restrict_agree in E3.
-        unfold nodeset in *.
-        hauto l: on.
-    + sauto.
-Qed.
-
-(** ** Every vertex in the removing set is not in the resulting graph *)
-
-Lemma remove_nodes_sub : forall g s i, S.In i s -> M.In i g -> ~ M.In i (remove_nodes g s).
-Proof.
-  intros g s i H H0 contra.
-  unfold nodeset in *.
-  unfold remove_nodes in contra.
-  rewrite WF.map_in_iff in contra.
-  unfold nodes.
-  destruct contra as [e He].
-  unfold M.MapsTo in He.
-  apply restrict_in_set in He.
-  unfold nodes in He.
-  apply Sin_domain in H0.
-  hauto l: on use: S.diff_spec.
-Qed.
-
-(** ** Removing a non-empty set of vertices decreases the size of the graph *)
-
-Lemma remove_nodes_lt : forall g s i, S.In i s -> M.In i g -> (M.cardinal (remove_nodes g s) < M.cardinal g)%nat.
-Proof.
-  intros g s i H H0.
-  pose proof (remove_nodes_sub g s i H H0).
-  unfold remove_nodes.
-  rewrite cardinal_map.
-  assert (~ S.Empty s) by (hauto l: on).
-  rewrite restrict_cardinal.
-  rewrite SP.inter_sym.
-  rewrite SP.inter_subset_equal by apply SP.diff_subset.
-  rewrite Mcardinal_domain.
-  apply SP.subset_cardinal_lt with (x := i).
-  - apply SP.diff_subset.
-  - unfold nodes. rewrite Sin_domain. auto.
-  - rewrite S.diff_spec. sfirstorder.
-Qed.
-
-Lemma adj_remove_nodes_spec : forall g s i j,
-    S.In i (adj (remove_nodes g s) j) <-> S.In i (adj g j) /\ ~ S.In i s /\ ~ S.In j s.
-Proof.
-  intros g s i j.
-  unfold remove_nodes.
-  rewrite adj_map by hauto lq: on.
-  rewrite S.diff_spec.
-  rewrite adj_restrict.
-  rewrite S.diff_spec.
-  firstorder.
-  eauto using in_adj_in_nodes.
-Qed.
-
-(** ** Removing a subgraph preserves undirectedness *)
-
-Lemma remove_nodes_undirected : forall g s, undirected g -> undirected (remove_nodes g s).
-Proof.
-  unfold undirected.
-  intros g s U i j IJ.
-  rewrite adj_remove_nodes_spec in *.
-  sfirstorder.
-Qed.
 
 (** * Maximum degree of a graph *)
 (** ** Definition *)
@@ -559,7 +552,7 @@ Proof.
   intros H contra.
   assert (M.In j g).
   {
-    hfcrush use: SP.remove_cardinal_1, neq_0_lt, degree_gt_0_in, SP.Dec.F.empty_iff unfold: PositiveSet.empty, PositiveSet.In, adj, gt, degree, nodeset.
+    qauto unfold: adj, PositiveMap.MapsTo, PositiveMap.In, PositiveSet.mem, PositiveSet.In, PositiveSet.empty.
   }
   destruct H0 as [e He].
   unfold adj in contra.
@@ -713,7 +706,7 @@ Proof.
   destruct (eq_dec (M.cardinal m) 0).
   - strivial use: WP.cardinal_Empty.
   - right.
-    assert ((M.cardinal m > 0)%nat) by sfirstorder.
+    assert ((M.cardinal m > 0)) by sfirstorder.
     sfirstorder use: WP.cardinal_1.
 Defined.
 
@@ -878,7 +871,7 @@ Qed.
     with max degree in the new graph cannot be adjacent to it. *)
 
 Lemma remove_max_deg_adj : forall (g : graph) (i j : node) (d : nat),
-    (d > 0)%nat ->
+    (d > 0) ->
     undirected g ->
     no_selfloop g ->
     max_deg g = d ->
