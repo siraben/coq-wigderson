@@ -882,32 +882,6 @@ Proof.
     hauto l: on use: subgraph_vert_m.
 Qed.
 
-(** If a vertex is extracted by [extract_vertices_deg] then the degree
-    is at least [n] in the original graph. *)
-Lemma extract_vertices_inv (g g' : graph) n m v :
-  In (v,g') (remove_deg_n_trace g n) -> degree v g = Some m -> n <= m .
-Proof.
-  unfold remove_deg_n_trace.
-  (* prove this by knowing that g' is a subgraph of g *)
-  intros H H1.
-  assert (is_subgraph g' g).
-  {
-    pose proof (extract_vertices_deg_series g n).
-    remember (map snd (fst (extract_vertices_deg g n))) as l.
-    induction l eqn:E.
-    - exfalso.
-      destruct (fst (extract_vertices_deg g n)); scongruence.
-    - admit.
-  }
-  rewrite extract_vertices_deg_equation in H.
-  destruct (extract_deg_vert_dec g n) eqn:He.
-  - destruct (extract_vertices_deg (remove_node (` s) g) n).
-    simpl in H.
-    (* ok need to perform induction on the list and have a lemma about
-       the degree of the vertex at each point having degree n
-       (wrt. the graph at that point) *)
-Admitted.
-
 (** ** The final graph returned by the vertex extraction is a subgraph. *)
 
 Lemma extract_vertices_deg_subgraph (g : graph) n :
@@ -1068,26 +1042,6 @@ Proof.
     }
     sfirstorder.
 Qed.
-
-
-(** ** Non-adjacency of max degree vertices after arbitrary steps *)
-(** If two vertices [i], [j] occur in the list of max degree vertices
-    extracted from the graph, then [i] is not adjacent to [j] *)
-
-Lemma extract_vertices_deg_not_adj (g : graph) (d : nat) i j :
-  i <> j ->
-  d = max_deg g ->
-  undirected g ->
-  no_selfloop g ->
-  In i (map fst (fst (extract_vertices_deg g d))) ->
-  In j (map fst (fst (extract_vertices_deg g d))) ->
-  ~ S.In j (adj g i).
-Proof.
-  intros H H0 H1 H2 H3 H4 contra.
-  (* assume they are adjacent *)
-  (* but one of them was extracted first *)
-  (* *)
-Admitted.
 
 (** * Independent sets *)
 (** An independent set is a set of vertices such that no two are adjacent. *)
