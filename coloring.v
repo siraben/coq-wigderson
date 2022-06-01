@@ -435,6 +435,27 @@ Proof.
   - split; sfirstorder use: max_deg_0_adj.
 Qed.
 
+(** ** Constant coloring is complete on independent sets *)
+Lemma constant_col_indep_set : forall (g : graph) s c,
+    independent_set g s ->
+    coloring_complete (S.singleton c) (subgraph_of g s) (constant_color s c).
+Proof.
+  intros g s c H.
+  split.
+  - intros i Hi.
+    rewrite <- Sin_domain in Hi.
+    apply subgraph_of_nodes in Hi.
+    hecrush use: constant_color_colors, subgraph_of_is_subgraph.
+  - split.
+    + intros ci H1.
+      apply constant_color_inv2 in H1.
+      best use: S.singleton_2.
+    + intros ci cj H1 H2.
+      assert (S.In i s) by hauto l: on use: constant_color_inv.
+      assert (S.In j s) by hauto l: on use: constant_color_inv.
+      hauto q:on use: subgraph_edges unfold: independent_set.
+Qed.
+
 (** ** Union of two valid disjoint colorings is valid *)
 (* Proof that the union of two disjoint and OK colorings is an OK coloring. *)
 (* The keys have to be disjoint and the palettes have to be disjoint *)
