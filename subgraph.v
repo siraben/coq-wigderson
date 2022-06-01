@@ -821,7 +821,7 @@ Inductive subgraph_series : list graph -> Prop :=
 | sg_nil : subgraph_series []
 | sg_single : forall g, subgraph_series [g]
 | sg_cons : forall g g' l, is_subgraph g' g -> subgraph_series (g' :: l) -> subgraph_series (g :: g' :: l).
-  
+
 (** The subgraphs created by the extraction are a subgraph series *)
 
 Lemma extract_vertices_deg_series g n :
@@ -911,7 +911,7 @@ Admitted.
 (** ** The final graph returned by the vertex extraction is a subgraph. *)
 
 Lemma extract_vertices_deg_subgraph (g : graph) n :
-  is_subgraph (remove_deg_n_graph g n) g. 
+  is_subgraph (remove_deg_n_graph g n) g.
 Proof.
   unfold remove_deg_n_graph.
   functional induction (extract_vertices_deg g n) using extract_vertices_deg_ind.
@@ -963,7 +963,7 @@ Proof.
     }
     sauto.
 Qed.
-    
+
 (** ** Extracting all max degree vertices strictly decreases max degree *)
 
 Lemma extract_vertices_max_deg (g : graph) :
@@ -980,7 +980,7 @@ Proof.
   apply le_lt_or_eq in H2.
   destruct H2.
   - assumption.
-  - exfalso.    
+  - exfalso.
     (* want to get a contradiction because we ran out of vertices of
        max degree *)
     pose proof (max_deg_gt_not_empty _ H).
