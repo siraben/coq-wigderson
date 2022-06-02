@@ -664,43 +664,32 @@ Proof.
   sauto q: on.
 Qed.
 
+(** ** Removing a node from a graph removes it from adjaceny sets *)
+Lemma remove_node_find :
+  forall (g : graph) (i j : node) (e1 : nodeset),
+    i <> j ->
+    M.find j g = Some e1 ->
+    M.find j (remove_node i g) = Some (S.remove i e1).
+Proof.
+  intros g i j e1 H H0.
+  unfold remove_node.
+  rewrite WF.map_o, M.gro by auto.
+  hauto lq: on.
+Qed.
+
 (** ** Removing vertex decreases degree of neighbors *)
 
 Lemma vertex_removed_nbs_dec : forall (g : graph) (i j : node) n,
-    undirected g ->
-    no_selfloop g ->
-    M.In i g ->
-    S.In j (adj g i) ->
+    i <> j ->
+    S.In i (adj g j) ->
     degree j g = Some (S n) ->
     degree j (remove_node i g) = Some n.
 Proof.
-  intros g i j n H Hl H0 H1 H2.
-  assert (S.In i (adj g j)) by sfirstorder.
-  unfold degree in *.
-  (* the adjacency set of j in the new graph has i removed *)
-  assert (S.Equal (adj (remove_node i g) j) (S.remove i (adj g j))).
-  {
-    unfold remove_node.
-    unfold adj in H3.
-    unfold adj.
-    destruct (M.find j g) eqn:E; [|sauto q:on].
-    rewrite WF.map_o.
-    destruct (E.eq_dec i j); [scongruence|].
-    rewrite M.gro by auto.
-    rewrite E.
-    reflexivity.
-  }
-  assert (j <> i) by scongruence.
-  unfold remove_node.
-  rewrite WF.map_o.
-  rewrite M.gro by auto.
+  intros g i j n Hl H1 H2.
+  unfold degree, adj in *.
   ssimpl.
-  f_equal.
-  assert (S.In i n0).
-  {
-    hauto unfold: PositiveSet.In, adj.
-  }
-  sfirstorder use: SP.remove_cardinal_1 unfold: PositiveOrderedTypeBits.t, node, nodeset, PositiveSet.elt.
+  - hfcrush use: remove_node_find, SP.remove_cardinal_1.
+  - hfcrush use: remove_node_neq.
 Qed.
 
 (** * Vertex extraction *)
@@ -980,19 +969,34 @@ Qed.
     with max degree in the new graph cannot be adjacent to it. *)
 
 Lemma remove_max_deg_adj : forall (g : graph) (i j : node),
-    (max_deg g > 0) ->
-    undirected g ->
-    no_selfloop g ->
+    i <> j ->
     M.In i g ->
     degree j g = Some (max_deg g) ->
     degree j (remove_node i g) = Some (max_deg g) ->
-    ~ (S.In j (adj g i)).
+    ~ (S.In i (adj g j)).
 Proof.
-  intros g i j H H0 H1 H2 H3 H4.
+  intros g i j H0 H1 H2 H3 H4.
+  remember (max_deg g) as d.
+  assert (degree j (remove_node i g) = Some (max_deg g)) by (scongruence use: vertex_removed_nbs_dec).
+  destruct d eqn:E.
+  - sfirstorder use: max_deg_0_adj.
+  - hauto l: on use: vertex_removed_nbs_dec, n_Sn.
+Qed.
+
+(** The same as above, but for non-zero degree graphs *)
+
+Lemma remove_max_deg_adj' : forall (g : graph) (i j : node),
+    max_deg g > 0 ->
+    M.In i g ->
+    degree j g = Some (max_deg g) ->
+    degree j (remove_node i g) = Some (max_deg g) ->
+    ~ (S.In i (adj g j)).
+Proof.
+  intros g i j H H0 H1 H2 H3.
   remember (max_deg g) as d.
   destruct d; [inversion H|clear H].
   assert (degree j (remove_node i g) = Some (max_deg g)) by (scongruence use: vertex_removed_nbs_dec).
-  hauto l: on use: vertex_removed_nbs_dec, n_Sn.
+  hfcrush use: remove_max_deg_adj, degree_remove unfold: node, undirected, PositiveSet.elt, PositiveOrderedTypeBits.t.
 Qed.
 
 (* If n is not adjacent to p in the graph g-m, then n is not adjacent
@@ -1093,20 +1097,98 @@ Defined.
 
 Functional Scheme extract_vertices_degs_ind := Induction for extract_vertices_degs Sort Prop.
 
-(* For an undirected graph g, extracting the max degree vertices
-   results in an independent set. *)
-Lemma max_degree_extraction_independent_set : forall (g : graph) (d : nat),
-    undirected g ->
+(** ** Extracting max degree vertices from a strictly lower max degree subgraph is empty *)
+Lemma extract_vertices_degs_empty :
+  forall (g g' g'' : graph) (d : nat) (v : node) s,
+    is_subgraph g' g ->
+    d = max_deg g ->
+    extract_vertices_degs g' d = (s, g'') ->
+    max_deg g' < max_deg g ->
+    degree v g = Some d ->
+    S.Empty s.
+Proof.
+  intros g g' g'' d v s H H0 e0 H2 H3.
+  rewrite extract_vertices_degs_equation in e0.
+  destruct (extract_deg_vert_dec _ _).
+  - exfalso.
+    destruct s0 as [k Hk].
+    pose proof (degree_gt_0_in _ _ _ Hk).
+    assert (M.In k g).
+    {
+      sauto lq: on rew: off use: max_deg_subgraph_inv, degree_gt_0_in.
+    }
+    destruct H4 as [e' He'].
+    unfold M.MapsTo in He'.
+    pose proof (max_deg_max _ _ _ He').
+    unfold degree in Hk.
+    clear e0.
+    destruct (M.find _ _) eqn:EE.
+    + inversion Hk.
+      clear Hk.
+      assert (max_deg g' = max_deg g) by sfirstorder use: max_deg_max, EE.
+      lia.
+    + inversion Hk.
+  - fcrush.
+Qed.
+
+Lemma max_degree_extraction_independent_set0 : forall (g : graph) d,
     no_selfloop g ->
     d = max_deg g ->
-    d > 0 ->
+    d = 0 ->
     independent_set g (fst (extract_vertices_degs g d)) /\
       (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d).
 Proof.
   intros go.
-  apply (extract_vertices_degs_ind (fun g d p => undirected g -> no_selfloop g -> d = max_deg g -> d > 0 -> independent_set g (fst (extract_vertices_degs g d)) /\ (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d))).
-  intros g d v e g' H s g'' e0 H0 H1 H2 H3.
+  apply (extract_vertices_degs_ind (fun g d p =>  no_selfloop g -> d = max_deg g -> d = 0 -> independent_set g (fst (extract_vertices_degs g d)) /\ (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d))).
+  - intros g d v e g' H s g'' e0 H0 H1 H2.
+    rewrite extract_vertices_degs_equation.
+    rewrite e.
+    destruct v as [v' Hv'].
+    simpl in *.
+    subst g'.
+    assert (is_subgraph (remove_node v' g) g) by (apply remove_node_subgraph).
+    split.
+    + hauto l: on use: max_deg_0_adj unfold: independent_set.
+    + intros k H5.
+      rewrite e0 in H5.
+      simpl in H5.
+      apply S.add_spec in H5.
+      destruct H5.
+      * fcrush.
+      * pose proof (max_deg_subgraph _ _ H3).
+        pose proof (H ltac:(hauto l: on use: remove_node_no_selfloop)
+                      ltac:(sauto)
+                      ltac:(auto)).
+        pose proof (proj2 H6 k).
+        rewrite e0 in H7.
+        simpl in H7.
+        specialize (H7 ltac:(scongruence)).
+        hauto l: on use: max_deg_subgraph_inv.
+  - intros g d _x e H H0 H1.
+    split.
+    + rewrite extract_vertices_degs_equation, e.
+      sfirstorder.
+    + intros k H3.
+      rewrite extract_vertices_degs_equation, e in H3.
+      sauto q: on.
+Qed.
 
+(** ** Extracting max degree vertices gives an independent set *)
+Lemma max_degree_extraction_independent_set : forall (g : graph) (d : nat),
+    undirected g ->
+    no_selfloop g ->
+    d = max_deg g ->
+    independent_set g (fst (extract_vertices_degs g d)) /\
+      (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d).
+Proof.
+  intros go d.
+  destruct d eqn:Hd; [hauto l: on use: max_degree_extraction_independent_set0|].
+  assert (d > 0) by sfirstorder.
+  rewrite <- Hd in *.
+  clear Hd n.
+  generalize dependent d.
+  apply (extract_vertices_degs_ind (fun g d p => d > 0 -> undirected g -> no_selfloop g -> d = max_deg g -> independent_set g (fst (extract_vertices_degs g d)) /\ (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d))).
+  intros g d v e g' H s g'' e0 H3 H0 H1 H2.
   - rewrite extract_vertices_degs_equation.
     rewrite e.
     destruct v as [v' Hv'].
@@ -1118,42 +1200,7 @@ Proof.
     destruct H5.
     + rewrite e0.
       simpl.
-      assert (S.Empty s).
-      {
-        rewrite extract_vertices_degs_equation in e0.
-        destruct (extract_deg_vert_dec (remove_node _ _) _) eqn:EE3.
-        - exfalso.
-          destruct s0 as [k Hk].
-          pose proof (degree_gt_0_in _ _ _ Hk).
-          assert (M.In k g).
-          {
-            sauto lq: on rew: off use: max_deg_subgraph_inv, degree_gt_0_in.
-          }
-          destruct H7 as [e' He'].
-          unfold M.MapsTo in He'.
-          pose proof (max_deg_max g k e' He').
-          unfold degree in Hk.
-          destruct (E.eq_dec k v').
-          + subst.
-            pose proof (remove_node_neq2 g v' _ H6).
-            contradiction.
-          + destruct H6 as [ee' Hee'].
-            clear EE3 e0.
-            rewrite Hee' in Hk.
-            inversion Hk.
-            subst.
-            assert (max_deg (remove_node v' g) = max_deg g).
-            {
-              (* if max_deg of (remove_node v' g) is strictly less
-                 then the cardinality of ee' must be strictly less than
-                 max_deg g *)
-              unfold M.MapsTo in Hee'.
-              pose proof (max_deg_max (remove_node v' g) k ee' Hee').
-              lia.
-            }
-            lia.
-        - fcrush.
-      }
+      assert (S.Empty s) by eauto using extract_vertices_degs_empty.
       split.
       * unfold independent_set.
         intros i j H7 H8.
@@ -1163,10 +1210,10 @@ Proof.
         apply S.add_spec in H7.
         destruct H7; scongruence.
     + subst d.
-      pose proof (H ltac:(hauto l: on use: remove_node_undirected)
+      pose proof (H H3
+                    ltac:(hauto l: on use: remove_node_undirected)
                     ltac:(hauto l: on use: remove_node_no_selfloop)
-                    (eq_sym H5)
-                    H3).
+                    (eq_sym H5)).
       rewrite e0 in *.
       simpl in *.
       split.
@@ -1175,43 +1222,9 @@ Proof.
       (* now we want to prove the new set is an independent set *)
       destruct Hi, Hj.
       * scongruence.
-      * subst v'.
-        intros contra.
-        pose proof (H0 _ _ contra).
-        apply remove_max_deg_adj in contra; auto.
-        ** unfold adj in contra.
-           sauto drew:off.
-        ** pose proof (proj2 H2 j H7).
-           exfalso.
-           pose proof (max_deg_subgraph_inv (remove_node i g) g j ltac:(hauto l:on use: remove_node_subgraph) H8).
-           destruct (max_deg g) eqn:EE; [inversion H3|].
-           pose proof (remove_max_deg_adj g i j).
-           assert (M.In i g).
-           {
-             unfold adj in H6.
-             destruct (M.find i g) eqn:EE2; sauto.
-           }
-           pose proof (vertex_removed_nbs_dec g i j n H0 H1 H11 H6 H9).
-           qauto l: on.
-      * subst v'.
-        intros contra.
-        pose proof (H0 _ _ contra).
-        apply remove_max_deg_adj in contra; auto.
-        ** unfold adj in contra.
-           sauto drew:off.
-        ** pose proof (proj2 H2 i H6).
-           exfalso.
-           pose proof (max_deg_subgraph_inv (remove_node j g) g i ltac:(hauto l:on use: remove_node_subgraph) H8).
-           destruct (max_deg g) eqn:EE; [inversion H3|].
-           pose proof (remove_max_deg_adj g j i).
-           assert (M.In j g).
-           {
-             unfold adj in contra.
-             destruct (M.find j g) eqn:EE2; sauto.
-           }
-           pose proof (vertex_removed_nbs_dec g j i n H0 H1 H11 contra H9).
-           qauto l: on.
-        ** hauto lq: on rew: off.
+      * assert (i <> j) by hauto l: on use: degree_remove.
+        hcrush use: degree_remove, degree_gt_0_in, remove_max_deg_adj, max_deg_subgraph_inv unfold: PositiveSet.elt, node, PositiveOrderedTypeBits.t.
+      * hcrush use: max_deg_subgraph_inv, remove_max_deg_adj', degree_gt_0_in unfold: node, PositiveOrderedTypeBits.t, PositiveSet.elt, undirected.
       * unfold independent_set in H5.
         pose proof (proj1 H2 i j H6 H7).
         pose proof (proj2 H2 _ H6).
@@ -1247,8 +1260,7 @@ Proof.
               * qauto l: on use: S.remove_spec.
           - inversion H12.
         }
-        pose proof (remove_max_deg_adj g i j H3 H0 H1 ltac:(hauto lq: on rew: off use: subgraph_vert_m) H12 H13).
-        hauto lq: on rew: off.
+        hauto l: on use: remove_max_deg_adj, subgraph_vert_m.
       * intros k H6.
         apply S.add_spec in H6.
         destruct H6.
@@ -1263,3 +1275,60 @@ Proof.
       rewrite extract_vertices_degs_equation, e in H3.
       sauto q: on.
 Qed.
+
+(** ** Iteractive extraction exhausts vertices of that (non-zero) degree *)
+Lemma extract_vertices_degs_exhaust (g : graph) n :
+  n > 0 -> ~ exists v, degree v (snd (extract_vertices_degs g n)) = Some n.
+Proof.
+  functional induction (extract_vertices_degs g n) using extract_vertices_degs_ind.
+  - intros H.
+    hauto lq: on.
+  - scongruence.
+Qed.
+
+Lemma extract_vertices_max_degs : forall (g : graph),
+  max_deg g > 0 -> max_deg (snd (extract_vertices_degs g (max_deg g))) < max_deg g.
+Proof.
+  intros go H.
+  remember (max_deg go) as d.
+  generalize dependent d.
+  apply (extract_vertices_degs_ind (fun g d p => d = max_deg g -> d > 0 -> max_deg (snd (extract_vertices_degs g d)) < d)).
+  - intros g d v e g' H s g'' e0 H0 H1.
+    rewrite extract_vertices_degs_equation.
+    rewrite e.
+    destruct v as [v' Hv'].
+    simpl in *.
+    subst g'.
+    assert (is_subgraph (remove_node v' g) g) by (apply remove_node_subgraph).
+    pose proof (max_deg_subgraph _ _ H2).
+    apply le_lt_or_eq in H3.
+    destruct H3.
+    + rewrite e0.
+      assert (S.Empty s) by eauto using extract_vertices_degs_empty.
+      simpl.
+      rewrite e0 in H.
+      simpl in H.
+      apply lt_nge; intros contra.
+      pose proof (extract_vertices_degs_exhaust g _ H1).
+      (* suppose d <= max_deg g'', but this would be a contradiction *)
+      admit.
+    + sauto lq: on rew: off.
+  - intros g d _x e H H0.
+    rewrite extract_vertices_degs_equation.
+    rewrite e.
+    admit.
+Admitted.
+
+(* Disjointness of extracting high degree vertices *)
+Lemma max_degree_extraction_disjoint : forall (g g' : graph) (d : nat) s,
+    undirected g ->
+    no_selfloop g ->
+    d = max_deg g ->
+    d > 0 ->
+    (s, g') = extract_vertices_degs g d ->
+    S.Empty (S.inter s (fst (extract_vertices_degs g' (max_deg g')))).
+Proof.
+  intros g g' d s H H0 H1 H2 H3.
+  remember (max_deg g') as e.
+Admitted.
+
