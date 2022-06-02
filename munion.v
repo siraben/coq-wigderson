@@ -30,7 +30,7 @@ Lemma Mdisjoint_dec {A} (f g : M.t A) : {Mdisjoint f g} + {~ Mdisjoint f g}.
 Proof. apply S.eq_dec. Qed.
 
 Lemma Munion_case {A} : forall (c d : M.t A) i v,
-    M.find i (Munion c d) = Some v -> M.MapsTo i v c \/ M.MapsTo i v d.
+    M.find i (Munion c d) = Some v -> M.find i c = Some v \/ M.find i d = Some v.
 Proof.
   intros c d i.
   unfold Munion.
@@ -39,6 +39,37 @@ Proof.
   - hauto l: on.
   - intros k e a m' H H0 H1 v H2.
     destruct (E.eq_dec i k).
-    + hauto use: PositiveMap.gss unfold: PositiveMap.In, PositiveMap.MapsTo.
-    + qauto use: WP.F.add_neq_mapsto_iff, PositiveMap.gss unfold: PositiveMap.In, PositiveMap.MapsTo.
+    + sfirstorder use: PositiveMap.gss.
+    + hauto use: PositiveMapAdditionalFacts.gsident, WF.add_neq_o, PositiveMap.gss.
+Qed.
+
+Lemma Munion_in {A} : forall i (m1 m2 : M.t A),
+    M.In i (Munion m1 m2) <-> M.In i m1 \/ M.In i m2.
+Proof.
+  intros i m1 m2.
+  split.
+  - hfcrush use: WP.F.not_find_mapsto_iff, @Munion_case unfold: PositiveMap.MapsTo, PositiveMap.In.
+  - intros H.
+    unfold Munion.
+    destruct H.
+    + destruct H as [e He].
+      unfold M.MapsTo in He.
+      revert He.
+      apply WP.fold_rec_bis.
+      * qauto l: on.
+      * sauto lq: on rew: off.
+      * intros k e0 a m' H H0 H1 He.
+        destruct (E.eq_dec i k).
+        ** hauto lq: on rew: off use: PositiveMap.gss unfold: PositiveMap.In, PositiveMap.MapsTo.
+        ** hauto lq: on use: PositiveMap.gso, WF.add_neq_in_iff.
+    + destruct H as [e He].
+      unfold M.MapsTo in He.
+      revert He.
+      apply WP.fold_rec_bis.
+      * qauto l: on.
+      * sauto lq: on rew: off.
+      * intros k e0 a m' H H0 H1 He.
+        destruct (E.eq_dec i k).
+        ** hauto lq: on rew: off use: PositiveMap.gss unfold: PositiveMap.In, PositiveMap.MapsTo.
+        ** hauto lq: on use: PositiveMap.gso, WF.add_neq_in_iff.
 Qed.
