@@ -564,35 +564,8 @@ Proof.
       * hauto lq: on rew: off use: subgraph_edges, constant_color_inv unfold: independent_set, PositiveSet.Subset.
 Qed.
 
-(** ** Phase 2 of Wigderson *)
-Function phase2' (g : graph) {measure max_deg g} : (list (coloring * graph) * graph) :=
-  match (max_deg g)%nat with
-  | 0%nat => ([(constant_color (nodes g) 1, g)], @M.empty _)
-  | S n => let (ns, g') := extract_vertices_deg g (S n) in
-          let ns' := SP.of_list (map fst ns) in
-          let (f', g'') := phase2' g' in
-          ((constant_color ns' (Pos.of_nat (S (S n))), g') :: f', g'')
-  end.
-Proof.
-  intros g n teq.
-  intros ns g' teq0.
-  replace g' with (snd (ns, g')) by auto.
-  rewrite <- teq0.
-  hfcrush use: nlt_0_r, max_deg_subgraph, extract_vertices_deg_subgraph, le_lt_or_eq, extract_vertices_max_deg unfold: Peano.lt, snd, extract_vertices_deg inv: sumbool.
-Defined.
-(* we keep track of the graph with no more high-degree vertices at
-   each step and partial colorings. we also have a subgraph series: *)
-Lemma phase2'_subgraph_series g :
-  subgraph_series (map snd (fst (phase2' g))).
-Proof.
-Admitted.
-
-(* maybe we just use a "larger unit of operation" on each function call
-   remove all the max degree vertices then color them *)
-
-(* TODO: map over a set to produce new sets *)
-
-Function phase2 (g : graph) {measure max_deg g} : coloring * graph :=
+(** * Phase 2 of Wigderson *)
+Function phase2 (g : graph) {measure M.cardinal g} : coloring * graph :=
   match (max_deg g)%nat with
   | 0%nat => (constant_color (nodes g) 1, (@M.empty _))
   | S n => let (ns, g') := extract_vertices_degs g (S n) in
@@ -604,10 +577,67 @@ Proof.
   intros ns g' teq0.
   replace g' with (snd (ns, g')) by auto.
   rewrite <- teq0.
-  hfcrush use: nlt_0_r, extract_vertices_max_degs, max_deg_subgraph, le_lt_or_eq, extract_vertices_degs_subgraph unfold: Peano.lt, snd, extract_vertices_degs inv: sumbool.
+  rewrite teq0.
+  simpl.
+  assert (~ S.Empty ns).
+  {
+    intros contra.
+    rewrite extract_vertices_degs_equation in teq0.
+    destruct (extract_deg_vert_dec g (S n)) eqn:EE.
+    - destruct s as [v Hv].
+      simpl in *.
+      destruct (extract_vertices_degs (remove_node v g) (S n)) as [s g''].
+      inversion teq0.
+      subst.
+      assert (S.In v (S.add v s)).
+      {
+        sfirstorder use: SP.Dec.F.add_iff unfold: node, PositiveOrderedTypeBits.t, PositiveSet.elt, nodeset.
+      }
+      scongruence.
+    - inversion teq0.
+      subst.
+      clear teq0.
+      pose proof (max_degree_vert g' (S n) ltac:(hauto use: max_deg_gt_not_empty, nlt_0_r unfold: Peano.lt inv: sumbool) teq).
+      contradiction.
+  }
+  assert (exists v, S.In v ns).
+  {
+    clear -H.
+    destruct (PositiveSet.choose ns) eqn:EE.
+    - exists e.
+      strivial use: PositiveSet.choose_1 unfold: nodeset.
+    - sfirstorder use: PositiveSet.choose_2.
+  }
+  clear H.
+  destruct H0 as [v Hv].
+  assert (is_subgraph g' g).
+  {
+    pose proof (extract_vertices_degs_subgraph g (S n)).
+    rewrite teq0 in H.
+    assumption.
+  }
+  epose proof (extract_vertices_remove g g' ns (S n) ltac:(auto) v Hv).
+  unfold is_subgraph in H.
+  assert (~ S.In v (nodes g') /\ S.In v (nodes g)).
+  {
+    split.
+    - destruct H0.
+      unfold nodes.
+      intros contra.
+      apply Sin_domain in contra.
+      contradiction.
+    - unfold nodes.
+      apply Sin_domain.
+      qauto l: on.
+  }
+  enough (S.cardinal (nodes g') < S.cardinal (nodes g))%nat.
+  {
+    scongruence use: Mcardinal_domain unfold: snd, extract_vertices_degs, PositiveMap.t, nodes, fst inv: R_extract_vertices_degs.
+  }
+  apply SP.subset_cardinal_lt with (x := v); sauto lq: on rew: off.
 Defined.
 
-(* Functional Scheme phase2_ind := Induction for phase2 Sort Prop. *)
+Functional Scheme phase2_ind := Induction for phase2 Sort Prop.
 
 Lemma phase2_0 (g : graph) : max_deg g = 0%nat -> phase2 g = (constant_color (nodes g) 1, @M.empty _).
 Proof.
@@ -657,66 +687,3 @@ Proof.
     hauto l: on.
 Qed.
 
-(* Need to define an induction principle for graphs on max degree. *)
-(* Given a graph g, to prove P holds on g, then
- - if max_deg g = 0, then use H0
- - if max_deg g = Sn, then remove all the vertices of max degree and prove
-   if P holds on the subgraph then it holds on the graph with the vertices placed back,
- - then P holds on all g.
- *)
-Lemma max_deg_ind (P : graph -> Prop)
-    (H0: forall g, max_deg g = 0%nat -> P g)
-    (IH: forall g n, (forall g', (max_deg g' <= n)%nat -> P g') -> max_deg g = S n -> P g) :
-    (forall g, P g).
-Proof.
-assert (indnew : forall (n : nat) (g : graph), (max_deg g <= n)%nat -> P g).
-{ induction n; sauto lq: on rew: off. }
-hauto l: on.
-Qed.
-
-
-Lemma phase2_n_adj : forall g i j,
-  i <> j ->
-  undirected g ->
-  no_selfloop g ->
-  M.In i (fst (phase2 g)) ->
-  M.In j (fst (phase2 g)) ->
-  ~ S.In i (adj g j).
-Proof.
-  (* how to proceed?  without loss of generality i occurs before j,
-  then there is a sequence of extractions of max degree vertices between them*)
-  intros g.
-  pattern g.
-  apply max_deg_ind.
-  - hauto l: on use: max_deg_0_adj.
-  - intros g0 n H H0 i j H1 H2 H3 H4 H5.
-    rewrite phase2_equation in H4, H5.
-    rewrite H0 in H4, H5.
-    simpl in H4, H5.
-    remember (extract_vertices_deg g0 (S n)) as k.
-    destruct k as [ns g'].
-    destruct (phase2 g') as [f' g''] eqn:E.
-    assert ((max_deg g' <= n)%nat).
-    {
-      hauto lq: on use: phase2_tcc, le_ngt unfold: Peano.lt.
-    }
-    remember (map fst ns) as l.
-    remember (constant_color (SP.of_list l)
-                  match n with
-                  | 0%nat => 1
-                  | S _ => Pos.succ (Pos.of_nat n)
-                  end) as mns.
-    simpl in H4, H5.
-    destruct H4 as [ci Hci].
-    destruct H5 as [cj Hcj].
-    apply Munion_case in Hci, Hcj.
-    admit.
-Admitted.
-
-
-
-(* let d be the max degree,
-   remove, (using other rec algo) vertices of degree d
-   - if you remove a vertex i and some j adj to i then j does not have deg d anymore after removal
-   - so
- *)
