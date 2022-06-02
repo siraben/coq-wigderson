@@ -471,8 +471,10 @@ Proof.
 Qed.
 
 (** ** Union of two valid disjoint colorings is valid *)
-(* Proof that the union of two disjoint and OK colorings is an OK coloring. *)
-(* The keys have to be disjoint and the palettes have to be disjoint *)
+(** Proof that the union of two disjoint and OK colorings is an OK
+    coloring.  The keys have to be disjoint and the palettes have to be
+    disjoint *)
+
 Lemma coloring_union (c d : coloring) p1 p2 g :
   undirected g ->
   S.inter p1 p2 = S.empty ->
@@ -492,7 +494,7 @@ Proof.
     apply Munion_case in H0.
     apply Munion_case in H1.
     destruct H0, H1.
-    + sfirstorder unfold: coloring_ok, PositiveMap.MapsTo.
+    + sfirstorder unfold: coloring_ok.
     + unfold Mdisjoint in Hdisj.
       assert (S.In ci p1) by sfirstorder.
       assert (S.In cj p2).
@@ -507,6 +509,59 @@ Proof.
       }
       qauto use: PositiveSet.inter_3, Snot_in_empty.
     + sfirstorder unfold: coloring_ok.
+Qed.
+
+(** ** Congruence of valid colorings under set equality *)
+Lemma ok_coloring_set_eq : forall (g : graph) s1 s2 m,
+    S.Equal s1 s2 ->
+    coloring_ok s1 g m ->
+    coloring_ok s2 g m.
+Proof. sfirstorder. Qed.
+
+(** ** Union of distinct coloring of independent sets is complete *)
+(** If two independent sets are colored constantly with different
+    colors, then the union of their colorings is complete over the union
+    of the independent sets. *)
+Lemma constant_col_union_indep_set : forall (g : graph) (s1 s2 : nodeset) c1 c2,
+    independent_set g s1 ->
+    independent_set g s2 ->
+    c1 <> c2 ->
+    coloring_complete (SP.of_list [c1;c2]) (subgraph_of g (S.union s1 s2)) (Munion (constant_color s1 c1) (constant_color s2 c2)).
+Proof.
+  intros g s1 s2 c1 c2 H H0 H2.
+  split.
+  - intros i Hi.
+    rewrite <- Sin_domain in Hi.
+    apply subgraph_of_nodes in Hi.
+    apply S.union_spec in Hi.
+    destruct Hi.
+    + apply Munion_in.
+      left.
+      hecrush use: constant_color_colors.
+    + apply Munion_in.
+      right.
+      hecrush use: constant_color_colors.
+  - assert (S.Equal (SP.of_list [c1; c2]) (S.union (S.singleton c1) (S.singleton c2))).
+    {
+      hauto l: on use: PositiveSet.cardinal_1, SP.add_union_singleton unfold: SP.of_list, fold_right, PositiveSet.singleton, PositiveSet.empty, length, PositiveSet.cardinal.
+    }
+    symmetry in H1.
+    apply (ok_coloring_set_eq _ _ _ _ H1).
+    split.
+    + intros ci H5.
+      apply Munion_case in H5.
+      enough (ci = c1 \/ ci = c2).
+      {
+        sfirstorder use: PositiveSet.singleton_2, PositiveSet.union_2, PositiveSet.union_3 unfold: PositiveSet.singleton.
+      }
+      hauto q: on use: constant_color_inv2.
+    + intros ci cj H5 H6.
+      apply Munion_case in H5, H6.
+      destruct H5, H6.
+      * hauto lq: on rew: off use: subgraph_edges, constant_color_inv unfold: independent_set, PositiveSet.Subset.
+      * hauto lq: on rew: off use: constant_color_inv2.
+      * hauto q: on use: constant_color_inv2.
+      * hauto lq: on rew: off use: subgraph_edges, constant_color_inv unfold: independent_set, PositiveSet.Subset.
 Qed.
 
 (** ** Phase 2 of Wigderson *)
@@ -540,17 +595,16 @@ Admitted.
 Function phase2 (g : graph) {measure max_deg g} : coloring * graph :=
   match (max_deg g)%nat with
   | 0%nat => (constant_color (nodes g) 1, (@M.empty _))
-  | S n => let (ns, g') := extract_vertices_deg g (S n) in
-          let ns' := SP.of_list (map fst ns) in
+  | S n => let (ns, g') := extract_vertices_degs g (S n) in
           let (f', g'') := phase2 g' in
-          (Munion (constant_color ns' (Pos.of_nat (S (S n)))) f', g'')
+          (Munion (constant_color ns (Pos.of_nat (S (S n)))) f', g'')
   end.
 Proof.
   intros g n teq.
   intros ns g' teq0.
   replace g' with (snd (ns, g')) by auto.
   rewrite <- teq0.
-  hfcrush use: nlt_0_r, max_deg_subgraph, extract_vertices_deg_subgraph, le_lt_or_eq, extract_vertices_max_deg unfold: Peano.lt, snd, extract_vertices_deg inv: sumbool.
+  hfcrush use: nlt_0_r, extract_vertices_max_degs, max_deg_subgraph, le_lt_or_eq, extract_vertices_degs_subgraph unfold: Peano.lt, snd, extract_vertices_degs inv: sumbool.
 Defined.
 
 (* Functional Scheme phase2_ind := Induction for phase2 Sort Prop. *)
@@ -619,7 +673,7 @@ assert (indnew : forall (n : nat) (g : graph), (max_deg g <= n)%nat -> P g).
 { induction n; sauto lq: on rew: off. }
 hauto l: on.
 Qed.
-  
+
 
 Lemma phase2_n_adj : forall g i j,
   i <> j ->
@@ -660,7 +714,7 @@ Proof.
 Admitted.
 
 
-  
+
 (* let d be the max degree,
    remove, (using other rec algo) vertices of degree d
    - if you remove a vertex i and some j adj to i then j does not have deg d anymore after removal
