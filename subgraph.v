@@ -1132,6 +1132,8 @@ Proof.
   - fcrush.
 Qed.
 
+(* we would like to have if and only if in the conclusion but
+   unfortunately it's not true while the function is iterating *)
 Lemma max_degree_extraction_independent_set0 : forall (g : graph) d,
     no_selfloop g ->
     d = max_deg g ->
@@ -1296,6 +1298,19 @@ Proof.
   - rewrite e0 in IHp.
     simpl in *.
     hauto l: on use: subgraph_trans, remove_node_subgraph.
+  - sfirstorder.
+Qed.
+
+(** ** Iterative extraction preserves undirectedness *)
+Lemma extract_vertices_degs_undirected : forall (g : graph) n,
+    undirected g ->
+    undirected (snd (extract_vertices_degs g n)).
+Proof.
+  intros g n H.
+  functional induction (extract_vertices_degs g n) using extract_vertices_degs_ind.
+  - rewrite e0 in IHp.
+    simpl in *.
+    hauto lq: on rew: off use: remove_node_undirected.
   - sfirstorder.
 Qed.
 
