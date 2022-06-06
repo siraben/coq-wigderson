@@ -32,7 +32,18 @@ Qed.
 
 (** ** A coloring is complete if every vertex is colored *)
 Definition coloring_complete (palette: colors) (g: graph) (f: coloring) :=
- (forall i, M.In i g -> M.In i f) /\ coloring_ok palette g f.
+  (forall i, M.In i g -> M.In i f) /\ coloring_ok palette g f.
+
+(** ** Complete coloring implies graph is irreflexive *)
+Lemma complete_col_no_selfloop : forall (g : graph) (c : coloring) p,
+    coloring_complete p g c -> no_selfloop g.
+Proof.
+  intros g c p H.
+  unfold no_selfloop.
+  unfold coloring_complete, coloring_ok in H.
+  intros i contra.
+  hauto lq: on use: SP.Dec.F.empty_iff unfold: PositiveSet.In, PositiveOrderedTypeBits.t, node, PositiveMap.key, adj, PositiveMap.MapsTo, PositiveSet.elt, PositiveMap.In.
+Qed.
 
 Example ex_graph :=
   mk_graph [ (6,4); (4,5); (4,3); (3,2); (5,2); (1,2); (1,5) ]%positive.
@@ -524,16 +535,10 @@ Proof.
     destruct H0, H1.
     + sfirstorder unfold: coloring_ok.
     + assert (S.In ci p1) by sfirstorder.
-      assert (S.In cj p2).
-      {
-        hauto unfold: undirected, coloring_ok.
-      }
+      assert (S.In cj p2) by hauto unfold: undirected, coloring_ok.
       qauto use: PositiveSet.inter_spec unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.Empty, node.
     + assert (S.In ci p2) by sfirstorder.
-      assert (S.In cj p1).
-      {
-        hauto unfold: undirected, coloring_ok.
-      }
+      assert (S.In cj p1) by hauto unfold: undirected, coloring_ok.
       qauto use: PositiveSet.inter_spec unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.Empty, node.
     + sfirstorder unfold: coloring_ok.
 Qed.
@@ -732,117 +737,67 @@ Compute (seq 1 (max_deg ex_graph + 1)).
 Definition siota p := SP.of_list (map Pos.of_nat (seq 1 (p + 1))).
 Definition phase2_colors g := siota (max_deg g).
 
-Lemma obviously (n : nat) : (1 <= n)%nat -> S.In (Pos.of_nat n) (SP.of_list (map Pos.of_nat (seq 1 n))).
+Lemma InA_iff {A} : forall p (l : list A), (InA Logic.eq p l) <-> In p l.
+Proof. induction l; sauto q: on. Qed.
+
+Lemma siota_spec : forall (n : nat), (forall i, (0 <= i <= n + 1)%nat <-> S.In (Pos.of_nat i) (siota n)).
 Proof.
-  intros H.
-  apply SP.of_list_1.
-  apply In_InA; auto.
-  apply in_map_iff.
-  exists n.
-  split.
-  - reflexivity.
-  - apply in_seq.
-    lia.
+  intros n i.
+  split; intros H.
+  - unfold siota.
+    apply SP.of_list_1.
+    apply InA_iff.
+    apply in_map_iff.
+    destruct i; [exists 1%nat|exists (S i)%nat]; hauto l: on use: in_seq.
+  - destruct i eqn:He; [sfirstorder|].
+    apply SP.of_list_1 in H.
+    rewrite InA_iff in H.
+    rewrite in_map_iff in H.
+    hauto l: on use: in_seq.
+Qed.
+
+Lemma of_nat_surj : forall p, exists n, Pos.of_nat n = p.
+Proof.
+  sfirstorder use: Pos2Nat.id.
 Qed.
 
 Lemma siota_subset p q : (p <= q)%nat -> S.Subset (siota p) (siota q).
 Proof.
-  intros H.
-  intros n Hn.
-  unfold siota in *.
-  rewrite SP.of_list_1 in *.
-  apply In_InA; auto.
-  apply InA_alt in Hn.
-  destruct Hn as [y [<- Hy]].
-  rewrite in_map_iff in *.
-  destruct Hy as [x Hx].
-  exists x.
-  destruct Hx.
-  split.
-  - sfirstorder.
-  - apply in_seq in H1.
-    apply in_seq.
-    lia.
+  intros H a Ha.
+  destruct (of_nat_surj a) as [x <-].
+  hfcrush use: siota_spec.
 Qed.
 
 Lemma siota_miss : forall p q,
     (q + 1 < S p)%nat -> ~ S.In (Pos.of_nat (S p)) (siota q).
 Proof.
   intros p q H contra.
-  unfold siota in contra.
-  rewrite SP.of_list_1 in contra.
-  apply InA_alt in contra.
-  destruct contra as [y [<- Hy]].
-  rewrite in_map_iff in *.
-  destruct Hy as [x Hx].
-  rewrite in_seq in Hx.
+  apply siota_spec in contra.
   lia.
 Qed.
 
 Lemma cmon : forall n, S.In (Pos.of_nat (S n)) (siota n).
 Proof.
-  intros n.
-  unfold siota.
-  apply SP.of_list_1.
-  apply In_InA; auto.
-  apply in_map_iff.
-  exists (S n).
-  split; auto.
-  apply in_seq.
-  hauto l: on.
+  sauto l: on use: siota_spec.
 Qed.
-
-  (* g : graph *)
-  (* H : undirected g *)
-  (* H0 : no_selfloop g *)
-  (* n : nat *)
-  (* e : max_deg g = S n *)
-  (* ns : nodeset *)
-  (* g' : graph *)
-  (* e0 : extract_vertices_degs g (S n) = (ns, g') *)
-  (* f' : coloring *)
-  (* g'' : graph *)
-  (* e1 : phase2 g' = (f', g'') *)
-  (* IHp : undirected g' -> no_selfloop g' -> coloring_ok (siota (max_deg g')) g' f' *)
-  (* n' : positive *)
-  (* Heqn' : n' = Pos.of_nat (S (S n)) *)
-  (* H1 : undirected g' *)
-  (* H2 : no_selfloop g' *)
-  (* H3 : coloring_ok (siota (max_deg g')) g' f' *)
-  (* H4 : independent_set g ns *)
-  (* H5 : forall k : S.elt, S.In k ns -> degree k g = Some (S n) *)
-  (* s' : S.t *)
-  (* Heqs' : s' = SP.of_list (map Pos.of_nat (seq 1 (max_deg g' + 1))) *)
-  (* s : S.t *)
-  (* Heqs : s = SP.of_list (map Pos.of_nat (seq 1 (max_deg g + 1))) *)
-  (* max_deg_graphs : (max_deg g' < max_deg g)%nat *)
-  (* H6 : S.Subset s' s *)
-  (* H7 : ~ S.In n' s' *)
-  (* H8 : coloring_complete (S.singleton n') (subgraph_of g ns) (constant_color ns n') *)
-  (* H9 : coloring_ok s' g f' *)
-  (* H10 : S.Empty (S.inter (S.singleton n') s') *)
-  (* H11 : coloring_ok (S.singleton n') g (constant_color ns n') *)
-  (* ============================ *)
-  (* coloring_ok (siota (max_deg g)) g (Munion (constant_color ns n') f') *)
 
 (* if we have an independent set, we can augment any valid coloring
    with it to obtain another valid coloring *)
 Lemma indep_set_union : forall (g : graph) (f : coloring) (s : nodeset) (p : colors) c,
     undirected g ->
-    no_selfloop g ->
     independent_set g s ->
     ~ S.In c p ->
     coloring_ok p g f ->
     coloring_ok (S.add c p) g (Munion (constant_color s c) f).
 Proof.
-  intros g f s p c H H0 H1 H2 H3.
+  intros g f s p c H H0 H1 H2.
   split.
   - intros ci H5.
     apply S.add_spec.
     apply Munion_case in H5.
     destruct H5.
     + left.
-      apply constant_color_inv2 in H5.
+      apply constant_color_inv2 in H4.
       assumption.
     + right.
       sfirstorder.
@@ -855,21 +810,12 @@ Proof.
       sfirstorder.
     + assert (cj <> c).
       {
-        intros contra.
-        unfold coloring_ok in H3.
-        pose proof (H3 j i (H _ _ H4)).
-        sfirstorder.
+        hauto lq: on rew: off unfold: coloring_ok, undirected.
       }
-      apply constant_color_inv2 in H5.
+      apply constant_color_inv2 in H4.
       scongruence.
-    + assert (ci <> c).
-      {
-        intros contra.
-        unfold coloring_ok in H3.
-        pose proof (H3 j i (H _ _ H4)).
-        sfirstorder.
-      }
-      apply constant_color_inv2 in H6.
+    + assert (ci <> c) by sfirstorder.
+      apply constant_color_inv2 in H5.
       scongruence.
     + strivial unfold: coloring_ok.
 Qed.
@@ -963,11 +909,16 @@ Proof.
       clear IHp.
       split.
       - intros ci H12.
+        destruct (of_nat_surj ci) as [x <-].
+        apply siota_spec.
+        split.
+        + hauto l: on.
+        + (* need to have a lemma about the color used by max deg *)
         admit.
       - intros ci cj H12 H13.
         admit.
     }
-    pose proof (indep_set_union g f' ns (siota (max_deg g')) n' H H0 H4 ltac:(hauto l: on)).
+    pose proof (indep_set_union g f' ns (siota (max_deg g')) n' H H4 ltac:(hauto l: on)).
     assert (S.Subset (S.add n' (siota (max_deg g'))) (siota (max_deg g))).
     {
       intros a Ha.
