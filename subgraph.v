@@ -1280,54 +1280,70 @@ Proof.
 Qed.
 
 (** ** Iterative extraction exhausts vertices of that (non-zero) degree *)
-Lemma extract_vertices_degs_exhaust (g : graph) n :
-  n > 0 -> ~ exists v, degree v (snd (extract_vertices_degs g n)) = Some n.
+Lemma extract_vertices_degs_exhaust (g g' : graph) n ns :
+  n > 0 ->
+  extract_vertices_degs g n = (ns, g') ->
+  ~ exists v, degree v g' = Some n.
 Proof.
+  intros H H0.
+  generalize dependent ns.
   functional induction (extract_vertices_degs g n) using extract_vertices_degs_ind.
-  - intros H.
+  - intros ns H0.
     hauto lq: on.
-  - scongruence.
+  - intros ns H0.
+    hauto lq: on rew: off.
 Qed.
 
 (** ** Iterative extraction results in a subgraph *)
-Lemma extract_vertices_degs_subgraph : forall (g : graph) n,
-  is_subgraph (snd (extract_vertices_degs g n)) g.
+Lemma extract_vertices_degs_subgraph : forall (g g' : graph) n ns,
+  extract_vertices_degs g n = (ns, g') ->
+  is_subgraph g' g.
 Proof.
-  intros g n.
+  intros g g' n ns.
+  generalize dependent ns.
   functional induction (extract_vertices_degs g n) using extract_vertices_degs_ind.
-  - rewrite e0 in IHp.
-    simpl in *.
+  - intros ns H.
+    rewrite e0 in IHp.
+    inversion H.
+    subst.
+    pose proof (IHp s ltac:(reflexivity)).
     hauto l: on use: subgraph_trans, remove_node_subgraph.
-  - sfirstorder.
+  - intros ns [=H<-].
+    apply subgraph_refl.
 Qed.
 
 (** ** Iterative extraction preserves undirectedness *)
-Lemma extract_vertices_degs_undirected : forall (g : graph) n,
+Lemma extract_vertices_degs_undirected : forall (g g' : graph) n ns,
     undirected g ->
-    undirected (snd (extract_vertices_degs g n)).
+    extract_vertices_degs g n = (ns, g') ->
+    undirected g'.
 Proof.
-  intros g n H.
+  intros g g' n ns Hg.
+  generalize dependent ns.
   functional induction (extract_vertices_degs g n) using extract_vertices_degs_ind.
-  - rewrite e0 in IHp.
+  - intros ns Hns.
+    rewrite e0 in IHp.
     simpl in *.
     hauto lq: on rew: off use: remove_node_undirected.
-  - sfirstorder.
+  - intros ns [=H<-].
+    assumption.
 Qed.
 
 (** ** Iterative max degree extraction strictly decreases the max degree *)
-Lemma extract_vertices_max_degs : forall (g : graph),
-  max_deg g > 0 -> max_deg (snd (extract_vertices_degs g (max_deg g))) < max_deg g.
+Lemma extract_vertices_max_degs : forall (g g' : graph) ns,
+    max_deg g > 0 ->
+    extract_vertices_degs g (max_deg g) = (ns, g') ->
+    max_deg g' < max_deg g.
 Proof.
-  intros g H.
-  pose proof (extract_vertices_degs_subgraph g (max_deg g)).
-  pose proof (extract_vertices_degs_exhaust g _ H).
-  remember (snd (extract_vertices_degs _ _)) as g'.
-  pose proof (max_deg_subgraph _ _ H0).
-  apply le_lt_or_eq in H2.
-  destruct H2; [hauto lq: on|].
+  intros g g' ns H H0.
+  pose proof (extract_vertices_degs_subgraph g _ _ _ H0).
+  pose proof (extract_vertices_degs_exhaust g _ _ _ H H0).
+  pose proof (max_deg_subgraph _ _ H1).
+  apply le_lt_or_eq in H3.
+  destruct H3; [hauto lq: on|].
   exfalso.
   assert (~ M.Empty g') by hauto lq: on use: max_deg_gt_not_empty.
-  pose proof (max_degree_vert g' (max_deg g) H3) H2.
+  pose proof (max_degree_vert g' (max_deg g) H4 H3).
   contradiction.
 Qed.
 
@@ -1355,9 +1371,7 @@ Proof.
     apply S.add_spec in H0.
     destruct H0.
     + subst.
-      pose proof (extract_vertices_degs_subgraph (remove_node v0 g) d).
-      rewrite e0 in H.
-      simpl in H.
+      pose proof (extract_vertices_degs_subgraph _ _ _ _ e0).
       hauto l: on use: degree_gt_0_in, remove_node_not_in.
     + hauto use: subgraph_vert_m, remove_node_subgraph.
   - sauto q: on.
