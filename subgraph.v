@@ -113,7 +113,7 @@ Proof.
       destruct (E.eq_dec v k).
       * subst.
         unfold nodeset in *.
-        hauto lq: on use: SP.Dec.F.empty_iff, PositiveSet.inter_2, PositiveMap.gss unfold: PositiveSet.empty inv: option.
+        hauto use: PositiveMap.gss, SP.Dec.F.inter_iff inv: option.
       * rewrite PositiveMap.gso in *; auto.
     + (* suppose it's not in the set *)
       ssimpl.
@@ -349,7 +349,7 @@ Proof.
            inversion H.
            clear H.
            rewrite <- restrict_agree_2 in E2.
-           *** hfcrush use: SP.Dec.F.remove_iff, SP.remove_diff_singleton unfold: PositiveSet.Equal, PositiveMap.key.
+           *** hauto use: SP.remove_diff_singleton unfold: PositiveSet.Equal.
            *** rewrite S.diff_spec.
                split.
                **** unfold nodes.
@@ -465,7 +465,7 @@ Qed.
 
 Lemma subgraph_of_nodes : forall g i s, S.In i (nodes (subgraph_of g s)) -> S.In i s.
 Proof.
-  hauto l: on use: subgraph_vertices_set, subgraph_of_is_subgraph unfold: PositiveMap.key, is_subgraph, PositiveSet.Subset, PositiveSet.elt.
+  strivial use: subgraph_vertices_set unfold: PositiveSet.Subset.
 Qed.
 
 (** ** The adjacency set of any vertex of in an induced subgraph is a subset of the vertex set  *)
@@ -483,8 +483,8 @@ Proof.
     sdestruct (S.mem k s).
     + unfold adj, nodeset in *.
       destruct (E.eq_dec i k).
-      * hauto use: PositiveMap.gss, SP.Dec.F.empty_iff, SP.Dec.F.inter_iff unfold: PositiveSet.Subset inv: option.
-      * hauto use: SP.subset_empty, PositiveMap.gso unfold: PositiveSet.Subset, PositiveSet.empty inv: option.
+      * hauto use: SP.Dec.F.inter_iff, PositiveMap.gss unfold: PositiveSet.Subset inv: option.
+      * hauto lq: on use: PositiveMap.gso unfold: PositiveMap.key, node, PositiveOrderedTypeBits.t inv: option.
     + assumption.
 Qed.
 
@@ -564,14 +564,14 @@ Proof.
   intros H contra.
   assert (M.In j g).
   {
-    qauto unfold: adj, PositiveMap.MapsTo, PositiveMap.In, PositiveSet.mem, PositiveSet.In, PositiveSet.empty.
+    hauto use: SP.Dec.F.empty_iff unfold: PositiveMap.In, PositiveMap.MapsTo, adj.
   }
   destruct H0 as [e He].
   unfold adj in contra.
   unfold M.MapsTo in He.
   rewrite He in contra.
   pose proof (max_deg_max g j e ltac:(sfirstorder)).
-  hauto use: SP.cardinal_inv_1 unfold: nodeset, PositiveSet.Empty inv: Peano.le.
+  hauto use: SP.remove_cardinal_1 unfold: nodeset inv: Peano.le.
 Qed.
 
 (** ** Non-zero max degree implies non-empty graph *)
@@ -997,7 +997,7 @@ Proof.
   remember (max_deg g) as d.
   destruct d; [inversion H|clear H].
   assert (degree j (remove_node i g) = Some (max_deg g)) by (scongruence use: vertex_removed_nbs_dec).
-  hfcrush use: remove_max_deg_adj, degree_remove unfold: node, undirected, PositiveSet.elt, PositiveOrderedTypeBits.t.
+  hauto use: remove_max_deg_adj, degree_remove.
 Qed.
 
 (* If n is not adjacent to p in the graph g-m, then n is not adjacent
@@ -1013,18 +1013,8 @@ Proof.
   unfold adj in *.
   destruct (M.find p g) eqn:E.
   - destruct (M.find p (remove_node m g)) eqn:E2.
-    + unfold remove_node in E2.
-      rewrite WF.map_o in E2.
-      rewrite M.gro in E2 by auto.
-      rewrite E in E2.
-      simpl in E2.
-      inversion E2.
-      sfirstorder use: S.remove_2.
-    + unfold remove_node in E2.
-      rewrite WF.map_o in E2.
-      rewrite M.gro in E2 by auto.
-      rewrite E in E2.
-      scongruence.
+    + hauto use: remove_node_find, SP.Dec.F.remove_iff unfold: PositiveOrderedTypeBits.t, node, nodeset, PositiveSet.elt.
+    + qauto use: remove_node_find.
   - sfirstorder.
 Qed.
 
