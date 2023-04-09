@@ -147,7 +147,12 @@ Lemma n_coloring_missed (f : coloring) p c n :
   n_coloring f (S.remove c p) n.
 Proof.
   intros [p3 Hf] Hc Hcm.
-  qauto l: on use: SP.remove_cardinal_1, S.remove_spec, three_elem_set_enumerable unfold: two_coloring.
+  unfold n_coloring.
+  split.
+  - sfirstorder use: SP.remove_cardinal_1 unfold: colors.
+  - intros v c0 H.
+    qauto l: on use: S.remove_spec.
+
 Qed.
 
 (** ** Restriction to 3-coloring to 2-coloring *)
@@ -767,11 +772,6 @@ Proof.
   lia.
 Qed.
 
-Lemma cmon : forall n, S.In (Pos.of_nat (S n)) (siota n).
-Proof.
-  sauto l: on use: siota_spec.
-Qed.
-
 (* if we have an independent set, we can augment any valid coloring
    with it to obtain another valid coloring *)
 Lemma indep_set_union : forall (g : graph) (f : coloring) (s : nodeset) (p : colors) c,
@@ -851,7 +851,7 @@ Qed.
 (* Proof. *)
 (*   intros go. *)
 (*   apply (extract_vertices_degs_ind (fun g d p =>  no_selfloop g -> d = max_deg g -> d = 0 -> independent_set g (fst (extract_vertices_degs g d)) /\ (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d))). *)
-Lemma doge :
+Lemma difficult :
   forall (g g' : graph) (n : nat) (ns : nodeset),
     (* undirected g -> *)
     (* no_selfloop g -> *)
@@ -941,7 +941,17 @@ Proof.
     pose proof (max_degree_extraction_independent_set _ _ H H0 (eq_sym e)).
     rewrite e0 in H5.
     simpl in H5.
-    (* hammer. *)
+    rename g'0 into g'''.
+    assert (undirected g') by best use: extract_vertices_degs_undirected.
+    assert (no_selfloop g').
+    {
+      admit.
+    }
+    (* eapply IHp; eauto. *)
+    (* + hammer. *)
+    
+    
+    (* pose proof (IHp) *)
     (* best unfold: independent_set. *)
     (* destruct (max_deg g') eqn:EE. *)
     (* + hammer. *)
@@ -950,6 +960,44 @@ Proof.
 Admitted.
 
 
+Lemma max_deg_remove_node :
+  forall (n : nat) (g : graph) (v x : node),
+    degree v g = Some n ->
+    degree x g = Some n ->
+    max_deg g = n ->
+    ~ S.In x (adj g v) ->
+    x <> v ->
+    max_deg (remove_node x g) = n.
+Proof.
+  intros n g v x H H0 H1 H2 H3.
+  destruct n.
+  {
+    ecrush use: Arith.PeanoNat.Nat.nlt_0_r, Wigderson.subgraph.remove_node_subgraph, Wigderson.subgraph.max_deg_subgraph, H1.
+  }
+  assert (is_subgraph (remove_node x g) g) by apply remove_node_subgraph.
+  assert ((max_deg (remove_node x g) <= (S n))%nat) by hauto l: on use: max_deg_subgraph.
+  apply le_lt_or_eq in H5.
+  destruct H5; [|assumption].
+  assert (M.In v (remove_node x g)).
+  {
+    apply remove_node_neq.
+    - auto.
+    - hauto l: on unfold: degree.
+  }
+  destruct H6 as [e He].
+  assert (M.In v g) by hauto l: on unfold: degree.
+  assert (degree v (remove_node x g) = Some (S n)).
+  {
+    unfold degree.
+    unfold adj in H2.
+    rewrite He.
+    destruct H6 as [e' He'].
+    hfcrush use: SP.remove_cardinal_2, remove_node_find unfold: PositiveMap.MapsTo, nodeset, PositiveOrderedTypeBits.t, node, PositiveSet.elt, degree inv: option.
+  }
+  pose proof (max_deg_max (remove_node x g) _ _ He).
+  hauto lq: on use: Znat.Nat2Z.inj_le, Znat.Nat2Z.inj_gt unfold: PositiveMap.MapsTo, nodeset, BinInt.Z.gt, BinInt.Z.le, gt, degree.
+Qed.
+    
 Lemma barbar :
   forall (g g' : graph) (i j ci cj : node) (f : coloring),
     undirected g ->
@@ -1082,7 +1130,7 @@ Admitted.
 (*   assumption. *)
 (* Qed. *)
 
-Lemma phase2_ok : forall (g : graph),
+                     Lemma phase2_ok : forall (g : graph),
     undirected g ->
     no_selfloop g ->
     coloring_ok (phase2_colors g) g (fst (phase2 g)).
@@ -1164,7 +1212,8 @@ Proof.
       apply S.add_spec in Ha.
       destruct Ha.
       - subst. rewrite e.
-        apply cmon.
+        clear -n.
+        sauto l: on use: siota_spec.
       - hauto l: on.
     }
     hauto l: on use: ok_coloring_subset.
