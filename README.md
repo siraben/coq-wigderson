@@ -1,7 +1,12 @@
-# Formal Verification of Modified Version of Wigderson's Algorithm for 3-colorable graphs.
+# Towards the Formal Verification of Wigderson’s Algorithm
 **Created by: Ben Siraphob (siraben) and Jamison Homatas (jhomatas48)**
 
-We present a formal proof of an approximate graph coloring algorithm for 3-colorable graphs. Our algorithm is based upon Avi Wigderson's algorithm, and we have modified this to be more explicit and rigorous. We implement this as a functional program in Gallina. This repo includes definitions for graphs and graph components and all other data structures used. See the attached [paper](./paper.pdf) for more information.
+We present progress towards the formal verification of Wigderson's
+graph coloring algorithm in Coq. We have created a library of
+formalized graph theory that aims to bridge the literature gap between
+introductory material on Coq and large-scale formal developments,
+while providing a motivating case study. Our library contains over 180
+proven theorems.
 
 Using Nix, run `nix-shell` then run `make` to compile it.
 
