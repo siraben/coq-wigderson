@@ -2,7 +2,7 @@
   description = "Coq Wigderson development environment";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/103a4c0ae46afa9cf008c30744175315ca38e9f9";
+    nixpkgs.url = "github:NixOS/nixpkgs/566e53c2ad750c84f6d31f9ccb9d00f823165550";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -14,16 +14,16 @@
       {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            coq_8_13
-            coqPackages_8_13.coqhammer
+            coq_8_19
+            coqPackages_8_19.coq-hammer
             vampire
             eprover
             cvc4
-            (z3-tptp.overrideAttrs (oA: {
-              installPhase = oA.installPhase + ''
-                ln -s "z3_tptp5" "$out/bin/z3_tptp"
-              '';
-            }))
+            # (z3-tptp.overrideAttrs (oA: {
+            #   installPhase = oA.installPhase + ''
+            #     ln -s "z3_tptp5" "$out/bin/z3_tptp"
+            #   '';
+            # }))
           ];
         };
       });
