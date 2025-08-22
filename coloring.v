@@ -978,6 +978,44 @@ Proof.
   pose proof (max_deg_max (remove_node x g) _ _ He).
   hauto lq: on use: Znat.Nat2Z.inj_le, Znat.Nat2Z.inj_gt unfold: PositiveMap.MapsTo, nodeset, BinInt.Z.gt, BinInt.Z.le, gt, degree.
 Qed.
+
+Lemma phase2_domain_subset :
+  forall g f g',
+    phase2 g = (f, g') ->
+    S.Subset (Mdomain f) (nodes g).
+Proof.
+  intros g f g' Hph.
+  functional induction (phase2 g) using phase2_ind.
+  - (* base: max_deg g = 0 *)
+    inversion Hph; subst; clear Hph.
+    intros x Hx. apply Sin_domain.
+    rewrite Sin_domain in Hx.
+    Search constant_color.
+    unfold M.In, M.MapsTo in Hx.
+    destruct Hx as [e' He'].
+    apply constant_color_inv in He'.
+    unfold nodes in He'.
+    now apply Sin_domain.
+  - (* step: max_deg g = S n *)
+    admit.
+  (*   inversion Hph; subst; clear Hph. *)
+  (*   intros x Hx. apply Munion_in in Hx; destruct Hx as [Hx|Hx]. *)
+  (*   + (* x from constant_color ns fresh *) *)
+  (*     destruct (WF.in_find_iff _ _ _ Hx) as [d Hfind]. *)
+  (*     pose proof (constant_color_inv _ _ _ _ Hfind) as Hin_ns. *)
+  (*     (* vertices extracted lie in the original graph *) *)
+  (*     pose proof (extract_vertices_remove g g' ns (S n) (eq_sym e)) as Rem. *)
+  (*     specialize (Rem x Hin_ns). destruct Rem as [_ Hming]. *)
+  (*     now apply Sin_domain. *)
+  (*   + (* x from the recursive coloring f' over g' *) *)
+  (*     have Hsub' : S.Subset (Mdomain f') (nodes g') *)
+  (*       by (eapply IHp; eauto). *)
+  (*     have Hx' : S.In x (nodes g') by apply Hsub'; now apply Hx. *)
+  (*     (* nodes g' ⊆ nodes g *) *)
+  (*     pose proof (extract_vertices_degs_subgraph g g' (S n) ns e) as Sg'. *)
+  (*     exact (proj1 Sg' x Hx'). *)
+Admitted.
+
     
 (** ** Correctness of phase2 coloring *)
 Lemma phase2_colors_distinct :
