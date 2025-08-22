@@ -904,13 +904,11 @@ Qed.
 
 Lemma iter_deletion :
   forall (g g' : graph) (n : nat) (s : nodeset),
-    (* undirected g -> *)
-    no_selfloop g ->
     max_deg g = S n ->
     extract_vertices_degs g (S n) = (s, g') ->
     forall i j, M.In i g' -> M.In j g' -> (S.In j (adj g' i) <-> S.In j (adj g i)).
 Proof.
-  intros g g' n s sg H H0 i j H1 H2.
+  intros g g' n s H H0 i j H1 H2.
   split; intros H3.
   - apply extract_vertices_degs_subgraph in H0.
     sfirstorder.
