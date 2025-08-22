@@ -32,6 +32,7 @@ phase1 is selecting the high-degree vertices and coloring their neighborhoods
 phase2 is coloring the remaining nodes with at most sqrt(k) colors
  *)
 
+(** ** Termination of selectW *)
 Lemma selectW_terminates:
   forall (K: nat) (g : graph) (n : S.elt),
    S.choose (subset_nodes (high_deg K) g) = Some n ->
@@ -65,6 +66,7 @@ Function selectW (K: nat) (g: graph) {measure M.cardinal g} : list node :=
 Proof. apply selectW_terminates.
 Defined.
 
+(** ** Property of subset_nodes *)
 Lemma subset_nodes_prop : forall (P: node -> nodeset -> bool) (g: graph) v,
     S.In v (subset_nodes P g) -> P v (adj g v) = true.
 Proof.
@@ -80,6 +82,7 @@ Qed.
 
 (* If a node m is removed from the graph then the cardinality of the
   adj set of a vertex v is decreasing. *)
+(** ** Cardinality of adjacency set after removing a node *)
 Lemma cardinal_remove : forall g v m,
     (S.cardinal (adj (remove_node m g) v) <= S.cardinal (adj g v))%nat.
 Proof.
@@ -101,6 +104,7 @@ Proof.
 Qed.
 
 (* If v is in the list returned by selectW then the cardinality of v is indeed high. *)
+(** ** Vertices selected by selectW have high degree *)
 Lemma select_hi_deg : forall n g v, In v (selectW n g) -> (S.cardinal (adj g v) > n)%nat.
 Proof.
   intros n g v.
@@ -151,6 +155,7 @@ Admitted.
    3-colored and that in this 3-coloring the vertex v has color c3,
    and that the coloring is complete. Then two_color_nbd colors the
    neighborhood of v correctly with two colors. *)
+(** ** Completeness of two-coloring of a neighborhood *)
 Lemma two_color_nbd_complete : forall (g : graph) (v : node) c1 c2 c3 m,
     c1 <> c2 ->
     c1 <> c3 ->
@@ -164,6 +169,7 @@ Lemma two_color_nbd_complete : forall (g : graph) (v : node) c1 c2 c3 m,
 Proof.
 Admitted.
 
+(** ** Failure of two-coloring of a neighborhood implies non-3-colorability *)
 Lemma two_color_nbd_fail_n3_col : forall (g : graph) (v : node) c1 c2 c3,
     c1 <> c2 ->
     c1 <> c3 ->
@@ -272,6 +278,7 @@ random lemmas that we have to show:
  *)
 
 (* Lifting two color maps with any injective function *)
+(** ** Lifting a 2-coloring by an injective function *)
 Lemma two_color_up_inj f g (inj : S.elt -> S.elt) :
   injective inj ->
   undirected g ->
@@ -319,6 +326,7 @@ Proof.
 Qed.
 
 (* Lifting three color maps *)
+(** ** Lifting a 3-coloring by an injective function *)
 Lemma three_color_up_inj f g (inj : S.elt -> S.elt) :
   injective inj ->
   undirected g ->

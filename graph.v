@@ -62,9 +62,11 @@ Check E.lt. (*   : positive -> positive -> Prop *)
    for [eq ==> eq ==> iff]).   As shown here, we just have to dig up
    these facts from a submodule of a submodule of a submodule of [M]. *)
 
+(** ** Strict order for E.lt *)
 Lemma lt_strict: StrictOrder E.lt.
 Proof. exact M.ME.MO.IsTO.lt_strorder. Qed.
 
+(** ** Proper instance for E.lt *)
 Lemma lt_proper: Proper (eq ==> eq ==> iff) E.lt.
 Proof. exact M.ME.MO.IsTO.lt_compat. Qed.
 
@@ -178,6 +180,7 @@ Goal E.eq = @eq positive.  Proof. reflexivity. Qed.
 
 (** And therefore, [eqlistA E.eq al bl] means the same as [al=bl]. *)
 
+(** ** Equivalence of eqlistA E.eq and list equality *)
 Lemma eqlistA_Eeq_eq: forall al bl, eqlistA E.eq al bl <-> al=bl.
 Proof.
 split; intro.
@@ -189,6 +192,7 @@ Qed.
 (** So now, the theorem:  if [al] and [bl] are sorted, and contain "the same" elements,
    then they are equal: *)
 
+(** ** Sorted equivalent lists are equal *)
 Lemma SortE_equivlistE_eqlistE:
  forall al bl, Sorted E.lt al ->
                    Sorted E.lt bl ->
@@ -230,6 +234,7 @@ Abort.  (* Before we prove that, there is some preliminary work to do. *)
     list that you get by filtering [i] out of [S.elements s].  Go ahead and prove it! *)
 
 (** **** Exercise: 3 stars, standard (Sremove_elements)  *)
+(** ** Proper instance for bool functions*)
 Lemma Proper_eq_eq:
   forall f, Proper (E.eq ==> @eq bool) f.
 Proof.
@@ -347,8 +352,9 @@ Qed.
     (as long as they are compatible.  Here is a specialization to
     a particular equivalence ([M.eq_key_elt]) and order ([M.lt_key]). *)
 
+(** ** Specialization of SortA_equivlistA_eqlistA *)
 Lemma specialize_SortA_equivlistA_eqlistA:
-  forall A al bl, 
+  forall A al bl,
   Sorted (@M.lt_key A) al ->
   Sorted (@M.lt_key A) bl ->
   equivlistA (@M.eq_key_elt A) al bl ->
@@ -461,6 +467,7 @@ Proof.
 Qed.
 (** [] *)
 
+(** ** Map and set cardinality equivalence *)
 Lemma Mcardinal_Scardinal: forall A (m : M.t A) s,
     (forall k, M.In k m <-> S.In k s) ->
     M.cardinal m = S.cardinal s.
@@ -491,6 +498,7 @@ Proof.
     sfirstorder.
 Qed.
 
+(** ** Cardinality of a map is the cardinality of its domain *)
 Lemma Mcardinal_domain: forall A (m : M.t A),
     M.cardinal m = S.cardinal (Mdomain m).
 Proof.
@@ -602,6 +610,7 @@ Proof.
 Qed.
 (** [] *)
 
+(** ** Adjacency implies vertex membership *)
 Lemma in_adj_exists : forall g i j,
     S.In i (adj g j) -> exists v, M.find j g = Some v /\ S.In i v.
 Proof.
@@ -612,6 +621,7 @@ Proof.
   + rewrite SP.FM.empty_iff in H. contradiction.
 Qed.
 
+(** ** Adjacency implies vertex membership (converse) *)
 Lemma find_in_adj : forall g i v j,
     M.find(A := nodeset) j g = Some v ->
     S.In i v ->
@@ -623,6 +633,7 @@ Proof.
   auto.
 Qed.
 
+(** ** Adjacent vertices are in the graph *)
 Lemma in_adj_in_nodes : forall g i j,
     S.In i (adj g j) ->
     S.In j (nodes g).
@@ -636,6 +647,7 @@ Proof.
   - rewrite SP.FM.empty_iff in H. contradiction.
 Qed.
 
+(** ** Map commutes with adjacency *)
 Lemma adj_map : forall (f : nodeset -> nodeset) g i,
     f S.empty = S.empty ->
     adj (M.map f g) i = f (adj g i).

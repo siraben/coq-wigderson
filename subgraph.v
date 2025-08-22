@@ -300,6 +300,7 @@ Proof.
   - rewrite S.diff_spec. sfirstorder.
 Qed.
 
+(** ** Specification of adjacency after removing nodes *)
 Lemma adj_remove_nodes_spec : forall g s i j,
     S.In i (adj (remove_nodes g s) j) <-> S.In i (adj g j) /\ ~ S.In i s /\ ~ S.In j s.
 Proof.
@@ -313,6 +314,7 @@ Proof.
   eauto using in_adj_in_nodes.
 Qed.
 
+(** ** Equivalence of removing a single node and a singleton set of nodes*)
 Lemma remove_nodes_singleton : forall g v, M.Equiv S.Equal (remove_nodes g (S.singleton v)) (remove_node v g).
 Proof.
   intros g v.
@@ -362,6 +364,7 @@ Proof.
       * inversion H0.
 Qed.
 
+(** ** Adjacency after removing a single node or a singleton set of nodes *)
 Lemma remove_node_nodes_adj : forall g i v,
     S.Equal (adj (remove_nodes g (S.singleton v)) i) (adj (remove_node v g) i).
 Proof.
@@ -374,6 +377,7 @@ Proof.
   destruct (M.find i m1) eqn:E1, (M.find i m2) eqn:E2; unfold nodeset in *; sauto.
 Qed.
 
+(** ** Specification of adjacency after removing a single node *)
 Lemma adj_remove_node_spec : forall g v i j,
     S.In i (adj (remove_node v g) j) <-> S.In i (adj g j) /\ i <> v /\ j <> v.
 Proof.
@@ -741,6 +745,7 @@ Definition extract_deg_vert (g : graph) (d : nat) :=
   find (fun p => Nat.eqb (S.cardinal (snd p)) d) (M.elements g).
 
 (* Annoying lemma *)
+(** ** InA to In conversion for pairs *)
 Lemma InA_in_iff {A} : forall p (l : list (M.key * A)), (InA (@M.eq_key_elt A) p l) <-> In p l.
 Proof. induction l; sauto q: on. Qed.
 
@@ -827,6 +832,7 @@ Proof.
     sauto lq: on use: degree_gt_0_in.
 Qed.
 
+(** ** Decidability of map emptiness *)
 Lemma mempty_dec {A} (m : M.t A) : {M.Empty m} + {~ M.Empty m}.
 Proof.
   destruct (eq_dec (M.cardinal m) 0).
@@ -836,6 +842,7 @@ Proof.
     sfirstorder use: WP.cardinal_1.
 Defined.
 
+(** ** Extracted graph is a subgraph*)
 Lemma extract_vertices_deg_subgraph1 g g' g'' n v l :
   extract_vertices_deg g n = ((v, g') :: l, g'') -> is_subgraph g' g.
 Proof.
@@ -1040,6 +1047,7 @@ Qed.
    to p in g.  *)
 (* Need this to transport the information about non-adjacency back up
    the list.*)
+(** ** Non-adjacency is preserved after removing a node *)
 Lemma not_adj_remove : forall (g : graph) (n m p : node),
     n <> m -> m <> p ->
     ~ (S.In n (adj (remove_node m g) p)) ->
@@ -1054,6 +1062,7 @@ Proof.
   - sfirstorder.
 Qed.
 
+(** ** Non-adjacency is preserved after removing nodes *)
 Lemma not_adj_removes : forall (g : graph) (n p : node) s,
     ~ S.In n s -> ~ S.In p s ->
     ~ (S.In n (adj (remove_nodes g s) p)) ->
@@ -1083,6 +1092,7 @@ Definition independent_set (g : graph) (s : nodeset) :=
 (* If we have an independent set and a new vertex that is not adjacent
    to anything in the independent set, then adding it results in a new
    independent set. *)
+(** ** Adding a non-adjacent vertex to an independent set *)
 Lemma independent_set_add g s i :
   no_selfloop g -> undirected g ->
   (forall j, S.In j s -> ~ S.In i (adj g j)) ->
@@ -1100,6 +1110,7 @@ Proof.
 Qed.
 
 (* An independent set can be restricted to a subgraph *)
+(** ** Independent sets are preserved in subgraphs *)
 Lemma independent_set_subgraph : forall (g g' : graph) (s : nodeset),
     is_subgraph g' g -> independent_set g s -> independent_set g' s.
 Proof. sfirstorder. Qed.

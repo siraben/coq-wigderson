@@ -24,6 +24,7 @@ Local Open Scope positive_scope.
 (** ** Definition of a set of colors *)
 Definition colors := S.t.
 
+(** ** Map option *)
 Lemma map_o {A} : forall (m : M.t A) (x : M.key) f,
  @M.find A x (M.map f m) = Datatypes.option_map f (M.find x m).
 Proof.
@@ -84,6 +85,7 @@ Proof.
   strivial use: SP.of_list_3 unfold: SP.of_list, SP.to_list, PositiveSet.Equal.
 Qed.
 
+(** ** A three-element set is enumerable *)
 Lemma three_elem_set_enumerable s :
   S.cardinal s = 3%nat ->
   { x : S.elt * S.elt * S.elt | let (p,c) := x in let (a,b) := p in S.Equal s (SP.of_list [a;b;c])}.
@@ -342,12 +344,14 @@ Proof.
     qauto use: WF.in_find_iff, @constant_color_inv.
 Qed.
 
+(** ** Adjacency in undirected graphs *)
 Lemma undirected_adj_in : forall (g : graph) (v : node) i , undirected g -> S.In i (adj g v) -> M.In i g.
 Proof.
   intros g v i H H0.
   hauto use: SP.Dec.F.empty_iff unfold: undirected, adj.
 Qed.
 
+(** ** Membership of a two-element set *)
 Lemma in_two_set_inv : forall i a b, S.In i (SP.of_list [a;b]) -> i = a \/ i = b.
 Proof.
   intros i a b H.
@@ -675,6 +679,7 @@ Defined.
 
 Functional Scheme phase2_ind := Induction for phase2 Sort Prop.
 
+(** ** Phase 2 on max degree 0 graphs *)
 Lemma phase2_0 (g : graph) : max_deg g = 0%nat -> phase2 g = (constant_color (nodes g) 1, @M.empty _).
 Proof.
   intros H.
@@ -733,9 +738,11 @@ Qed.
 Definition siota p := SP.of_list (map Pos.of_nat (seq 1 (p + 1))).
 Definition phase2_colors g := siota (max_deg g).
 
+(** ** InA to In conversion *)
 Lemma InA_iff {A} : forall p (l : list A), (InA Logic.eq p l) <-> In p l.
 Proof. induction l; sauto q: on. Qed.
 
+(** ** Specification of siota construction *)
 Lemma siota_spec : forall (n : nat), (forall i, (0 <= i <= n + 1)%nat <-> S.In (Pos.of_nat i) (siota n)).
 Proof.
   intros n i.
@@ -752,11 +759,13 @@ Proof.
     hauto l: on use: in_seq.
 Qed.
 
+(** ** Surjectivity of of_nat *)
 Lemma of_nat_surj : forall p, exists n, Pos.of_nat n = p.
 Proof.
   sfirstorder use: Pos2Nat.id.
 Qed.
 
+(** ** Siota subset relation *)
 Lemma siota_subset p q : (p <= q)%nat -> S.Subset (siota p) (siota q).
 Proof.
   intros H a Ha.
@@ -764,6 +773,7 @@ Proof.
   hfcrush use: siota_spec.
 Qed.
 
+(** ** Siota non-membership *)
 Lemma siota_miss : forall p q,
     (q + 1 < S p)%nat -> ~ S.In (Pos.of_nat (S p)) (siota q).
 Proof.
@@ -774,6 +784,7 @@ Qed.
 
 (* if we have an independent set, we can augment any valid coloring
    with it to obtain another valid coloring *)
+(** ** Augmenting a coloring with an independent set  *)
 Lemma indep_set_union : forall (g : graph) (f : coloring) (s : nodeset) (p : colors) c,
     undirected g ->
     independent_set g s ->
@@ -851,6 +862,7 @@ Qed.
 (* Proof. *)
 (*   intros go. *)
 (*   apply (extract_vertices_degs_ind (fun g d p =>  no_selfloop g -> d = max_deg g -> d = 0 -> independent_set g (fst (extract_vertices_degs g d)) /\ (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d))). *)
+(** ** Adjacency preservation in extracted subgraph *)
 Lemma difficult :
   forall (g g' : graph) (n : nat) (ns : nodeset),
     (* undirected g -> *)
@@ -918,6 +930,7 @@ Proof.
 Admitted.
 
 Proof.
+(** ** Adjacency preservation in extracted subgraph (again) *)
 Lemma asfadsf:
   forall (g g' : graph) (i j : node) (n : nat) (ns : nodeset),
     undirected g ->
@@ -998,6 +1011,7 @@ Proof.
   hauto lq: on use: Znat.Nat2Z.inj_le, Znat.Nat2Z.inj_gt unfold: PositiveMap.MapsTo, nodeset, BinInt.Z.gt, BinInt.Z.le, gt, degree.
 Qed.
     
+(** ** Correctness of phase2 coloring *)
 Lemma barbar :
   forall (g g' : graph) (i j ci cj : node) (f : coloring),
     undirected g ->
@@ -1081,6 +1095,7 @@ Qed.
      later, but this means that the colors are not equal *)
 
   
+(** ** Adjacency preservation in extracted subgraph (again) *)
 Lemma adfadsf:
   forall (g : graph) (n : nat) (ns : nodeset) (g' : graph) (i j ci cj : node)
     (f : coloring) (g'' : graph),

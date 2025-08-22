@@ -26,9 +26,11 @@ Proof. hauto l: on. Qed.
 
 (* Note: since we're using equality on finite sets can we get for free
    that map disjointness is decidable *)
+(** ** Decidability of map disjointness *)
 Lemma Mdisjoint_dec {A} (f g : M.t A) : {Mdisjoint f g} + {~ Mdisjoint f g}.
 Proof. apply S.eq_dec. Qed.
 
+(** ** Membership of a map union *)
 Lemma Munion_case {A} : forall (c d : M.t A) i v,
     M.find i (Munion c d) = Some v -> M.find i c = Some v \/ M.find i d = Some v.
 Proof.
@@ -43,6 +45,7 @@ Proof.
     + hauto use: PositiveMapAdditionalFacts.gsident, WF.add_neq_o, PositiveMap.gss.
 Qed.
 
+(** ** Membership of a map union (expressed with M.In) *)
 Lemma Munion_in {A} : forall i (m1 m2 : M.t A),
     M.In i (Munion m1 m2) <-> M.In i m1 \/ M.In i m2.
 Proof.
