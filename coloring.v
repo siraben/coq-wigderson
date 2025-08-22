@@ -853,124 +853,95 @@ Proof.
       hauto l: on.
 Qed.
 
-(* Lemma max_degree_extraction_independent_set0 : forall (g : graph) d, *)
-(*     no_selfloop g -> *)
-(*     d = max_deg g -> *)
-(*     d = 0 -> *)
-(*     independent_set g (fst (extract_vertices_degs g d)) /\ *)
-(*       (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d). *)
-(* Proof. *)
-(*   intros go. *)
-(*   apply (extract_vertices_degs_ind (fun g d p =>  no_selfloop g -> d = max_deg g -> d = 0 -> independent_set g (fst (extract_vertices_degs g d)) /\ (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d))). *)
-(** ** Adjacency preservation in extracted subgraph *)
-Lemma difficult :
-  forall (g g' : graph) (n : nat) (ns : nodeset),
+Lemma single_delete_adj_survive :
+  forall (g : graph) x i j,
+    M.In i (remove_node x g) ->
+    M.In j (remove_node x g) ->
+    i <> j ->
+    S.In j (adj (remove_node x g) i) <-> S.In j (adj g i).
+Proof.
+  split.
+  - strivial use: adj_remove_node_spec unfold: node, PositiveMap.key, PositiveSet.elt, PositiveOrderedTypeBits.t.
+  - hauto lq: on use: adj_remove_node_spec, remove_node_neq2 unfold: node, PositiveSet.elt, PositiveMap.key, PositiveOrderedTypeBits.t.
+Qed.
+
+Lemma adj_preserved_after_extract :
+  forall g d s g' i j,
+    extract_vertices_degs g d = (s, g') ->
+    M.In i g' -> M.In j g' ->
+    (S.In j (adj g' i) <-> S.In j (adj g i)).
+Proof.
+  intros g d s g' i j Hext Hi Hj.
+  revert s g' Hext i j Hi Hj.
+  functional induction (extract_vertices_degs g d)
+           using extract_vertices_degs_ind; intros s' g' Hext i j Hi Hj.
+  - (* a vertex `v` was deleted, we recursed on remove_node (`v) g *)
+    inversion Hext; subst; clear Hext.
+    (* g' is a subgraph of remove_node (`v) g *)
+    assert (Hsub : is_subgraph g' (remove_node (` v) g)).
+    { eapply extract_vertices_degs_subgraph; eauto. }
+    (* hence neither i nor j can equal the deleted vertex `v` *)
+    assert (Hnv : ~ M.In (` v) g'). { eapply remove_node_not_in; eauto. }
+    assert (Hi_neq : i <> ` v). { sauto. }
+    assert (Hj_neq : j <> ` v). { sauto. }
+    split; intro Hadj.
+    + (* g' -> g : first g' -> remove_node, then remove_node -> g *)
+      assert (Hadj_rm : S.In j (adj (remove_node (` v) g) i)).
+      {
+        hecrush.
+      }
+      rewrite adj_remove_node_spec in Hadj_rm. tauto.
+    + (* Since they made it to g', i and j's degrees in g can't be d *)
+      rewrite IHp.
+      * rewrite adj_remove_node_spec; repeat split; assumption.
+      * eauto.
+      * sauto.
+      * sauto.
+  - (* nothing was deleted: g' = g *)
+    inversion Hext; subst; tauto.
+Qed.
+
+
+Lemma iter_deletion :
+  forall (g g' : graph) (n : nat) (s : nodeset),
     (* undirected g -> *)
-    (* no_selfloop g -> *)
+    no_selfloop g ->
     max_deg g = S n ->
-    extract_vertices_degs g (S n) = (ns, g') ->
+    extract_vertices_degs g (S n) = (s, g') ->
     forall i j, M.In i g' -> M.In j g' -> (S.In j (adj g' i) <-> S.In j (adj g i)).
 Proof.
-  intros g g' n ns H H0 i j H1 H2.
+  intros g g' n s sg H H0 i j H1 H2.
   split; intros H3.
   - apply extract_vertices_degs_subgraph in H0.
     sfirstorder.
   - remember (S n) as d.
     generalize dependent g'.
     revert H.
-    generalize dependent i.
     generalize dependent j.
-    generalize dependent ns.
+    generalize dependent i.
+    generalize dependent s.
     functional induction (extract_vertices_degs g d) using extract_vertices_degs_ind.
-    + intros ns j i H3 H g' H0 H1 H2.
-      inversion H0.
-      subst.
-      clear H0.
-      pose proof (IHp (@eq_refl _) s j i).
-      rewrite <- remove_node_nodes_adj in H0.
-      rewrite adj_remove_nodes_spec in H0.
-      rewrite e0 in H0.
-      apply H0.
-      * split.
-        ** assumption.
-        ** split; intros contra.
-           *** destruct v as [v Hv].
-               simpl_sigma.
-               assert (j = x) by hauto use: PositiveSet.singleton_1 unfold: PositiveMap.key, node.
-               subst.
-               pose proof (extract_vertices_degs_exhaust (remove_node x g) g' (max_deg g) s ltac:(hauto l: on) ltac:(scongruence)).
-               apply H4.
-               exists x.
-               rewrite H.
-               assert (is_subgraph g' (remove_node x g)).
-               {
-                 hauto l: on use: extract_vertices_degs_subgraph.
-               }
-               hauto lq: on use: remove_node_not_in.
-           *** simpl_sigma.
-               assert (i = x) by hauto use: PositiveSet.singleton_1 unfold: PositiveMap.key, node.
-               subst.
-               pose proof (extract_vertices_degs_exhaust (remove_node x g) g' (max_deg g) s ltac:(hauto l: on) ltac:(scongruence)).
-               apply H4.
-               exists x.
-               rewrite H.
-               assert (is_subgraph g' (remove_node x g)).
-               {
-                 hauto l: on use: extract_vertices_degs_subgraph.
-               }
-               hauto lq: on use: remove_node_not_in.
-      * destruct v as [v Hv].
-        simpl_sigma.
-        admit.
-      * reflexivity.
+    + remember (S n) as d.
+      intros s' i j.
+      intros H3 H g' H0 H1 H2.
+      inversion H0; subst.
+      assert (Hsub : is_subgraph g' (remove_node (` v) g)).
+      { eapply extract_vertices_degs_subgraph. exact e0. }
+      assert (Hi_neq : i <> ` v).
+      { hfcrush use: remove_node_not_in unfold: PositiveMap.key, PositiveOrderedTypeBits.t, node. }
+      assert (Hj_neq : j <> ` v).
+      { hfcrush use: remove_node_not_in unfold: PositiveMap.key, PositiveOrderedTypeBits.t, node. }
+      assert (Hrm : S.In j (adj (remove_node (` v) g) i)).
+      { rewrite adj_remove_node_spec.
+        hauto l: on.
+      }
+      rewrite adj_preserved_after_extract.
+      * apply Hrm.
+      * sauto.
       * assumption.
       * assumption.
-    + intros ns j i H3 H g' H0 H1 H2.
-      scongruence.
-Admitted.
-
-(** ** Adjacency preservation in extracted subgraph (again) *)
-Lemma asfadsf:
-  forall (g g' : graph) (i j : node) (n : nat) (ns : nodeset),
-    undirected g ->
-    no_selfloop g ->
-    max_deg g = S n ->
-    extract_vertices_degs g (S n) = (ns, g') ->
-    S.In j (adj g i) ->
-    S.In j (adj g' i).
-Proof.
-  (* intros g g' i j ci cj n ns H H0 H1. *)
-  intros g g' i j n ns H H0 H1 H2 H3.
-  generalize dependent ns.
-  generalize dependent i.
-  generalize dependent j.
-  generalize dependent g'.
-  generalize dependent n.  
-  functional induction (extract_vertices_degs g) using phase2_ind.
-  - scongruence.
-  - intros n0 H1 g'0 j i H3 ns0 H2.
-    pose proof (extract_vertices_max_degs g0 g' ns ltac:(hauto l: on) ltac:(scongruence)).
-    pose proof (max_degree_extraction_independent_set _ _ H H0 (eq_sym e)).
-    rewrite e0 in H5.
-    simpl in H5.
-    rename g'0 into g'''.
-    assert (undirected g') by hauto l: on use: extract_vertices_degs_undirected.
-    assert (no_selfloop g').
-    {
-      admit.
-    }
-    (* eapply IHp; eauto. *)
-    (* + hammer. *)
-    
-    
-    (* pose proof (IHp) *)
-    (* best unfold: independent_set. *)
-    (* destruct (max_deg g') eqn:EE. *)
-    (* + hammer. *)
-    (* hammer. *)
-  (*   pose proof (IHp ). *)
-Admitted.
-
+    + scongruence.
+Qed.
 
 Lemma max_deg_remove_node :
   forall (n : nat) (g : graph) (v x : node),
@@ -1011,7 +982,7 @@ Proof.
 Qed.
     
 (** ** Correctness of phase2 coloring *)
-Lemma barbar :
+Lemma phase2_colors_distinct :
   forall (g g' : graph) (i j ci cj : node) (f : coloring),
     undirected g ->
     no_selfloop g ->
@@ -1025,13 +996,11 @@ Proof.
   intros g g' i j ci cj f H H0 H1 H2 H3 H4.
   generalize dependent g'.
   generalize dependent f.
-  (* revert H2. *)
+  revert H2 ci cj.
   functional induction (phase2 g) using phase2_ind.
-  - intros f H3 H4 g' H1.
-    inversion H1.
-    subst.
+  - intros H2 ci cj f H3 H4 g' H1.
     sauto lq: on rew: off use: max_deg_0_adj.
-  - intros f H3 H4 g'0 H1.
+  - intros H2 ci cj f H3 H4 g'0 H1.
     assert (undirected g') by hauto l: on use: extract_vertices_degs_undirected.
     assert (no_selfloop g') by hauto l: on use: extract_vertices_degs_subgraph, subgraph_no_selfloop.
     specialize (IHp H5 H6).
@@ -1077,40 +1046,39 @@ Proof.
       assert (x <= max_deg g + 1)%nat by lia.
       pose proof (extract_vertices_max_degs g g' ns ltac:(hauto l: on) ltac:(scongruence)).
       lia.
-    + assert (S.In j (adj g' i)).
+    + (* case: they will be colored later for some ci, cj *)
+      assert (S.In j (adj g' i)).
       {
         (* need a lemma that since i and j are not in ns, then they
         are both in g' and adjacent, since one step of
         extract_vertices_degs never changes adjacency *)
-        strivial use: asfadsf.
+        rewrite adj_preserved_after_extract.
+        - eassumption.
+        - eassumption.
+        - admit. (* prove that i is in g' *)
+        - admit. (* prove that j is in g' *)
       }
-      pose proof (IHp H4 f' H3 H1 g'' e1).
-      assumption.
-Qed.
-
-
-  (**)
-  (* i gets colored now (it's a max degree vertex) and j gets colored
-     later, but this means that the colors are not equal *)
+      hauto.
+Admitted.
 
   
 (** ** Adjacency preservation in extracted subgraph (again) *)
-Lemma adfadsf:
-  forall (g : graph) (n : nat) (ns : nodeset) (g' : graph) (i j ci cj : node)
-    (f : coloring) (g'' : graph),
-    max_deg g = S n ->
-    extract_vertices_degs g (S n) = (ns, g') ->
-    phase2 g' = (f, g'') ->
-    S.In j (adj g i) -> M.find i f = Some ci -> M.find j f = Some cj -> S.In j (adj g' i).
-Proof.
-  intros g n ns g' i j ci cj f g'' H H0 H1 H2 H3 H4.
-  destruct (SP.In_dec j (adj g' i)); [assumption|].
-  exfalso.
-  (* we can get a contradiction here because we know that there are
-     the following cases: *)
-  (* i gets colored now (it's a max degree vertex) and j gets colored
-     later, but this means that the colors are not equal *)
-Admitted.
+(* Lemma adfadsf: *)
+(*   forall (g : graph) (n : nat) (ns : nodeset) (g' : graph) (i j ci cj : node) *)
+(*     (f : coloring) (g'' : graph), *)
+(*     max_deg g = S n -> *)
+(*     extract_vertices_degs g (S n) = (ns, g') -> *)
+(*     phase2 g' = (f, g'') -> *)
+(*     S.In j (adj g i) -> M.find i f = Some ci -> M.find j f = Some cj -> S.In j (adj g' i). *)
+(* Proof. *)
+(*   intros g n ns g' i j ci cj f g'' H H0 H1 H2 H3 H4. *)
+(*   destruct (SP.In_dec j (adj g' i)); [assumption|]. *)
+(*   exfalso. *)
+(*   (* we can get a contradiction here because we know that there are *)
+(*      the following cases: *) *)
+(*   (* i gets colored now (it's a max degree vertex) and j gets colored *)
+(*      later, but this means that the colors are not equal *) *)
+(* Admitted. *)
 (* Lemma foobar: *)
 (*   forall (g' : graph) (f' : coloring) (g'' : graph) (i : node) (j : S.elt) (ci cj : node), *)
 (*     phase2 g' = (f', g'') -> M.find i f' = Some ci -> M.find j f' = Some cj -> S.In j (adj g' i). *)
@@ -1144,7 +1112,7 @@ Admitted.
 (*   assumption. *)
 (* Qed. *)
 
-                     Lemma phase2_ok : forall (g : graph),
+Lemma phase2_ok : forall (g : graph),
     undirected g ->
     no_selfloop g ->
     coloring_ok (phase2_colors g) g (fst (phase2 g)).
@@ -1217,7 +1185,8 @@ Proof.
         apply siota_spec.
         hauto l: on use: phase2_color_bound.
       - intros ci cj H12 H13.
-        hauto lq: on use: adfadsf unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, coloring_ok, node.
+        admit.
+        (* hauto lq: on use: adfadsf unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, coloring_ok, node. *)
     }
     pose proof (indep_set_union g f' ns (siota (max_deg g')) n' H H4 ltac:(hauto l: on)).
     assert (S.Subset (S.add n' (siota (max_deg g'))) (siota (max_deg g))).
@@ -1231,4 +1200,4 @@ Proof.
       - hauto l: on.
     }
     hauto l: on use: ok_coloring_subset.
-Qed.
+Admitted.
