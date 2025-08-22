@@ -901,46 +901,6 @@ Proof.
     inversion Hext; subst; tauto.
 Qed.
 
-
-Lemma iter_deletion :
-  forall (g g' : graph) (n : nat) (s : nodeset),
-    max_deg g = S n ->
-    extract_vertices_degs g (S n) = (s, g') ->
-    forall i j, M.In i g' -> M.In j g' -> (S.In j (adj g' i) <-> S.In j (adj g i)).
-Proof.
-  intros g g' n s H H0 i j H1 H2.
-  split; intros H3.
-  - apply extract_vertices_degs_subgraph in H0.
-    sfirstorder.
-  - remember (S n) as d.
-    generalize dependent g'.
-    revert H.
-    generalize dependent j.
-    generalize dependent i.
-    generalize dependent s.
-    functional induction (extract_vertices_degs g d) using extract_vertices_degs_ind.
-    + remember (S n) as d.
-      intros s' i j.
-      intros H3 H g' H0 H1 H2.
-      inversion H0; subst.
-      assert (Hsub : is_subgraph g' (remove_node (` v) g)).
-      { eapply extract_vertices_degs_subgraph. exact e0. }
-      assert (Hi_neq : i <> ` v).
-      { hfcrush use: remove_node_not_in unfold: PositiveMap.key, PositiveOrderedTypeBits.t, node. }
-      assert (Hj_neq : j <> ` v).
-      { hfcrush use: remove_node_not_in unfold: PositiveMap.key, PositiveOrderedTypeBits.t, node. }
-      assert (Hrm : S.In j (adj (remove_node (` v) g) i)).
-      { rewrite adj_remove_node_spec.
-        hauto l: on.
-      }
-      rewrite adj_preserved_after_extract.
-      * apply Hrm.
-      * sauto.
-      * assumption.
-      * assumption.
-    + scongruence.
-Qed.
-
 Lemma max_deg_remove_node :
   forall (n : nat) (g : graph) (v x : node),
     degree v g = Some n ->
