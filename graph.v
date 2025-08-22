@@ -366,45 +366,21 @@ Proof.
  repeat intro. destruct H,H0. rewrite H,H0. split; auto.
 Qed.
 
-(** **** Exercise: 4 stars, standard (Mremove_elements)  *)
-Lemma Mremove_elements:  forall A i s, 
-  M.In i s -> 
-     eqlistA (@M.eq_key_elt A) (M.elements (M.remove i s)) 
-              (List.filter (fun x => if E.eq_dec (fst x) i then false else true) (M.elements s)).
-
-(* Hints: *)
-Check specialize_SortA_equivlistA_eqlistA.
-Check M.elements_1.
-Check M.elements_2.
-Check M.elements_3.
-Check M.remove_1.
-Check M.eqke_equiv.
-Check M.ltk_strorder.
-Check Proper_eq_key_elt.
-Check filter_InA.
-(* FILL IN HERE *) Admitted.
-(** [] *)
 
 (** **** Exercise: 3 stars, standard (Mremove_cardinal_less)  *)
 Lemma Mremove_cardinal_less: forall A i (s: M.t A), M.In i s -> 
         M.cardinal (M.remove i s) < M.cardinal s.
 Proof.
   intros A i s H.
-  rewrite WP.cardinal_fold.
-  rewrite WP.cardinal_fold.
-  apply WP.fold_rec_bis.
-  - scongruence.
-  - rewrite <- WP.cardinal_fold.
-    destruct (Nat.eq_dec (M.cardinal s) 0).
-    + apply WP.cardinal_inv_1 in e.
-      firstorder.
-    + hauto.
-  - intros k e a m' H0 H1 H2.
-    rewrite <- WP.cardinal_fold in *.
-(** Look at the proof of [Sremove_cardinal_less], if you succeeded
-   in that, for an idea of how to do this one.   *)
-
-(* FILL IN HERE *) Admitted.
+  pose proof WP.cardinal_2.
+  assert (~ M.In i (M.remove i s)) by strivial use: WF.remove_in_iff, diff_false_true unfold: PositiveMap.key.
+  enough (S (M.cardinal (M.remove i s)) = M.cardinal s); [hauto l: on|].
+  symmetry.
+  destruct H as [e He].
+  apply H0 with (x := i) (e := e).
+  - assumption.
+  - qauto use: PositiveMap.gro, WP.F.add_o unfold: WP.Add, PositiveMap.MapsTo inv: sumbool.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard (two_little_lemmas)  *)
@@ -552,8 +528,15 @@ Lemma select_terminates:
    M.cardinal (remove_node n g) < M.cardinal g.
 Proof.
   intros K g n H.
+  assert (S.Subset (subset_nodes (low_deg K) g) (nodes g)).
+  {
+    apply subset_nodes_sub.
+  }
   unfold remove_node.
-(* FILL IN HERE *) Admitted.
+  rewrite cardinal_map.
+  apply Mremove_cardinal_less.
+  hfcrush use: Sin_domain, PositiveSet.choose_1 unfold: graph, nodemap, PositiveSet.Subset, nodes.
+Qed.
 (** [] *)
 
 (* ================================================================= *)
