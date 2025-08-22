@@ -929,7 +929,6 @@ Proof.
       scongruence.
 Admitted.
 
-Proof.
 (** ** Adjacency preservation in extracted subgraph (again) *)
 Lemma asfadsf:
   forall (g g' : graph) (i j : node) (n : nat) (ns : nodeset),
@@ -955,7 +954,7 @@ Proof.
     rewrite e0 in H5.
     simpl in H5.
     rename g'0 into g'''.
-    assert (undirected g') by best use: extract_vertices_degs_undirected.
+    assert (undirected g') by hauto l: on use: extract_vertices_degs_undirected.
     assert (no_selfloop g').
     {
       admit.
@@ -989,7 +988,7 @@ Proof.
   }
   assert (is_subgraph (remove_node x g) g) by apply remove_node_subgraph.
   assert ((max_deg (remove_node x g) <= (S n))%nat) by hauto l: on use: max_deg_subgraph.
-  apply le_lt_or_eq in H5.
+  apply le_lteq in H5.
   destruct H5; [|assumption].
   assert (M.In v (remove_node x g)).
   {

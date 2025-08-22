@@ -18,16 +18,12 @@ Import ListNotations.
   We'll use [E] as an abbreviation for this module name.  *)
 
 Module E := PositiveOrderedTypeBits.
-Print Module E.
-Print E.t.
 
 (** The [Module Type FSetInterface.S] gives the API of "functional sets."
    One instance of this, [PositiveSet], has keys = positive numbers.  We
    abbreviate this as [Module S]. *)
 
 Module S <: FSetInterface.S := PositiveSet.
-Print Module S.
-Print S.elt.
 
 (* Import properties about sets *)
 Module SP := FSetProperties.Properties S.
@@ -48,10 +44,6 @@ Module M <: FMapInterface.S := PositiveMap.
 
 Module WF := WFacts_fun E M.  (* Library of useful lemmas about maps *)
 Module WP := WProperties_fun E M.  (* More useful stuff about maps *)
-Print Module WF.
-Print Module WP.
-
-Check E.lt. (*   : positive -> positive -> Prop *)
 
 (** [E.lt] is a comparison predicate on [positive] numbers.  It 
    is _not_ the usual less-than operator; it is a different ordering
@@ -98,10 +90,6 @@ Proof. compute. reflexivity. Qed.
 (* ================================================================= *)
 (** ** equivlistA *)
 
-Print equivlistA. (* 
-   fun {A : Type} (eqA : A -> A -> Prop) (l l' : list A) =>
-            forall x : A, InA eqA x l <-> InA eqA x l'
-   : forall {A:Type}, (A->A->Prop) -> list A -> list A -> Prop *)
 
 (** Suppose two lists [al,bl] both contain the same elements, not necessarily in the same
      order.  That is, [forall x:A, In x al <-> In x bl].  In fact from this definition you can
@@ -407,7 +395,10 @@ Proof.
   apply WP.fold_rec_bis.
   - scongruence.
   - rewrite <- WP.cardinal_fold.
-    hauto use: WP.cardinal_Empty, neq_0_lt unfold: PositiveMap.Empty, PositiveMap.In.
+    destruct (Nat.eq_dec (M.cardinal s) 0).
+    + apply WP.cardinal_inv_1 in e.
+      firstorder.
+    + hauto.
   - intros k e a m' H0 H1 H2.
     rewrite <- WP.cardinal_fold in *.
 (** Look at the proof of [Sremove_cardinal_less], if you succeeded

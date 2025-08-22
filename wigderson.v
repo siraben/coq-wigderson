@@ -119,7 +119,7 @@ Proof.
       }
       hauto lqb: on drew: off use: subset_nodes_prop unfold: high_deg.
     + specialize (IHl H).
-      strivial use: le_gt_trans, cardinal_remove unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.t, adj, node, nodeset, PositiveSet.empty.
+      hfcrush use: cardinal_remove unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.t, adj, node, nodeset, PositiveSet.empty.
   - sfirstorder.
 Qed.
 

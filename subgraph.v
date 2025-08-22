@@ -716,7 +716,7 @@ Proof.
   intros n g v x H1 H H0 H2 H3.
   assert (is_subgraph (remove_node x g) g) by apply remove_node_subgraph.
   assert ((max_deg (remove_node x g) <= (S n))%nat) by hauto l: on use: max_deg_subgraph.
-  apply le_lt_or_eq in H5.
+  apply le_lteq in H5.
   destruct H5; [|assumption].
   assert (M.In v (remove_node x g)).
   {
@@ -948,7 +948,7 @@ Proof.
   unfold remove_deg_n_graph in H1.
   rewrite <- Heqg' in H1.
   pose proof (max_deg_subgraph g (snd g') H1).
-  apply le_lt_or_eq in H2.
+  apply le_lteq in H2.
   destruct H2.
   - assumption.
   - exfalso.
@@ -1236,7 +1236,7 @@ Proof.
     subst g'.
     assert (is_subgraph (remove_node v' g) g) by (apply remove_node_subgraph).
     pose proof (max_deg_subgraph _ _ H4).
-    apply le_lt_or_eq in H5.
+    apply le_lteq in H5.
     destruct H5.
     + rewrite e0.
       simpl.
@@ -1376,7 +1376,7 @@ Proof.
   pose proof (extract_vertices_degs_subgraph g _ _ _ H0).
   pose proof (extract_vertices_degs_exhaust g _ _ _ H H0).
   pose proof (max_deg_subgraph _ _ H1).
-  apply le_lt_or_eq in H3.
+  apply le_lteq in H3.
   destruct H3; [hauto lq: on|].
   exfalso.
   assert (~ M.Empty g') by hauto lq: on use: max_deg_gt_not_empty.
