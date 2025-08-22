@@ -36,7 +36,7 @@ Proof. sfirstorder. Qed.
 Lemma subgraph_trans : forall g g' g'', is_subgraph g g' -> is_subgraph g' g'' -> is_subgraph g g''.
 Proof. sfirstorder. Qed.
 
-(** ** Subgraphs preserve irrelexivity *)
+(** ** Subgraphs preserve irreflexivity *)
 Lemma subgraph_no_selfloop : forall g' g, is_subgraph g' g -> no_selfloop g -> no_selfloop g'.
 Proof. sfirstorder. Qed.
 

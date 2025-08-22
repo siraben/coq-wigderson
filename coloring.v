@@ -552,7 +552,7 @@ Lemma ok_coloring_set_eq : forall (g : graph) s1 s2 m,
     coloring_ok s2 g m.
 Proof. sfirstorder. Qed.
 
-(** ** Weakning of valid colorings under subset relation *)
+(** ** Weakening of valid colorings under subset relation *)
 Lemma ok_coloring_subset : forall (g : graph) s1 s2 m,
     S.Subset s1 s2 ->
     coloring_ok s1 g m ->

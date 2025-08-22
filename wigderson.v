@@ -142,7 +142,7 @@ phase1(g,c):
  *)
 Require Import Program.
 
-(* Two-coloring of neighborhood *)
+(* Two-coloring of a neighborhood *)
 Definition two_color_nbd (g : graph) (v : node) (c1 c2 : positive) : option coloring.
 Admitted.
 
