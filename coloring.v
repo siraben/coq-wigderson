@@ -993,224 +993,161 @@ Proof.
       clear -H1.
       strivial use: Sin_domain unfold: nodes.
 Qed.
-    
-(** ** Correctness of phase2 coloring *)
+
 Lemma phase2_colors_distinct :
   forall (g g' : graph) (i j ci cj : node) (f : coloring),
     undirected g ->
     no_selfloop g ->
-    (* extract_vertices_degs g (S n) = (ns, g') -> *)
     phase2 g = (f, g') ->
     S.In j (adj g i) ->
     M.find i f = Some ci ->
     M.find j f = Some cj ->
     ci <> cj.
 Proof.
-  intros g g' i j ci cj f H H0 H1 H2 H3 H4.
+  intros g g' i j ci cj f Hund Hloop Hph Hadj Hfi Hfj.
   generalize dependent g'.
   generalize dependent f.
-  revert H2 ci cj.
+  revert Hadj ci cj.
   functional induction (phase2 g) using phase2_ind.
-  - intros H2 ci cj f H3 H4 g' H1.
+  - (* base: max_deg g = 0 *)
+    intros Hadj ci cj f' Hfi' Hfj' g'' Hph'.
     sauto lq: on rew: off use: max_deg_0_adj.
-  - intros H2 ci cj f H3 H4 g'0 H1.
-    assert (undirected g') by hauto l: on use: extract_vertices_degs_undirected.
-    assert (no_selfloop g') by hauto l: on use: extract_vertices_degs_subgraph, subgraph_no_selfloop.
-    specialize (IHp H5 H6).
-    inversion H1.
-    clear H1.
-    subst g'0.
-    replace (Pos.succ _) with (Pos.of_nat (S (S n))) in H8 by auto.
-    subst f.
-    apply Munion_case in H4, H3.
-    (* we have the following cases:
-   - i and j are colored now, but that means they cannot be adjacent (contradiction)
-   - i is colored now and j is colored later, so their colors are not equal
-   - j is colored now and i is colored later, so their colors are not equal
-   - i and j are both colored later, but by IH their colors are not equal
-     *)
-    destruct H4, H3.
-    + (* case: they are both colored now, but contradiction since max
-         degree are independent sets *)
-      apply constant_color_inv in H1, H3.
-      assert (independent_set g ns).
-      {
-        pose proof (max_degree_extraction_independent_set _ _ H H0 (eq_sym e)).
-        rewrite e0 in H4.
-        simpl in H4.
-        hauto lq: on.
-      }
+  - (* step: max_deg g = S n *)
+    intros Hadj ci cj f0 Hfi0 Hfj0 g''' Hph''.
+    assert (Hund' : undirected g') by hauto l: on use: extract_vertices_degs_undirected.
+    assert (Hloop' : no_selfloop g') by
+      hauto l: on use: extract_vertices_degs_subgraph, subgraph_no_selfloop.
+    specialize (IHp Hund' Hloop').
+    inversion Hph''; subst.
+    clear Hph''.
+    replace (Pos.succ _) with (Pos.of_nat (S (S n))) in * by auto.
+    (* Decompose the two lookups through Munion *)
+    apply Munion_case in Hfi0; apply Munion_case in Hfj0.
+    destruct Hfi0 as [Hi_now|Hi_later];
+    destruct Hfj0 as [Hj_now|Hj_later].
+    + (* both colored now → contradiction with independence of ns *)
+      apply constant_color_inv in Hi_now.
+      apply constant_color_inv in Hj_now.
+      pose proof (max_degree_extraction_independent_set g (S n) Hund Hloop (eq_sym e)) as [Hind _].
       hauto l: on unfold: independent_set.
-    + (* case: they are both colored now, but contradiction *)
-      destruct (of_nat_surj ci) as [x <-].
-      pose proof (phase2_color_bound g' _ _ _ _ e1 H3).
-      apply constant_color_inv2 in H1.
-      intros contra.
-      rewrite <- H1 in contra.
-      assert (x <= max_deg g + 1)%nat by lia.
-      pose proof (extract_vertices_max_degs g g' ns ltac:(hauto l: on) ltac:(scongruence)).
-      lia.
-    + (* case: they are both colored now, but contradiction *)
+    + (* i now, j later → colors differ: j's color is in siota(max_deg g') but fresh color n' is not *)
+      apply constant_color_inv2 in Hi_now. subst ci.
       destruct (of_nat_surj cj) as [x <-].
-      pose proof (phase2_color_bound g' _ _ _ _ e1 H1).
-      apply constant_color_inv2 in H3.
-      intros contra.
-      rewrite <- H3 in contra.
-      assert (x <= max_deg g + 1)%nat by lia.
-      pose proof (extract_vertices_max_degs g g' ns ltac:(hauto l: on) ltac:(scongruence)).
-      lia.
-    + (* case: they will be colored later for some ci, cj *)
-      assert (S.In j (adj g' i)).
-      {
-        (* need a lemma that since i and j are not in ns, then they
-        are both in g' and adjacent, since one step of
-        extract_vertices_degs never changes adjacency *)
-        rewrite adj_preserved_after_extract.
-        - eassumption.
-        - eassumption.
-        - admit. (* prove that i is in g' *)
-        - admit. (* prove that j is in g' *)
+      pose proof (phase2_color_bound g' _ _ _ _ e1 Hj_later) as B.
+      (* cj ∈ siota (max_deg g') and n' ∉ that set *)
+      assert (S.In (Pos.of_nat x) (siota (max_deg g'))) by (apply siota_spec; lia).
+      assert (~ S.In (Pos.of_nat (S (S n))) (siota (max_deg g'))) as Fresh.
+      { (* max_deg g' < max_deg g *)
+        pose proof (extract_vertices_max_degs g g' ns ltac:(hauto) ltac:(scongruence)).
+        rewrite e in *.
+        apply siota_miss; lia.
       }
-      hauto.
-Admitted.
+      congruence.
+    + (* j now, i later — symmetric to previous case *)
+      apply constant_color_inv2 in Hj_now. subst cj.
+      destruct (of_nat_surj ci) as [x <-].
+      pose proof (phase2_color_bound g' _ _ _ _ e1 Hi_later) as B.
+      assert (S.In (Pos.of_nat x) (siota (max_deg g'))) by (apply siota_spec; lia).
+      assert (~ S.In (Pos.of_nat (S (S n))) (siota (max_deg g'))) as Fresh.
+      { pose proof (extract_vertices_max_degs g g' ns ltac:(hauto) ltac:(scongruence)).
+        rewrite e in *; apply siota_miss; lia. }
+      congruence.
+    + (* both later → use IH; first show the edge persists in g' *)
+      (* If both are colored by f', they are in dom f' hence nodes g' *)
+      assert (Di : S.In i (nodes g')).
+      { apply phase2_domain_subset with (g' := g''') in e1.
+        apply e1. rewrite Sin_domain. hauto l: on. }
+      assert (Dj : S.In j (nodes g')).
+      { apply phase2_domain_subset with (g' := g''') in e1.
+        apply e1. rewrite Sin_domain. hauto l: on. }
+      (* adjacency is preserved among surviving vertices *)
+      assert (Hadj' : S.In j (adj g' i)).
+      { rewrite adj_preserved_after_extract with (g := g).
+        - scongruence.
+        - hauto lq: on rew: off.
+        - rewrite <- Sin_domain. hauto lq: on.
+        - rewrite <- Sin_domain. hauto lq: on.
+      }
+      hauto l: on.
+Qed.
 
-  
-(** ** Adjacency preservation in extracted subgraph (again) *)
-(* Lemma adfadsf: *)
-(*   forall (g : graph) (n : nat) (ns : nodeset) (g' : graph) (i j ci cj : node) *)
-(*     (f : coloring) (g'' : graph), *)
-(*     max_deg g = S n -> *)
-(*     extract_vertices_degs g (S n) = (ns, g') -> *)
-(*     phase2 g' = (f, g'') -> *)
-(*     S.In j (adj g i) -> M.find i f = Some ci -> M.find j f = Some cj -> S.In j (adj g' i). *)
-(* Proof. *)
-(*   intros g n ns g' i j ci cj f g'' H H0 H1 H2 H3 H4. *)
-(*   destruct (SP.In_dec j (adj g' i)); [assumption|]. *)
-(*   exfalso. *)
-(*   (* we can get a contradiction here because we know that there are *)
-(*      the following cases: *) *)
-(*   (* i gets colored now (it's a max degree vertex) and j gets colored *)
-(*      later, but this means that the colors are not equal *) *)
-(* Admitted. *)
-(* Lemma foobar: *)
-(*   forall (g' : graph) (f' : coloring) (g'' : graph) (i : node) (j : S.elt) (ci cj : node), *)
-(*     phase2 g' = (f', g'') -> M.find i f' = Some ci -> M.find j f' = Some cj -> S.In j (adj g' i). *)
-(* Proof. *)
-(* Admitted. *)
-(* Lemma asdfl: *)
-(*   forall (g : graph) (n : nat) (ns : nodeset) (g' : graph) (i j ci cj : node) (f : coloring) (g'' : graph), *)
-(*     no_selfloop g -> *)
-(*     max_deg g = S n -> *)
-(*     extract_vertices_degs g (S n) = (ns, g') -> *)
-(*     phase2 g' = (f, g'') -> *)
-(*     coloring_ok (siota (max_deg g')) g' f -> *)
-(*     S.In j (adj g i) -> *)
-(*     M.find i f = Some ci -> *)
-(*     M.find j f = Some cj -> *)
-(*     ci <> cj. *)
-(* Proof. *)
-(*   intros g n ns g' i j ci cj f g'' Hl H H0 H1 H2 H3 H4 H5. *)
-(*   assert (Sg: is_subgraph g' g). *)
-(*   { *)
-(*     pose proof (extract_vertices_degs_subgraph g (S n)). *)
-(*     rewrite H0 in *. *)
-(*     assumption. *)
-(*   } *)
-(*   unfold coloring_ok in H2. *)
-(*   assert (S.In j (adj g' i)). *)
-(*   { *)
-(*     hauto l: on use: adfadsf. *)
-(*   } *)
-(*   pose proof (proj2 (H2 i j H6) _ _ H4 H5). *)
-(*   assumption. *)
-(* Qed. *)
-
+(** ** Correctness of phase2 coloring *)
 Lemma phase2_ok : forall (g : graph),
     undirected g ->
     no_selfloop g ->
     coloring_ok (phase2_colors g) g (fst (phase2 g)).
 Proof.
-  intros g H H0.
+  intros g Hund Hloop.
   functional induction (phase2 g) using phase2_ind.
-  - sfirstorder use: max_deg_0_adj unfold: coloring_ok.
-  - remember (Pos.of_nat (S (S n))) as n'.
-    rewrite e1 in *.
-    simpl in IHp.
-    assert (undirected g') by strivial use: extract_vertices_degs_undirected.
-    assert (no_selfloop g') by hauto l: on use: extract_vertices_degs_subgraph, subgraph_no_selfloop.
-    pose proof (IHp H1 H2).
-    simpl.
-    pose proof (max_degree_extraction_independent_set g (S n) H H0 (eq_sym e)).
-    rewrite e0 in H4.
-    simpl in H4.
-    destruct H4.
-    unfold phase2_colors in *.
-    remember (SP.of_list (map Pos.of_nat (seq 1 (max_deg g' + 1)))) as s'.
-    remember (SP.of_list (map Pos.of_nat (seq 1 (max_deg g + 1)))) as s.
-    assert (max_deg_graphs: (max_deg g' < max_deg g)%nat).
-    {
-      hfcrush use: extract_vertices_max_degs, nlt_0_r unfold: Peano.lt inv: sumbool.
-    }
-    assert (S.Subset s' s).
-    {
-      subst s'.
-      subst s.
-      pose proof (siota_subset (max_deg g') (max_deg g) ltac:(hauto l:on)).
-      assumption.
-    }
-    assert (~ S.In n' s').
-    {
-      subst n' s'.
-      rewrite e in *.
-      intros contra.
-      rewrite <- e in max_deg_graphs.
-      rewrite <- e in contra.
-      assert (max_deg g' + 1 < S (max_deg g))%nat.
-      {
-        hauto l: on.
-      }
-      qauto l: on use: siota_miss.
-    }
-    pose proof (constant_col_indep_set g ns n' H4).
-    assert (S.Empty (S.inter (S.singleton n') s')).
-    {
-      clear -H7.
-      hfcrush use: SP.Dec.F.mem_iff, SP.Dec.F.singleton_iff, PositiveSet.inter_spec unfold: PositiveSet.In, PositiveSet.elt, PositiveSet.Empty.
-    }
-    assert (coloring_ok (S.singleton n') g (constant_color ns n')).
-    {
+  - (* base: max_deg g = 0 *)
+    (* all adjacency sets empty => constant_color is vacuously OK *)
+    sfirstorder use: max_deg_0_adj unfold: coloring_ok.
+  - (* step: max_deg g = S n *)
+    remember (Pos.of_nat (S (S n))) as n'.
+    rewrite e1 in *; simpl in IHp.
+    assert (Hund' : undirected g') by strivial use: extract_vertices_degs_undirected.
+    assert (Hloop' : no_selfloop g') by hauto l: on use: extract_vertices_degs_subgraph, subgraph_no_selfloop.
+    specialize (IHp Hund' Hloop'). simpl in IHp.
+    (* ns is independent, and all are max-degree vertices *)
+    pose proof (max_degree_extraction_independent_set g (S n) Hund Hloop (eq_sym e)) as [Hind Hdeg].
+    (* First: show the recursive coloring f' is OK on g with palette siota(max_deg g') *)
+    assert (Hok_rec_on_g : coloring_ok (siota (max_deg g')) g f').
+    { (* prove the two conjuncts explicitly to avoid dependence on edges in g' only *)
       split.
-      - intros ci H12.
-        apply constant_color_inv2 in H12.
-        hauto l: on use: PositiveSet.singleton_2.
-      - intros ci cj H12 H13.
-        assert (S.In i ns) by hauto l: on use: constant_color_inv.
-        assert (S.In j ns) by hauto l: on use: constant_color_inv.
-        exfalso.
-        hauto l: on unfold: independent_set.
-    }
-    assert (coloring_ok (siota (max_deg g')) g f').
-    {
-      clear IHp.
-      split.
-      - intros ci H12.
+      - (* palette membership for any colored i *)
+        intros ci Hfi.
         destruct (of_nat_surj ci) as [x <-].
         apply siota_spec.
         hauto l: on use: phase2_color_bound.
-      - intros ci cj H12 H13.
-        admit.
-        (* hauto lq: on use: adfadsf unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, coloring_ok, node. *)
+      - (* adjacent vertices get different colors *)
+        intros ci cj H0 H1.
+        pose proof (phase2_domain_subset g' f' g'' e1) as DomSub.
+        assert (Hi_dom : S.In i (Mdomain f')).
+        {
+          qauto use: Sin_domain, WF.in_find_iff unfold: coloring, node, PositiveSet.elt, PositiveOrderedTypeBits.t, PositiveMap.key.
+        }
+        assert (Hj_dom : S.In j (Mdomain f')).
+        {
+          qauto use: WF.in_find_iff, Sin_domain unfold: coloring, PositiveMap.key, PositiveSet.elt.
+        }
+        pose proof (DomSub _ Hi_dom) as Hi_nodes'.
+        pose proof (DomSub _ Hj_dom) as Hj_nodes'.
+        assert (Hadj' : S.In j (adj g' i)).
+        {
+          assert (M.In i g') by hauto l: on use: Sin_domain.
+          assert (M.In j g') by hauto l: on use: Sin_domain.
+          pose proof (adj_preserved_after_extract _ _ _ _ i j e0 H2 H3).
+          sauto lq: on.
+        }
+        strivial unfold: coloring_ok.
     }
-    pose proof (indep_set_union g f' ns (siota (max_deg g')) n' H H4 ltac:(hauto l: on)).
-    assert (S.Subset (S.add n' (siota (max_deg g'))) (siota (max_deg g))).
-    {
-      intros a Ha.
-      apply S.add_spec in Ha.
-      destruct Ha.
-      - subst. rewrite e.
-        clear -n.
-        sauto l: on use: siota_spec.
-      - hauto l: on.
+    (* Combine the independent-set constant coloring with f' *)
+    assert (Hok_union :
+      coloring_ok (S.add n' (siota (max_deg g'))) g (Munion (constant_color ns n') f')).
+    { eapply indep_set_union; eauto.
+      hauto lq: on unfold: fst.
+      (* Freshness: n' ∉ siota (max_deg g') *)
+      assert (Fresh : ~ S.In n' (siota (max_deg g'))).
+      { (* max_deg g' < max_deg g *)
+        pose proof (extract_vertices_max_degs g g' ns ltac:(hauto) ltac:(scongruence)).
+        rewrite e in *.
+        hauto l: on use: siota_miss.
+      }
+      exact Fresh.
     }
-    hauto l: on use: ok_coloring_subset.
-Admitted.
+    (* Finally, enlarge the palette from {n'}∪siota(max_deg g') to siota(max_deg g) *)
+    assert (S.Subset (S.add n' (siota (max_deg g'))) (siota (max_deg g))) as Pal_incl.
+    { intros a Ha.
+      apply S.add_spec in Ha as [->|Ha]; subst.
+      - apply siota_spec.
+        lia.
+      - (* show n' ∈ siota(max_deg g) *)
+        assert (is_subgraph g' g).
+        { hauto l: on use: extract_vertices_degs_subgraph. }
+        pose proof (max_deg_subgraph g g' H).
+        clear -Ha H0.
+        sauto lq: on use: siota_subset unfold: PositiveSet.Subset.
+    }
+    (* palette grows monotonically *)
+    eapply ok_coloring_subset; eauto.
+Qed.
