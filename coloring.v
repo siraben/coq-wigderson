@@ -945,37 +945,54 @@ Lemma phase2_domain_subset :
     S.Subset (Mdomain f) (nodes g).
 Proof.
   intros g f g' Hph.
+  revert f Hph.
   functional induction (phase2 g) using phase2_ind.
   - (* base: max_deg g = 0 *)
-    inversion Hph; subst; clear Hph.
+    intros f Hf.
+    inversion Hf; subst; clear Hf.
     intros x Hx. apply Sin_domain.
     rewrite Sin_domain in Hx.
-    Search constant_color.
     unfold M.In, M.MapsTo in Hx.
     destruct Hx as [e' He'].
     apply constant_color_inv in He'.
     unfold nodes in He'.
     now apply Sin_domain.
   - (* step: max_deg g = S n *)
-    admit.
-  (*   inversion Hph; subst; clear Hph. *)
-  (*   intros x Hx. apply Munion_in in Hx; destruct Hx as [Hx|Hx]. *)
-  (*   + (* x from constant_color ns fresh *) *)
-  (*     destruct (WF.in_find_iff _ _ _ Hx) as [d Hfind]. *)
-  (*     pose proof (constant_color_inv _ _ _ _ Hfind) as Hin_ns. *)
-  (*     (* vertices extracted lie in the original graph *) *)
-  (*     pose proof (extract_vertices_remove g g' ns (S n) (eq_sym e)) as Rem. *)
-  (*     specialize (Rem x Hin_ns). destruct Rem as [_ Hming]. *)
-  (*     now apply Sin_domain. *)
-  (*   + (* x from the recursive coloring f' over g' *) *)
-  (*     have Hsub' : S.Subset (Mdomain f') (nodes g') *)
-  (*       by (eapply IHp; eauto). *)
-  (*     have Hx' : S.In x (nodes g') by apply Hsub'; now apply Hx. *)
-  (*     (* nodes g' ⊆ nodes g *) *)
-  (*     pose proof (extract_vertices_degs_subgraph g g' (S n) ns e) as Sg'. *)
-  (*     exact (proj1 Sg' x Hx'). *)
-Admitted.
+    intros f Hf.
+    inversion Hf; subst; clear Hf.
+    intros x Hx.
+    (* membership in domain of Munion => membership in one branch *)
+    rewrite Sin_domain in Hx.
+    apply Munion_in in Hx as [Hx|Hx].
+    + (* x came from the fresh constant coloring on ns *)
+      apply Sin_domain.
+      remember (Pos.succ match n with
+                  | 0%nat => 1
+                  | S _ => Pos.succ (Pos.of_nat n)
+                  end) as d.
+      (* x ∈ ns by inversion on constant_color *)
+      destruct Hx as [v Hv].
+      apply constant_color_inv in Hv.
+      (* vertices extracted lie in g and not in g' *)
+      symmetry in e0.
+      pose proof (extract_vertices_remove g g'0 ns (S n) e0).
+      hauto l: on.
+    + (* x came from the recursive coloring f' over g' *)
+      apply Sin_domain.
+      remember (Pos.succ match n with
+                  | 0%nat => 1
+                  | S _ => Pos.succ (Pos.of_nat n)
+                  end) as d.
+      (* By IH on the recursive call: domain f' ⊆ nodes g' *)
+      pose proof (IHp _ e1).
+      assert (S.In x (nodes g'0)).
+      { hfcrush use: Sin_domain unfold: coloring, PositiveSet.Subset. }
 
+      pose proof (extract_vertices_degs_subgraph g g'0 (S n) ns e0) as Hsub.
+      pose proof (proj1 Hsub x H0).
+      clear -H1.
+      strivial use: Sin_domain unfold: nodes.
+Qed.
     
 (** ** Correctness of phase2 coloring *)
 Lemma phase2_colors_distinct :
