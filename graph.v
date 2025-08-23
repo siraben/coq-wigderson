@@ -640,8 +640,102 @@ Proof.
   intros i s f c H H0.
   unfold colors_of.
   rewrite S.fold_1.
-(* FILL IN HERE *) Admitted.
+  set (F := fun (a : S.t) (e : S.elt) =>
+        match M.find e f with
+        | Some c0 => S.add c0 a
+        | None    => a
+        end).
+  set (l := S.elements s).
+  assert (HinA : InA E.eq i l).
+  { sfirstorder use: PositiveSet.elements_1. }
+  assert (Hstep : forall l a, InA E.eq i l \/ S.In c a -> S.In c (fold_left F l a)).
+  {
+    intros l0; induction l0 as [|x l0 IH]; intros a Hdisj.
+    - sauto.
+    - cbn.
+      destruct Hdisj as [Hin|Hacc].
+      + inversion Hin; subst.
+        * hauto lq: on use: PositiveSet.add_spec, SP.Dec.F.singleton_iff, PositiveSet.In_1 unfold: PositiveSet.elt.
+        * sfirstorder.
+      + hfcrush use: PositiveSet.add_spec unfold: PositiveSet.elt.
+  }
+  hauto l: on.
+Qed.
 (** [] *)
+
+Lemma coloring_ok_empty :
+  forall palette g,
+    coloring_ok palette g (M.empty _).
+Proof.
+  intros palette g i j Hij; split.
+  - intros ci Hf.
+    rewrite WP.F.empty_o in Hf; discriminate.
+  - intros ci cj Hi Hj.
+    rewrite WP.F.empty_o in Hi; discriminate.
+Qed.
+
+(* --- Helper: one safe step of coloring preserves correctness --- *)
+Lemma color1_preserves_ok :
+  forall palette g n f,
+    undirected g ->
+    no_selfloop g ->
+    coloring_ok palette g f ->
+    coloring_ok palette g (color1 palette g n f).
+Proof.
+  intros palette g n f Hundir Hnoloop Hok.
+  unfold color1.
+  destruct (S.choose (S.diff palette (colors_of f (adj g n)))) as [c|] eqn:Hch.
+  - (* A color was chosen: add [n -> c] *)
+    pose proof (S.choose_1 _ Hch) as Hcin.
+    apply S.diff_spec in Hcin. destruct Hcin as [Hc_in_palette Hc_notin_colors].
+    intros i j Hij. split.
+    + (* palette-membership of any colored vertex *)
+      intros ci Hfi.
+      rewrite WP.F.add_o in Hfi.
+      destruct (E.eq_dec i n) as [->|Hi_ne].
+      * hauto q: on.
+      * (* unchanged entry, use old invariant *)
+        pose proof ((Hok i j Hij)).
+        hauto q: on.
+    + (* distinct colors across any edge *)
+      intros ci cj Hfi Hfj.
+      rewrite WP.F.add_o in Hfi.
+      rewrite WP.F.add_o in Hfj.
+      destruct (E.eq_dec i n) as [->|Hi_ne];
+      destruct (E.eq_dec j n) as [->|Hj_ne].
+      * (* i = n, j = n: impossible by no self-loop *)
+        exfalso. specialize (Hnoloop n). unfold no_selfloop in Hnoloop.
+        specialize (Hnoloop). contradiction.
+        (* More explicitly: Hij : S.In n (adj g n) contradicts no_selfloop *)
+      * (* i = n, j <> n *)
+        hauto use: in_colors_of_1 unfold: nodeset, coloring, adj inv: sumbool.
+      * (* i <> n, j = n *)
+        hfcrush use: in_colors_of_1 unfold: undirected, coloring, nodeset, adj inv: sumbool.
+      * (* i <> n, j <> n: both entries unchanged; defer to Hok *)
+        eapply (proj2 (Hok i j Hij)); eauto.
+        ** hauto q: on.
+        ** hauto q: on.
+  - (* No color chosen: map unchanged *)
+    (* color1 returns f; correctness carries over *)
+    qauto l: on.
+Qed.
+
+Lemma fold_color_preserves_ok :
+  forall palette g l,
+    undirected g ->
+    no_selfloop g ->
+    coloring_ok palette g
+      (fold_right (color1 palette g) (M.empty _) l).
+Proof.
+  intros palette g l Hundir Hnoloop.
+  induction l as [|x xs IH].
+  - (* base *)
+    strivial use: coloring_ok_empty unfold: fold_right.
+  - (* step *)
+    qauto l: on use: color1_preserves_ok unfold: fold_right, coloring.
+Qed.
+
+
 
 (** **** Exercise: 4 stars, standard (color_correct)  *)
 Theorem color_correct:
@@ -649,7 +743,9 @@ Theorem color_correct:
        no_selfloop g -> 
        undirected g -> 
        coloring_ok palette g (color palette g).
-(* FILL IN HERE *) Admitted.
+Proof.
+  strivial use: fold_color_preserves_ok unfold: color, select.
+Qed.
 (** [] *)
 
 (** That concludes the proof that the algorithm is correct. *)
