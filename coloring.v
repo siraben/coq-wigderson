@@ -853,18 +853,6 @@ Proof.
       hauto l: on.
 Qed.
 
-Lemma single_delete_adj_survive :
-  forall (g : graph) x i j,
-    M.In i (remove_node x g) ->
-    M.In j (remove_node x g) ->
-    i <> j ->
-    S.In j (adj (remove_node x g) i) <-> S.In j (adj g i).
-Proof.
-  split.
-  - strivial use: adj_remove_node_spec unfold: node, PositiveMap.key, PositiveSet.elt, PositiveOrderedTypeBits.t.
-  - hauto lq: on use: adj_remove_node_spec, remove_node_neq2 unfold: node, PositiveSet.elt, PositiveMap.key, PositiveOrderedTypeBits.t.
-Qed.
-
 Lemma adj_preserved_after_extract :
   forall g d s g' i j,
     extract_vertices_degs g d = (s, g') ->
