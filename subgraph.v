@@ -60,34 +60,47 @@ Proof.
 Qed.
 
 (** * Induced subgraphs *)
-(** ** Definition *)
 
+(** ** An induced subgraph of [g] under [s] is the restriction of [g] to [s] and all the outgoing edges only allowed to be pointed to vertices in [s]. *)
 Definition subgraph_of (g : graph) (s : S.t) :=
-  M.fold (fun v adj g' => if S.mem v s then M.add v (S.inter s adj) g' else g') g empty_graph.
+  M.map (fun adj => S.inter s adj) (restrict g s).
+
+(** ** Adjacency in an induced subgraph *)
+Lemma adj_subgraph_of_spec :
+  forall g s i j,
+    S.In i (adj (subgraph_of g s) j)
+    <-> S.In i (adj g j) /\ S.In i s /\ S.In j s.
+Proof.
+  intros g s i j.
+  unfold subgraph_of.
+  (* Push through the map on values *)
+  rewrite adj_map; [|sauto].
+  (* Now characterize adjacency after key restriction *)
+  rewrite S.inter_spec.
+  rewrite adj_restrict.
+  hauto l: on.
+Qed.
+
+
+(** ** If [i] is in the induced subgraph then i is in the set of inducing  vertices. *)
+Lemma subgraph_of_nodes : forall g i s, S.In i (nodes (subgraph_of g s)) -> S.In i s.
+Proof.
+  intros g i s H.
+  apply Sin_domain in H.
+  unfold subgraph_of in H.
+  apply M.map_2 in H.
+  eapply restrict_in_set2; eauto.
+Qed.
 
 (** ** Nodes of an induced subgraph are a subset of the original graph *)
 Lemma subgraph_vertices : forall g s, S.Subset (nodes (subgraph_of g s)) (nodes g).
 Proof.
   intros g s.
   unfold subgraph_of.
-  apply WP.fold_rec_bis.
-  - intros m m' a H H0.
-    sauto unfold: M.In, M.MapsTo, nodes, S.Subset use: Sin_domain.
-  - sfirstorder.
-  - intros k e a m' H H0 H1.
-    intros a' Ha'.
-    sdestruct (S.mem k s).
-    + destruct (E.eq_dec a' k).
-      * subst.
-        unfold nodes.
-        apply Sin_domain.
-        hauto lq: on rew: off use: WF.add_in_iff.
-      * hauto l: on use: WP.F.add_neq_in_iff, Sin_domain unfold: nodes, S.Subset.
-    + apply H1 in Ha'.
-      apply Sin_domain.
-      apply Sin_domain in Ha'.
-      destruct (E.eq_dec a' k); sauto lq: on rew: off use: WP.F.add_neq_in_iff.
+  intros v Hv.
+  hauto l: on use: Sin_domain, M.map_2, restrict_incl.
 Qed.
+
 
 (** ** Edges of an induced subgraph are a subset of the original graph *)
 (** Note that this is defined pointwise: the adjacency set is a subset
@@ -97,39 +110,7 @@ Lemma subgraph_edges : forall g s v,
     S.Subset (adj (subgraph_of g s) v) (adj g v).
 Proof.
   intros g s v.
-  unfold subgraph_of.
-  apply WP.fold_rec_bis.
-  - intros m m' a H1 H2.
-    unfold adj, nodeset in *.
-    unfold nodeset in *.
-    hauto drew: off.
-  - sfirstorder.
-  - intros k e a m' H1 H2 H3.
-    (* k is the node we're considering to add to the new subgraph *)
-    sdestruct (S.mem k s).
-    + (* suppose it's in the set *)
-      unfold adj.
-      intros a' Ha'.
-      destruct (E.eq_dec v k).
-      * subst.
-        unfold nodeset in *.
-        hauto use: PositiveMap.gss, SP.Dec.F.inter_iff inv: option.
-      * rewrite PositiveMap.gso in *; auto.
-    + (* suppose it's not in the set *)
-      ssimpl.
-      unfold S.Subset in *.
-      intros a' Ha'.
-      specialize (H3 a').
-      unfold adj in *.
-      destruct (E.eq_dec v k).
-      * sauto.
-      * apply H3 in Ha'.
-        assert (M.find v (M.add k e m') = M.find v m').
-        {
-          hauto lq: on rew: off use: PositiveMap.gso unfold: PositiveSet.elt, PositiveMap.key.
-        }
-        unfold nodeset in *.
-        hauto lq: on.
+  strivial use: adj_subgraph_of_spec unfold: PositiveSet.Subset.
 Qed.
 
 (** ** Induced subgraph is subgraph *)
@@ -139,6 +120,8 @@ Proof.
   unfold is_subgraph.
   split; [apply subgraph_vertices|apply subgraph_edges].
 Qed.
+
+
 
 (** * Removal of nodes *)
 (** ** Removing a distinct vertex from a graph *)
@@ -387,6 +370,16 @@ Proof.
   sfirstorder use: SP.Dec.F.singleton_iff, PositiveSet.singleton_1 unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, node.
 Qed.
 
+(** ** Removing nodes removes it from the  graph*)
+Lemma remove_nodes_remove : forall g s i, S.In i s -> ~ M.In i (remove_nodes g s).
+Proof.
+  intros g s i H contra.
+  unfold remove_nodes in contra.
+  rewrite restrict_map_comm in contra.
+  pose proof (restrict_in_set2 _ _ i contra).
+  hauto lq: on rew: off use: PositiveSet.diff_2.
+Qed.
+
 (** ** Removing a subgraph preserves undirectedness *)
 
 Lemma remove_nodes_undirected : forall g s, undirected g -> undirected (remove_nodes g s).
@@ -447,30 +440,19 @@ Lemma subgraph_vertices_set : forall g s, S.Subset (nodes (subgraph_of g s)) s.
 Proof.
   intros g s.
   unfold subgraph_of.
-  apply WP.fold_rec_bis.
-  - sauto lq: on.
-  - hfcrush.
-  - intros k e a m' H H0 H1.
-    sdestruct (S.mem k s).
-    + unfold nodes.
-      unfold nodeset in *.
-      intros i' Hi'.
-      rewrite Sin_domain in Hi'.
-      destruct (E.eq_dec i' k).
-      * subst. sauto lq: on.
-      * rewrite WP.F.add_neq_in_iff in Hi' by auto.
-        rewrite <- Sin_domain in Hi'.
-        sfirstorder.
-    + assumption.
+  intros v Hv.
+  apply Sin_domain in Hv.
+  rewrite restrict_map_comm in Hv.
+  now apply restrict_in_set2 in Hv.
 Qed.
 
-(** If i is in the induced subgraph then i is in the set of inducing
-    vertices. *)
-
-Lemma subgraph_of_nodes : forall g i s, S.In i (nodes (subgraph_of g s)) -> S.In i s.
+(** ** Nodes in the neighborhood of a vertex are a subset of the graph itself. *)
+Lemma nodes_nbd_subset :
+  forall g v, S.Subset (nodes (neighborhood g v)) (nodes g).
 Proof.
-  strivial use: subgraph_vertices_set unfold: PositiveSet.Subset.
+  strivial use: nbd_subgraph unfold: is_subgraph.
 Qed.
+
 
 (** ** The adjacency set of any vertex of in an induced subgraph is a subset of the vertex set  *)
 
@@ -478,24 +460,27 @@ Lemma subgraph_vertices_adj : forall g s i, S.Subset (adj (subgraph_of g s) i) s
 Proof.
   intros g s i.
   unfold subgraph_of.
-  apply WP.fold_rec_bis.
-  - sfirstorder.
-  - unfold adj.
-    unfold empty_graph.
-    now rewrite M.gempty.
-  - intros k e a m' H H0 H1.
-    sdestruct (S.mem k s).
-    + unfold adj, nodeset in *.
-      destruct (E.eq_dec i k).
-      * hauto use: SP.Dec.F.inter_iff, PositiveMap.gss unfold: PositiveSet.Subset inv: option.
-      * hauto lq: on use: PositiveMap.gso unfold: PositiveMap.key, node, PositiveOrderedTypeBits.t inv: option.
-    + assumption.
+  intros v Hv.
+  Search S.In adj.
+  apply in_adj_exists in Hv.
+  destruct Hv as [vs [Hvs1 Hvs2]].
+  rewrite restrict_map_comm in Hvs1.
+  Search M.find restrict.
+  pose proof (restrict_in_set _ _ _ _ Hvs1).
+  erewrite <- restrict_agree_2 in Hvs1; [|eauto].
+  rewrite WF.map_o in Hvs1.
+  destruct (M.find i g) eqn:E; unfold nodeset in *.
+  - rewrite E in Hvs1.
+    inversion Hvs1; subst.
+    hauto l: on use: PositiveSet.inter_1.
+  - ssimpl.
 Qed.
 
 (** ** In neighborhood implies in adjacency set *)
 
-Lemma nbd_adj : forall g i j, S.In j (nodes (neighborhood g i)) -> S.In j (adj g i).
+Lemma nbd_adj : forall g i, S.Subset (nodes (neighborhood g i)) (adj g i).
 Proof.
+  unfold S.Subset.
   intros g i j H.
   unfold neighborhood in H.
   unfold neighbors in H.
@@ -505,6 +490,75 @@ Proof.
   - hauto lq: on use: Sin_domain, remove_node_neq2 unfold: nodes.
   - hauto lq: on use: Sin_domain, remove_node_neq unfold: nodes.
 Qed.
+
+Lemma subgraph_of_in_iff :
+  forall g s v, M.In v (subgraph_of g s) <-> (M.In v g /\ S.In v s).
+Proof.
+  intros g s v.
+  sauto lq: on use: WP.F.map_in_iff, restrict_spec unfold: subgraph_of.
+Qed.
+
+
+Lemma adj_empty_if_notin :
+  forall g w, ~ M.In w g -> adj g w = S.empty.
+Proof.
+  intros g w Hnot.
+  unfold adj.
+  destruct (WF.In_dec g w) as [Hin|Hout]; [contradiction|].
+  sauto.
+Qed.
+
+Lemma neighborhood_nodes_eq_adj :
+  forall g v,
+    no_selfloop g ->
+    undirected g ->
+    S.Subset (neighbors g v) (nodes (neighborhood g v)).
+Proof.
+  intros g v Hg Hund w Hw_in.
+  (* 1) Show w is a real vertex of g, using undirectedness *)
+  assert (Hin_g : M.In w g).
+  { (* If w ∉ g, then adj g w = ∅, but undirectedness gives v ∈ adj g w *)
+    specialize (Hund v w Hw_in) as Hv_in_w.
+    destruct (WF.In_dec g w) as [Hin|Hnot]; [exact Hin|].
+    qauto unfold: nodeset, PositiveSet.elt, PositiveSet.empty, PositiveSet.t, node, PositiveSet.In, PositiveOrderedTypeBits.t, adj, PositiveSet.mem, PositiveMap.In, PositiveMap.MapsTo.
+  }
+  (* 2) Use filter-iff to show w is kept by the neighborhood filter *)
+  unfold neighborhood.
+  (* nodes = domain of the filtered map *)
+  unfold nodes; apply Sin_domain.
+  destruct Hin_g as [adjw Hw_maps]. (* witness adjacency set at w in g *)
+  apply remove_node_neq.
+  - sfirstorder.
+  - unfold neighbors in *.
+    unfold subgraph_of.
+    rewrite WP.F.map_in_iff.
+    apply restrict_spec.
+    hauto l: on.
+Qed.
+
+
+Lemma no_edge_from_center_after_removal :
+  forall g v,
+    no_selfloop g ->
+    undirected g ->
+    forall w,
+      M.In w (remove_nodes g (nodes (neighborhood g v))) ->
+      ~ S.In w (adj g v).
+Proof.
+  intros g v Hg Hg2 w Hin Hadj.
+  (* If w is adjacent to v, then w is in the node set we removed *)
+  assert (Hin_removed : S.In w (nodes (neighborhood g v))).
+  { (* nodes(neighborhood g v) = adj g v *)
+    hauto l: on use: neighborhood_nodes_eq_adj.
+  }
+  (* But being present after remove_nodes contradicts membership in the removed set *)
+  qauto l: on use: remove_nodes_remove.
+Qed.
+
+(* Flip between the two target colors *)
+Definition flip (c1 c2 c : positive) : positive :=
+  if Pos.eqb c c1 then c2 else c1.
+
 
 (** When is an edge in the induced subgraph?
 - if [i], [j] in [S] and [(i,j)] in [G] then [(i,j)] in $G|_S$
@@ -1171,16 +1225,17 @@ Qed.
 
 (* we would like to have if and only if in the conclusion but
    unfortunately it's not true while the function is iterating *)
+(** ** Extracting all the max degree vertices results in an independent set. *)
 Lemma max_degree_extraction_independent_set0 : forall (g : graph) d,
     no_selfloop g ->
     d = max_deg g ->
     d = 0 ->
-    independent_set g (fst (extract_vertices_degs g d)) /\
+    independent_set g (fst (extract_vertices_degs g 0)) /\
       (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d).
 Proof.
   intros go.
-  apply (extract_vertices_degs_ind (fun g d p =>  no_selfloop g -> d = max_deg g -> d = 0 -> independent_set g (fst (extract_vertices_degs g d)) /\ (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d))).
-  - intros g d v e g' H s g'' e0 H0 H1 H2.
+  apply (extract_vertices_degs_ind (fun g d p =>  no_selfloop g -> d = max_deg g -> d = 0 -> independent_set g (fst (extract_vertices_degs g 0)) /\ (forall k, S.In k (fst (extract_vertices_degs g d)) -> degree k g = Some d))).
+  - intros g d v e g' H s g'' e0 H0 H1 ->.
     rewrite extract_vertices_degs_equation.
     rewrite e.
     destruct v as [v' Hv'].
@@ -1195,16 +1250,16 @@ Proof.
       apply S.add_spec in H5.
       destruct H5.
       * fcrush.
-      * pose proof (max_deg_subgraph _ _ H3).
+      * pose proof (max_deg_subgraph _ _ H2).
         pose proof (H ltac:(hauto l: on use: remove_node_no_selfloop)
                       ltac:(sauto)
                       ltac:(auto)).
-        pose proof (proj2 H6 k).
-        rewrite e0 in H7.
-        simpl in H7.
-        specialize (H7 ltac:(scongruence)).
+        pose proof (proj2 H5 k).
+        rewrite e0 in H6.
+        simpl in H6.
+        specialize (H6 ltac:(scongruence)).
         hauto l: on use: max_deg_subgraph_inv.
-  - intros g d _x e H H0 H1.
+  - intros g d _x e H H0 ->.
     split.
     + rewrite extract_vertices_degs_equation, e.
       sfirstorder.
@@ -1347,6 +1402,43 @@ Proof.
     hauto l: on use: subgraph_trans, remove_node_subgraph.
   - intros ns [=H<-].
     apply subgraph_refl.
+Qed.
+
+(** ** Adjacency relations are preserved after extraction. **)
+Lemma adj_preserved_after_extract :
+  forall g d s g' i j,
+    extract_vertices_degs g d = (s, g') ->
+    M.In i g' -> M.In j g' ->
+    (S.In j (adj g' i) <-> S.In j (adj g i)).
+Proof.
+  intros g d s g' i j Hext Hi Hj.
+  revert s g' Hext i j Hi Hj.
+  functional induction (extract_vertices_degs g d)
+           using extract_vertices_degs_ind; intros s' g' Hext i j Hi Hj.
+  - (* a vertex `v` was deleted, we recursed on remove_node (`v) g *)
+    inversion Hext; subst; clear Hext.
+    (* g' is a subgraph of remove_node (`v) g *)
+    assert (Hsub : is_subgraph g' (remove_node (` v) g)).
+    { eapply extract_vertices_degs_subgraph; eauto. }
+    (* hence neither i nor j can equal the deleted vertex `v` *)
+    assert (Hnv : ~ M.In (` v) g'). { eapply remove_node_not_in; eauto. }
+    assert (Hi_neq : i <> ` v). { sauto. }
+    assert (Hj_neq : j <> ` v). { sauto. }
+    split; intro Hadj.
+    + (* g' -> g : first g' -> remove_node, then remove_node -> g *)
+      assert (Hadj_rm : S.In j (adj (remove_node (` v) g) i)).
+      {
+        hecrush.
+      }
+      rewrite adj_remove_node_spec in Hadj_rm. tauto.
+    + (* Since they made it to g', i and j's degrees in g can't be d *)
+      rewrite IHp.
+      * rewrite adj_remove_node_spec; repeat split; assumption.
+      * eauto.
+      * sauto.
+      * sauto.
+  - (* nothing was deleted: g' = g *)
+    inversion Hext; subst; tauto.
 Qed.
 
 (** ** Iterative extraction preserves undirectedness *)

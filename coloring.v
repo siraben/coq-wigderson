@@ -195,7 +195,7 @@ Proof.
       intros x contra.
       assert (S.In x (adj g v)).
       {
-        sauto lq: on rew: off use: nbd_adj, @restrict_in_set, WF.in_find_iff.
+        hauto q: on use: nbd_adj, @restrict_in_set, WF.in_find_iff.
       }
       qauto use: WF.in_find_iff, @restrict_agree unfold: coloring_ok.
   - split.
@@ -222,9 +222,15 @@ Proof.
     + pose proof (nbd_subgraph g v).
       pose proof (subgraph_coloring_ok _ _ f p H2 ltac:(sauto)).
       split.
-      * intros ci0 H6.
+      * intros ci0 H5.
+        apply S.remove_spec.
         assert (S.In j (adj g i)) by sfirstorder.
-        qauto use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: coloring_ok.
+        split.
+        ** pose proof (restrict_agree _ _ _ _ H5).
+           pose proof (restrict_in_set _ _ _ _ H5).
+           hauto b: on use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: coloring_ok.
+        ** best use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: coloring_ok.
+
       * intros ci0 cj H5 H6.
         qauto use: @restrict_agree unfold: coloring_ok.
 Qed.
@@ -851,42 +857,6 @@ Proof.
       apply extract_vertices_degs_subgraph in e0.
       apply max_deg_subgraph in e0.
       hauto l: on.
-Qed.
-
-Lemma adj_preserved_after_extract :
-  forall g d s g' i j,
-    extract_vertices_degs g d = (s, g') ->
-    M.In i g' -> M.In j g' ->
-    (S.In j (adj g' i) <-> S.In j (adj g i)).
-Proof.
-  intros g d s g' i j Hext Hi Hj.
-  revert s g' Hext i j Hi Hj.
-  functional induction (extract_vertices_degs g d)
-           using extract_vertices_degs_ind; intros s' g' Hext i j Hi Hj.
-  - (* a vertex `v` was deleted, we recursed on remove_node (`v) g *)
-    inversion Hext; subst; clear Hext.
-    (* g' is a subgraph of remove_node (`v) g *)
-    assert (Hsub : is_subgraph g' (remove_node (` v) g)).
-    { eapply extract_vertices_degs_subgraph; eauto. }
-    (* hence neither i nor j can equal the deleted vertex `v` *)
-    assert (Hnv : ~ M.In (` v) g'). { eapply remove_node_not_in; eauto. }
-    assert (Hi_neq : i <> ` v). { sauto. }
-    assert (Hj_neq : j <> ` v). { sauto. }
-    split; intro Hadj.
-    + (* g' -> g : first g' -> remove_node, then remove_node -> g *)
-      assert (Hadj_rm : S.In j (adj (remove_node (` v) g) i)).
-      {
-        hecrush.
-      }
-      rewrite adj_remove_node_spec in Hadj_rm. tauto.
-    + (* Since they made it to g', i and j's degrees in g can't be d *)
-      rewrite IHp.
-      * rewrite adj_remove_node_spec; repeat split; assumption.
-      * eauto.
-      * sauto.
-      * sauto.
-  - (* nothing was deleted: g' = g *)
-    inversion Hext; subst; tauto.
 Qed.
 
 Lemma phase2_domain_subset :
