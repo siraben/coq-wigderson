@@ -193,7 +193,7 @@ Program Fixpoint phase1
   | Some v =>
       let nbhd := neighborhood g v in
       (* i is the map that turns the coloring using colors 1,2 into c+1, c+2 *)
-      let coloring_of_nbhd := two_color_nbd g c (c+1) v in
+      let coloring_of_nbhd := two_color_nbd g v (c+1) (c+2) in
       let g' := remove_nodes g (nodes nbhd) in
       (* color the high-degree vertex 1 each time *)
       match coloring_of_nbhd with
