@@ -889,44 +889,6 @@ Proof.
     inversion Hext; subst; tauto.
 Qed.
 
-Lemma max_deg_remove_node :
-  forall (n : nat) (g : graph) (v x : node),
-    degree v g = Some n ->
-    degree x g = Some n ->
-    max_deg g = n ->
-    ~ S.In x (adj g v) ->
-    x <> v ->
-    max_deg (remove_node x g) = n.
-Proof.
-  intros n g v x H H0 H1 H2 H3.
-  destruct n.
-  {
-    ecrush use: Arith.PeanoNat.Nat.nlt_0_r, Wigderson.subgraph.remove_node_subgraph, Wigderson.subgraph.max_deg_subgraph, H1.
-  }
-  assert (is_subgraph (remove_node x g) g) by apply remove_node_subgraph.
-  assert ((max_deg (remove_node x g) <= (S n))%nat) by hauto l: on use: max_deg_subgraph.
-  apply le_lteq in H5.
-  destruct H5; [|assumption].
-  assert (M.In v (remove_node x g)).
-  {
-    apply remove_node_neq.
-    - auto.
-    - hauto l: on unfold: degree.
-  }
-  destruct H6 as [e He].
-  assert (M.In v g) by hauto l: on unfold: degree.
-  assert (degree v (remove_node x g) = Some (S n)).
-  {
-    unfold degree.
-    unfold adj in H2.
-    rewrite He.
-    destruct H6 as [e' He'].
-    hfcrush use: SP.remove_cardinal_2, remove_node_find unfold: PositiveMap.MapsTo, nodeset, PositiveOrderedTypeBits.t, node, PositiveSet.elt, degree inv: option.
-  }
-  pose proof (max_deg_max (remove_node x g) _ _ He).
-  hauto lq: on use: Znat.Nat2Z.inj_le, Znat.Nat2Z.inj_gt unfold: PositiveMap.MapsTo, nodeset, BinInt.Z.gt, BinInt.Z.le, gt, degree.
-Qed.
-
 Lemma phase2_domain_subset :
   forall g f g',
     phase2 g = (f, g') ->
