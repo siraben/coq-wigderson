@@ -1042,19 +1042,23 @@ Proof.
       congruence.
     + (* both later → use IH; first show the edge persists in g' *)
       (* If both are colored by f', they are in dom f' hence nodes g' *)
-      assert (Di : S.In i (nodes g')).
+      assert (Di : M.In i g').
       { apply phase2_domain_subset with (g' := g''') in e1.
-        apply e1. rewrite Sin_domain. hauto l: on. }
-      assert (Dj : S.In j (nodes g')).
+        clear -e1 Hi_later.
+        hecrush use: Sin_domain.
+      }
+      assert (Dj : M.In j g').
       { apply phase2_domain_subset with (g' := g''') in e1.
-        apply e1. rewrite Sin_domain. hauto l: on. }
+        clear -e1 Hj_later.
+        hecrush use: Sin_domain.
+      }      
       (* adjacency is preserved among surviving vertices *)
       assert (Hadj' : S.In j (adj g' i)).
       { rewrite adj_preserved_after_extract with (g := g).
         - scongruence.
-        - hauto lq: on rew: off.
-        - rewrite <- Sin_domain. hauto lq: on.
-        - rewrite <- Sin_domain. hauto lq: on.
+        - hauto l: on.
+        - assumption.
+        - assumption.
       }
       hauto l: on.
 Qed.
