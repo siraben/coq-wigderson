@@ -40,16 +40,11 @@ Lemma selectW_terminates:
 Proof.
   intros K g n H.
   unfold remove_node.
-  assert (~ M.In n (remove_node n g)).
-  {
-    strivial use: remove_node_neq2 unfold: PositiveOrderedTypeBits.t, PositiveMap.key, PositiveSet.elt, node.
-  }
+  assert (~ M.In n (remove_node n g)) by strivial use: in_remove_node_iff.
   assert (M.In n g).
   {
-    assert (S.In n (subset_nodes (high_deg K) g)).
-    {
-      hauto l: on use: S.choose_1.
-    }
+    assert (S.In n (subset_nodes (high_deg K) g))
+      by hauto l: on use: S.choose_1.
     pose proof (subset_nodes_sub (high_deg K) g n H1).
     unfold nodes, Mdomain in H2.
     now apply Sin_domain in H2.
