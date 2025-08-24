@@ -95,19 +95,18 @@ Qed.
 Lemma subgraph_of_nodes : forall g i s, S.In i (nodes (subgraph_of g s)) -> S.In i s.
 Proof.
   intros g i s H.
-  apply Sin_domain in H.
   unfold subgraph_of in H.
-  apply M.map_2 in H.
-  eapply restrict_in_set2; eauto.
+  rewrite nodes_map_eq, nodes_restrict_eq in H.
+  apply S.inter_spec in H; tauto.
 Qed.
 
 (** ** Nodes of an induced subgraph are a subset of the original graph *)
 Lemma subgraph_vertices : forall g s, S.Subset (nodes (subgraph_of g s)) (nodes g).
 Proof.
-  intros g s.
-  unfold subgraph_of.
-  intros v Hv.
-  hauto l: on use: Sin_domain, M.map_2, restrict_incl.
+  intros g i s H.
+  unfold subgraph_of in H.
+  rewrite nodes_map_eq, nodes_restrict_eq in H.
+  apply S.inter_spec in H; tauto.
 Qed.
 
 
@@ -158,6 +157,31 @@ Proof.
   - subst. apply M.remove_1 in H; sfirstorder.
   - assumption.
 Qed.
+
+(** ** Removing a node *)
+Lemma remove_node_not_in : forall g g' v,
+    is_subgraph g' (remove_node v g) -> ~ M.In v g'.
+Proof.
+  intros g g' v H.
+  hauto lq: on use: remove_node_neq2, subgraph_vert_m unfold: node.
+Qed.
+
+(** ** Remove a set of vertices from a graph *)
+(** To make it easier to prove things about it,
+- first restrict the graph by [S.diff (Mdomain g) s]
+- then map subtracting s from every adj set
+ *)
+Definition remove_nodes (g : graph) (s : nodeset) :=
+  M.map (fun ve => S.diff ve s) (restrict g (S.diff (nodes g) s)).
+
+Lemma nodes_remove_nodes_eq g s :
+  S.Equal (nodes (remove_nodes g s)) (S.diff (nodes g) s).
+Proof.
+  unfold remove_nodes.
+  rewrite nodes_map_eq, nodes_restrict_eq.
+  hfcrush use: PositiveSet.diff_1, PositiveSet.inter_spec, PositiveSet.inter_3 unfold: PositiveSet.Equal, nodeset.
+Qed.
+  
 
 (** ** Removing a node results in a subgraph *)
 
@@ -211,41 +235,6 @@ Proof.
     + sauto.
 Qed.
 
-(** ** Removing a node *)
-Lemma remove_node_not_in : forall g g' v,
-    is_subgraph g' (remove_node v g) -> ~ M.In v g'.
-Proof.
-  intros g g' v H.
-  hauto lq: on use: remove_node_neq2, subgraph_vert_m unfold: node.
-Qed.
-
-(** ** Remove a set of vertices from a graph *)
-(** To make it easier to prove things about it,
-- first restrict the graph by [S.diff (Mdomain g) s]
-- then map subtracting s from every adj set
- *)
-Definition remove_nodes (g : graph) (s : nodeset) :=
-  M.map (fun ve => S.diff ve s) (restrict g (S.diff (nodes g) s)).
-
-Lemma nodes_map_eq f m :
-  S.Equal (nodes (M.map f m)) (nodes m).
-Proof.
-  hfcrush use: Sin_domain, WF.map_in_iff unfold: PositiveMap.key, PositiveSet.Equal, nodes, PositiveSet.elt.
-Qed.
-
-Lemma nodes_restrict_eq g s :
-  S.Equal (nodes (restrict g s)) (S.inter (nodes g) s).
-Proof.
-  qblast use: @restrict_subset_keys, PositiveSet.inter_1, @restrict_in_set2, @restrict_spec, PositiveSet.inter_3, SP.inter_sym, Sin_domain unfold: PositiveSet.Subset, nodes, PositiveSet.elt, PositiveMap.key, PositiveSet.Equal.
-Qed.
-
-Lemma nodes_remove_nodes_eq g s :
-  S.Equal (nodes (remove_nodes g s)) (S.diff (nodes g) s).
-Proof.
-  unfold remove_nodes.
-  rewrite nodes_map_eq, nodes_restrict_eq.
-  hfcrush use: PositiveSet.diff_1, PositiveSet.inter_spec, PositiveSet.inter_3 unfold: PositiveSet.Equal, nodeset.
-Qed.
 
 Lemma in_remove_nodes_iff g s w :
   M.In w (remove_nodes g s) <-> M.In w g /\ ~ S.In w s.
@@ -268,23 +257,10 @@ Proof.
   split.
   - unfold nodes.
     intros i Hi.
-    rewrite Sin_domain in *.
-    assert (M.In i (restrict g (S.diff (Mdomain g) s))).
-    {
-      rewrite WF.map_in_iff in Hi.
-      assumption.
-    }
-    apply restrict_incl in H.
-    assumption.
+    now rewrite nodes_map_eq, nodes_restrict_eq, S.inter_spec in Hi.
   - intros v i Hi.
-    unfold adj in *.
-    destruct (M.find v (M.map _ _)) eqn:E.
-    + rewrite WF.map_o in E.
-      destruct (M.find _ (restrict _ _)) eqn:E3; [|scongruence].
-      destruct (M.find v g) eqn:E2.
-      * qauto l: on use: PositiveSet.diff_1, restrict_agree unfold: nodeset.
-      * hauto q: on use: restrict_agree unfold: nodeset.
-    + sauto.
+    rewrite adj_map in Hi; [|sfirstorder].
+    now rewrite S.diff_spec, adj_restrict in Hi.
 Qed.
 
 (** ** Every vertex in the removing set is not in the resulting graph *)
@@ -299,18 +275,11 @@ Qed.
 Lemma remove_nodes_lt : forall g s i, S.In i s -> M.In i g -> (M.cardinal (remove_nodes g s) < M.cardinal g).
 Proof.
   intros g s i H H0.
-  pose proof (remove_nodes_sub g s i H H0).
-  unfold remove_nodes.
-  rewrite cardinal_map.
-  assert (~ S.Empty s) by (hauto l: on).
-  rewrite restrict_cardinal.
-  rewrite SP.inter_sym.
-  rewrite SP.inter_subset_equal by apply SP.diff_subset.
-  rewrite Mcardinal_domain.
+  rewrite !Mcardinal_domain, nodes_remove_nodes_eq.
   apply SP.subset_cardinal_lt with (x := i).
   - apply SP.diff_subset.
-  - unfold nodes. rewrite Sin_domain. auto.
-  - rewrite S.diff_spec. sfirstorder.
+  - rewrite in_nodes_iff. assumption.
+  - sfirstorder use: S.diff_spec.
 Qed.
 
 (** ** Specification of adjacency after removing nodes *)
@@ -375,6 +344,22 @@ Proof.
         ** unfold nodeset in *.
            hauto q: on.
       * inversion H0.
+Qed.
+
+Lemma nodes_remove_node_eq g v :
+  S.Equal (nodes (remove_node v g)) (S.diff (nodes g) (S.singleton v)).
+Proof.
+  unfold remove_node.
+  rewrite <- SP.remove_diff_singleton.
+  rewrite nodes_map_eq.
+  unfold nodes.
+  unfold S.Equal.
+  intros a.
+  rewrite Sin_domain.
+  rewrite WF.remove_in_iff.
+  rewrite S.remove_spec.
+  rewrite Sin_domain.
+  tauto.
 Qed.
 
 (** ** Adjacency after removing a single node or a singleton set of nodes *)
@@ -1431,19 +1416,8 @@ Proof.
     assert (Hnv : ~ M.In (` v) g'). { eapply remove_node_not_in; eauto. }
     assert (Hi_neq : i <> ` v). { sauto. }
     assert (Hj_neq : j <> ` v). { sauto. }
-    split; intro Hadj.
-    + (* g' -> g : first g' -> remove_node, then remove_node -> g *)
-      assert (Hadj_rm : S.In j (adj (remove_node (` v) g) i)).
-      {
-        hecrush.
-      }
-      rewrite adj_remove_node_spec in Hadj_rm. tauto.
-    + (* Since they made it to g', i and j's degrees in g can't be d *)
-      rewrite IHp.
-      * rewrite adj_remove_node_spec; repeat split; assumption.
-      * eauto.
-      * sauto.
-      * sauto.
+    rewrite IHp; try (eauto using subgraph_vert_m).
+    now rewrite adj_remove_node_spec.
   - (* nothing was deleted: g' = g *)
     inversion Hext; subst; tauto.
 Qed.
@@ -1488,6 +1462,58 @@ Proof.
   contradiction.
 Qed.
 
+Lemma add_back_diff_singleton :
+  forall (A B : S.t) (x : node),
+    S.In x A -> ~ S.In x B ->
+    S.Equal (S.add x (S.diff (S.diff A (S.singleton x)) B))
+            (S.diff A B).
+Proof.
+  intros A B x HAx HxB y; split; intro Hy.
+  - (* -> *)
+    apply S.add_spec in Hy as [->|Hy].
+    + apply S.diff_spec; split; [assumption|assumption].
+    + apply S.diff_spec in Hy as [Hy1 Hy2].            (* y∈A\{x} and y∉B *)
+      apply S.diff_spec in Hy1 as [HyA _].              (* y∈A *)
+      apply S.diff_spec; split; [assumption|assumption].
+  - (* <- *)
+    apply S.diff_spec in Hy as [HyA HyB].               (* y∈A and y∉B *)
+    destruct (E.eq_dec y x) as [->|Hneq].
+    + apply S.add_spec; left; reflexivity.
+    + apply S.add_spec; right.
+      apply S.diff_spec; split.
+      * apply S.diff_spec; split; [assumption|].
+        intro HySing.                                   (* y∈{x} *)
+        sfirstorder use: PositiveSet.singleton_1 unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
+      * exact HyB.
+Qed.
+Lemma extract_vertices_degs_nodes_eq :
+  forall g d s g',
+    extract_vertices_degs g d = (s, g') ->
+    S.Equal s (S.diff (nodes g) (nodes g')).
+Proof.
+  intros g d; functional induction (extract_vertices_degs g d)
+    using extract_vertices_degs_ind; intros s' g' Hext.
+  - inversion Hext; subst.
+    specialize (IHp _ _ e0).
+    rewrite nodes_remove_node_eq in IHp.
+    (* v ∉ nodes g' and v ∈ nodes g *)
+    assert (~ S.In (`v) (nodes g')).
+    { pose proof (extract_vertices_degs_subgraph _ _ _ _ e0).
+      pose proof (remove_node_not_in _ _ _ H).
+      sauto lq: on rew: off use: in_nodes_iff.
+    }
+    assert (S.In (`v) (nodes g)).
+    { apply Sin_domain.
+      apply (degree_gt_0_in g (` v) d).
+      hauto l: on.
+    } 
+    (* S Equalities: add back the freshly removed v *)
+    rewrite IHp.
+    rewrite add_back_diff_singleton; eauto.
+    reflexivity.
+  - inversion Hext; subst. strivial use: SP.diff_subset_equal, subgraph_refl unfold: is_subgraph, PositiveSet.Equal.
+Qed.
+
 (** ** Vertices in extraction are not in resulting graph but are in original graph *)
 (** Later we can use this to show that the vertices after each round
     of extraction are disjoint. *)
@@ -1496,26 +1522,11 @@ Lemma extract_vertices_remove : forall (g g' : graph) s n,
     (s, g') = extract_vertices_degs g n ->
     (forall v, S.In v s -> ~ M.In v g' /\ M.In v g).
 Proof.
-  intros g g' s n.
-  generalize dependent s.
-  generalize dependent g'.
-  functional induction (extract_vertices_degs g n) using extract_vertices_degs_ind.
-  - intros g' s0 H v0 H0.
-    rewrite e0 in IHp.
-    specialize (IHp g'' s ltac:(auto)).
-    inversion H.
-    subst.
-    clear H.
-    destruct v as [v'' Hv''].
-    simpl in *.
-    clear e.
-    apply S.add_spec in H0.
-    destruct H0.
-    + subst.
-      pose proof (extract_vertices_degs_subgraph _ _ _ _ e0).
-      hauto l: on use: degree_gt_0_in, remove_node_not_in.
-    + hauto use: subgraph_vert_m, remove_node_subgraph.
-  - sauto q: on.
+  intros g g' s n H v Hv.
+  symmetry in H.
+  apply extract_vertices_degs_nodes_eq in H.
+  rewrite H in Hv; clear H.
+  hauto lq: on use: S.diff_spec, in_nodes_iff.
 Qed.
 
 (** ** Disjointness of after each round of extraction *)
@@ -1523,7 +1534,7 @@ Lemma max_degree_extraction_disjoint : forall (g g' g'' : graph) (n m : nat) s s
     (s, g') = extract_vertices_degs g n ->
     (s', g'') = extract_vertices_degs g' m ->
     S.Empty (S.inter s s').
-Proof.
+Proof.  
   hauto l: on use: extract_vertices_remove, SP.Dec.F.inter_iff unfold: PositiveSet.Empty.
 Qed.
 

@@ -8,6 +8,7 @@ Require Import Decidable.
 Require Import Program.
 Require Import FunInd.
 Require Import Psatz.
+Require Import restrict.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 From Hammer Require Import Reflect.
@@ -55,4 +56,17 @@ Lemma in_adj_both_in_nodes g i j :
   undirected g -> S.In i (adj g j) -> S.In i (nodes g) /\ S.In j (nodes g).
 Proof.
   sfirstorder use: in_adj_center_in_nodes, in_adj_neighbor_in_nodes.
+Qed.
+
+
+Lemma nodes_map_eq f m :
+  S.Equal (nodes (M.map f m)) (nodes m).
+Proof.
+  hfcrush use: Sin_domain, WF.map_in_iff unfold: PositiveMap.key, PositiveSet.Equal, nodes, PositiveSet.elt.
+Qed.
+
+Lemma nodes_restrict_eq g s :
+  S.Equal (nodes (restrict g s)) (S.inter (nodes g) s).
+Proof.
+  qblast use: @restrict_subset_keys, PositiveSet.inter_1, @restrict_in_set2, @restrict_spec, PositiveSet.inter_3, SP.inter_sym, Sin_domain unfold: PositiveSet.Subset, nodes, PositiveSet.elt, PositiveMap.key, PositiveSet.Equal.
 Qed.
