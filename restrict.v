@@ -209,3 +209,10 @@ Proof.
     eauto.
     auto.
 Qed.
+
+Lemma restrict_find {A} (m : M.t A) s i :
+  M.find i (restrict m s) = if S.mem i s then M.find i m else None.
+Proof.
+  pose proof (@restrict_spec A m s i).
+  hauto use: SP.Dec.F.not_mem_iff, @restrict_agree_2, WF.not_find_mapsto_iff unfold: PositiveSet.In, PositiveSet.elt, PositiveMap.key inv: bool.
+Qed.

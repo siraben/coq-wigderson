@@ -443,7 +443,8 @@ Proof.
   split.
   - intros i H4.
     apply Sin_domain in H4.
-    qauto use: two_color_step_colors_adj_c2, nbd_adj, WF.in_find_iff, subgraph_of_nodes.
+    rewrite nodes_subgraph_of_spec in H4.
+    qauto use: WF.in_find_iff, nodes_neighborhood_spec, two_color_step_colors_adj_c2 unfold: PositiveMap.key, PositiveOrderedTypeBits.t, coloring, PositiveSet.elt, node.
   - qauto l: on use: two_color_step_correct, subgraph_of_is_subgraph, subgraph_coloring_ok.
 Qed.
 
@@ -480,7 +481,7 @@ Proof.
   split.
   - intros i Hi.
     rewrite <- Sin_domain in Hi.
-    apply subgraph_of_nodes in Hi.
+    rewrite nodes_subgraph_of_spec in Hi.
     hecrush use: constant_color_colors, subgraph_of_is_subgraph.
   -
     apply indep_set_ok.
@@ -567,9 +568,10 @@ Proof.
   split.
   - intros i Hi.
     rewrite <- Sin_domain in Hi.
-    apply subgraph_of_nodes in Hi.
-    apply S.union_spec in Hi.
+    apply nodes_subgraph_of_spec in Hi.
     destruct Hi.
+    rewrite S.union_spec in H3.
+    destruct H3.
     + apply Munion_in.
       left.
       hecrush use: constant_color_colors.

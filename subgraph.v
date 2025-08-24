@@ -90,15 +90,12 @@ Proof.
   hauto l: on.
 Qed.
 
-
-(** ** If [i] is in the induced subgraph then i is in the set of inducing  vertices. *)
-Lemma subgraph_of_nodes : forall g i s, S.In i (nodes (subgraph_of g s)) -> S.In i s.
+Lemma nodes_subgraph_of_spec g s i :
+  S.In i (nodes (subgraph_of g s)) <-> S.In i (nodes g) /\ S.In i s.
 Proof.
-  intros g i s H.
-  unfold subgraph_of in H.
-  rewrite nodes_map_eq, nodes_restrict_eq in H.
-  apply S.inter_spec in H; tauto.
-Qed.
+  unfold subgraph_of.
+  now rewrite nodes_map_eq, nodes_restrict_eq, S.inter_spec.
+Qed.  
 
 (** ** Nodes of an induced subgraph are a subset of the original graph *)
 Lemma subgraph_vertices : forall g s, S.Subset (nodes (subgraph_of g s)) (nodes g).
@@ -153,9 +150,7 @@ Proof.
   intros g i j H.
   unfold remove_node in H.
   apply WF.map_in_iff in H.
-  destruct (E.eq_dec i j).
-  - subst. apply M.remove_1 in H; sfirstorder.
-  - assumption.
+  hauto l: on use: M.remove_1.
 Qed.
 
 (** ** Removing a node *)
@@ -174,12 +169,17 @@ Qed.
 Definition remove_nodes (g : graph) (s : nodeset) :=
   M.map (fun ve => S.diff ve s) (restrict g (S.diff (nodes g) s)).
 
+Lemma nodes_remove_nodes_spec g s i :
+  S.In i (nodes (remove_nodes g s)) <-> S.In i (nodes g) /\ ~ S.In i s.
+Proof.
+  unfold remove_nodes.
+  now rewrite nodes_map_eq, nodes_restrict_eq, S.inter_spec, S.diff_spec.
+Qed.
+
 Lemma nodes_remove_nodes_eq g s :
   S.Equal (nodes (remove_nodes g s)) (S.diff (nodes g) s).
 Proof.
-  unfold remove_nodes.
-  rewrite nodes_map_eq, nodes_restrict_eq.
-  hfcrush use: PositiveSet.diff_1, PositiveSet.inter_spec, PositiveSet.inter_3 unfold: PositiveSet.Equal, nodeset.
+  hfcrush use: PositiveSet.diff_1, PositiveSet.diff_3, nodes_remove_nodes_spec, PositiveSet.diff_2 unfold: nodeset, PositiveSet.Equal.
 Qed.
   
 
@@ -240,7 +240,7 @@ Lemma in_remove_nodes_iff g s w :
   M.In w (remove_nodes g s) <-> M.In w g /\ ~ S.In w s.
 Proof.
   rewrite <- !in_nodes_iff.
-  hfcrush use: PositiveSet.diff_1, PositiveSet.diff_3, PositiveSet.diff_2, nodes_remove_nodes_eq unfold: PositiveMap.key, nodeset, PositiveSet.Equal, PositiveSet.elt.
+  hauto l: on use: nodes_remove_nodes_spec.
 Qed.
 
 Lemma in_remove_node_iff g v w :
@@ -449,6 +449,26 @@ Definition neighbors (g : graph) v := adj g v.
 
 Definition neighborhood (g : graph) v := remove_node v (subgraph_of g (neighbors g v)).
 
+
+Lemma nodes_neighborhood_spec g v w :
+  S.In w (nodes (neighborhood g v))
+  <-> w <> v /\ S.In w (adj g v) /\ M.In w g.
+Proof.
+  unfold neighborhood, neighbors.
+  rewrite <- !in_nodes_iff.
+  Search nodes remove_node.
+  rewrite nodes_remove_node_eq, S.diff_spec.
+  hfcrush use: nodes_subgraph_of_spec, PositiveSet.mem_Leaf, PositiveSet.singleton_1, SP.Dec.F.singleton_iff unfold: negb, PositiveSet.empty, PositiveSet.t, PositiveSet.In, adj.
+Qed.
+
+Lemma nodes_neighborhood_spec_undir g v w :
+  undirected g ->
+  S.In w (nodes (neighborhood g v))
+  <-> w <> v /\ S.In w (adj g v).
+Proof.
+  hfcrush use: in_adj_neighbor_in_nodes, nodes_neighborhood_spec, in_nodes_iff.
+Qed.
+
 (** ** Neighborhoods do not include the vertex *)
 
 Lemma nbd_not_include_vertex g v : M.find v (neighborhood g v) = None.
@@ -473,15 +493,7 @@ Qed.
 
 Lemma nbd_adj : forall g i, S.Subset (nodes (neighborhood g i)) (adj g i).
 Proof.
-  unfold S.Subset.
-  intros g i j H.
-  unfold neighborhood in H.
-  unfold neighbors in H.
-  remember (adj g i) as s.
-  apply subgraph_of_nodes with (g := g).
-  destruct (E.eq_dec j i).
-  - hauto lq: on use: Sin_domain, remove_node_neq2 unfold: nodes.
-  - hauto lq: on use: Sin_domain, remove_node_neq unfold: nodes.
+  strivial use: nodes_neighborhood_spec unfold: PositiveSet.Subset.
 Qed.
 
 Lemma subgraph_of_in_iff :
@@ -497,12 +509,8 @@ Proof.
   intros H.
   split.
   - unfold S.Subset.
-    intros v Hv.
-    apply Sin_domain.
-    apply Sin_domain in Hv.
-    rewrite subgraph_of_in_iff in *.
-    sfirstorder.
-  - hfcrush use: SP.in_subset, adj_subgraph_of_spec unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, PositiveSet.Subset.
+    hfcrush use: nodes_subgraph_of_spec unfold: PositiveSet.Subset.
+  - hfcrush use: SP.in_subset, adj_subgraph_of_spec unfold: PositiveSet.Subset.
 Qed.
 
 Lemma adj_empty_if_notin :
@@ -510,8 +518,7 @@ Lemma adj_empty_if_notin :
 Proof.
   intros g w Hnot.
   unfold adj.
-  destruct (WF.In_dec g w) as [Hin|Hout]; [contradiction|].
-  sauto.
+  hauto l: on.
 Qed.
 
 Lemma neighborhood_nodes_eq_adj :
@@ -521,25 +528,7 @@ Lemma neighborhood_nodes_eq_adj :
     S.Subset (neighbors g v) (nodes (neighborhood g v)).
 Proof.
   intros g v Hg Hund w Hw_in.
-  (* 1) Show w is a real vertex of g, using undirectedness *)
-  assert (Hin_g : M.In w g).
-  { (* If w ∉ g, then adj g w = ∅, but undirectedness gives v ∈ adj g w *)
-    specialize (Hund v w Hw_in) as Hv_in_w.
-    destruct (WF.In_dec g w) as [Hin|Hnot]; [exact Hin|].
-    qauto unfold: nodeset, PositiveSet.elt, PositiveSet.empty, PositiveSet.t, node, PositiveSet.In, PositiveOrderedTypeBits.t, adj, PositiveSet.mem, PositiveMap.In, PositiveMap.MapsTo.
-  }
-  (* 2) Use filter-iff to show w is kept by the neighborhood filter *)
-  unfold neighborhood.
-  (* nodes = domain of the filtered map *)
-  unfold nodes; apply Sin_domain.
-  destruct Hin_g as [adjw Hw_maps]. (* witness adjacency set at w in g *)
-  apply remove_node_neq.
-  - sfirstorder.
-  - unfold neighbors in *.
-    unfold subgraph_of.
-    rewrite WP.F.map_in_iff.
-    apply restrict_spec.
-    hauto l: on.
+  sfirstorder use: nodes_neighborhood_spec_undir unfold: no_selfloop, neighbors.
 Qed.
 
 Lemma neighborhood_nodes_equal_adj :
@@ -595,6 +584,90 @@ Definition degree (v : node) (g : graph) :=
 (** ** Maximum degree of a graph *)
 Definition max_deg (g : graph) := list_max (map (fun p => S.cardinal (snd p)) (M.elements g)).
 
+Lemma degree_spec g i d :
+  degree i g = Some d
+  <-> S.In i (nodes g) /\ d = S.cardinal (adj g i).
+Proof.
+  unfold degree, adj.
+  destruct (M.find i g) as [e|] eqn:Fi.
+  - split.
+    + inversion 1; subst.
+      sfirstorder use: in_nodes_iff.
+    + sfirstorder.
+  - split.
+    + discriminate.
+    + intros [Hin _]. exfalso. apply in_nodes_iff in Hin. sfirstorder.
+Qed.
+
+
+Lemma find_subgraph_of_spec g s i :
+  M.find i (subgraph_of g s) =
+  match S.mem i s with
+  | true =>
+      match M.find i g with
+      | Some e => Some (S.inter s e)
+      | None => None
+      end
+  | false => None
+  end.
+Proof.
+  unfold subgraph_of. rewrite WF.map_o, restrict_find.
+  hauto lq: on rew: off.
+Qed.
+
+Lemma find_remove_nodes_spec g s i :
+  M.find i (remove_nodes g s) =
+  match S.mem i (S.diff (nodes g) s) with
+  | true =>
+      match M.find i g with
+      | Some e => Some (S.diff e s)
+      | None => None  (* cannot happen if mem was true, but keeps the equation total *)
+      end
+  | false => None
+  end.
+Proof.
+  unfold remove_nodes.
+  rewrite WF.map_o, restrict_find.
+  sauto lq: on.
+Qed.
+
+Lemma degree_subgraph_of_spec g s i d :
+  degree i (subgraph_of g s) = Some d
+  <-> S.In i (nodes g) /\ S.In i s /\ d = S.cardinal (S.inter s (adj g i)).
+Proof.
+  unfold degree. rewrite find_subgraph_of_spec.
+  ssimpl.
+  - hauto l: on use: Sin_domain.
+  - hauto unfold: adj.
+  - hauto lq: on unfold: adj.
+  - exfalso.
+    apply S.mem_2 in H1.
+    apply Sin_domain in H1.
+    sfirstorder.
+Qed.
+
+Lemma degree_remove_nodes_spec g s i d :
+  degree i (remove_nodes g s) = Some d
+  <-> S.In i (nodes g) /\ ~ S.In i s /\ d = S.cardinal (S.diff (adj g i) s).
+Proof.
+  rewrite degree_spec.
+  split.
+  - intros [HinR Hd].
+    rewrite nodes_remove_nodes_spec in HinR.
+    destruct HinR as [Hin HiN].
+    ssimpl.
+    enough (S.Equal (adj (remove_nodes g s) i) (S.diff (adj g i) s)).
+    + apply SP.Equal_cardinal.
+      assumption.
+    + hfcrush use: PositiveSet.diff_3, PositiveSet.diff_2, PositiveSet.diff_1, adj_remove_nodes_spec unfold: adj, nodeset, PositiveSet.Equal.
+  - intros (Hin & HiN & ->).
+    split.
+    + now rewrite nodes_remove_nodes_spec.
+    + enough (S.Equal (adj (remove_nodes g s) i) (S.diff (adj g i) s)).
+      * apply SP.Equal_cardinal.
+        sfirstorder.
+      * hfcrush use: PositiveSet.diff_3, PositiveSet.diff_2, PositiveSet.diff_1, adj_remove_nodes_spec unfold: adj, nodeset, PositiveSet.Equal.
+Qed.
 
 (** ** Inversion lemma for degree *)
 
@@ -1537,4 +1610,3 @@ Lemma max_degree_extraction_disjoint : forall (g g' g'' : graph) (n m : nat) s s
 Proof.  
   hauto l: on use: extract_vertices_remove, SP.Dec.F.inter_iff unfold: PositiveSet.Empty.
 Qed.
-
