@@ -43,7 +43,7 @@ Proof.
   unfold no_selfloop.
   unfold coloring_complete, coloring_ok in H.
   intros i contra.
-  hauto lq: on use: SP.Dec.F.empty_iff unfold: PositiveSet.In, PositiveOrderedTypeBits.t, node, PositiveMap.key, adj, PositiveMap.MapsTo, PositiveSet.elt, PositiveMap.In.
+  hauto lq: on use: SP.Dec.F.empty_iff unfold: PositiveSet.In, adj.
 Qed.
 
 Example ex_graph :=
@@ -73,10 +73,10 @@ Proof.
   split.
   - intros ci H0.
     unfold adj in H.
-    hauto use: SP.Dec.F.empty_iff, PositiveMap.gempty unfold: PositiveOrderedTypeBits.t, PositiveSet.In, node, PositiveMap.key inv: option.
+    hauto use: SP.Dec.F.empty_iff, PositiveMap.gempty inv: option.
   - unfold adj in H.
     ssimpl.
-    scongruence use: PositiveMap.gempty unfold: PositiveMap.key, node, PositiveOrderedTypeBits.t.
+    scongruence use: PositiveMap.gempty.
 Qed.
 
 (** ** A set is extensionally equal to folding over its elements *)
@@ -189,7 +189,7 @@ Proof.
   intros g f p k H H0 v ci H1.
   split.
   - apply n_coloring_missed.
-    + hauto use: @restrict_agree unfold: node, coloring, n_coloring, PositiveOrderedTypeBits.t, PositiveMap.key, three_coloring.
+    + hauto use: @restrict_agree unfold: coloring, n_coloring, three_coloring.
     + sfirstorder.
     + (* let x be a neighbor of v *)
       intros x contra.
@@ -229,7 +229,7 @@ Proof.
         ** pose proof (restrict_agree _ _ _ _ H5).
            pose proof (restrict_in_set _ _ _ _ H5).
            hauto b: on use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: coloring_ok.
-        ** best use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: coloring_ok.
+        ** qauto l: on use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: coloring_ok.
 
       * intros ci0 cj H5 H6.
         qauto use: @restrict_agree unfold: coloring_ok.
@@ -298,7 +298,7 @@ Proof.
   - intros x a s' H H0 H1 H2.
     destruct (E.eq_dec i x).
     + subst. hauto l: on use: PositiveSet.add_1.
-    + qauto use: SP.Dec.F.add_iff, PositiveMap.gso unfold: PositiveMap.key, PositiveSet.elt.
+    + qauto use: SP.Dec.F.add_iff, PositiveMap.gso.
 Qed.
 
 (** ** Constant coloring inversion 2 *)
