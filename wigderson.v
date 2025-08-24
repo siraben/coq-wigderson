@@ -29,7 +29,7 @@ Local Open Scope positive_scope.
 (* Wigderson's algorithm definition
 
 let G be a graph, |G.v| = k
-a vertex v is high-degree if deg(v) > k^2
+a vertex v is high-degree if deg(v) > sqrt(k)
 phase1 is selecting the high-degree vertices and coloring their neighborhoods
 phase2 is coloring the remaining nodes with at most sqrt(k) colors
  *)
