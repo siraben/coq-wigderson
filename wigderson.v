@@ -9,6 +9,8 @@ Require Import PArith.
 Require Import FunInd.
 Require Import restrict.
 Require Import munion.
+Require Import Psatz.
+Require Import FExt.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 Import Arith.
@@ -189,16 +191,39 @@ Program Fixpoint phase1
       let nbhd := neighborhood g v in
       (* i is the map that turns the coloring using colors 1,2 into c+1, c+2 *)
       let coloring_of_nbhd := two_color_nbd g v (c+1) (c+2) in
-      let g' := remove_nodes g (nodes nbhd) in
+      let g' := remove_nodes g (S.add v (nodes nbhd)) in
       (* color the high-degree vertex 1 each time *)
       match coloring_of_nbhd with
       | None => None
-      | Some m' => option_map (fun (p : coloring * graph) => let (c,g) := p in (Munion (M.add v 1 m') c, g)) (phase1 k (c+2) g')
+      | Some m' => option_map (fun (p : coloring * graph) => let (c2,g2) := p in (Munion (M.add v c m') c2, g2)) (phase1 k (c+2) g')
       end
   | None => Some (@M.empty _, g)
   end.
 Next Obligation.
-Admitted.
+  (* decrease: |g'| < |g| *)
+  simpl.
+  set (s := S.add v (nodes (neighborhood g v))).
+  (* v ∈ s *)
+  assert (Sv : S.In v s) by (unfold s; apply S.add_spec; left; reflexivity).
+  (* v ∈ nodes g, because choose picked v from subset_nodes ... *)
+  assert (Vin : M.In v g).
+  { apply in_nodes_iff.
+    (* v ∈ subset_nodes (..) ⊆ nodes g *)
+    symmetry in Heq_anonymous.
+    pose proof (S.choose_1 _ Heq_anonymous).
+    apply subset_nodes_sub in H.
+    assumption.
+  }
+
+  (* Now just use the canned strict-decrease lemma for remove_nodes *)
+  rewrite !Mcardinal_domain.
+  rewrite nodes_remove_nodes_eq.
+  eapply SP.subset_cardinal_lt with (x := v).
+  - apply SP.diff_subset.
+  - now rewrite in_nodes_iff.
+  - unfold s.
+    hauto l: on use: S.diff_spec, S.add_spec.
+Qed.
 
 Functional Scheme phase1_ind := Induction for phase1 Sort Prop.
 
