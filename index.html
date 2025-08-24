@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wigderson's Algorithm Interactive Demo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Wigderson's Algorithm for Graph Coloring</h1>
+            <p class="subtitle">Interactive step-by-step visualization of 3-colorable graph coloring</p>
+        </header>
+
+        <div class="controls-panel">
+            <div class="control-group">
+                <label for="vertices">Number of Vertices:</label>
+                <input type="range" id="vertices" min="5" max="100" value="10">
+                <input type="number" id="verticesInput" min="5" max="100" value="10" style="width: 60px; margin-left: 10px;">
+            </div>
+
+            <div class="control-group">
+                <button id="generateGraph">Generate New Graph</button>
+                <button id="reset">Reset Coloring</button>
+                <button id="toggleDegree">Toggle Degrees</button>
+                <button id="debugLog">Show Debug Log</button>
+            </div>
+
+            <div class="control-group">
+                <button id="stepForward">Step Forward</button>
+                <button id="runAll">Run All Steps</button>
+                <button id="stepBack">Step Back</button>
+            </div>
+
+            <div class="speed-control">
+                <label for="speed">Animation Speed:</label>
+                <input type="range" id="speed" min="100" max="2000" value="500">
+                <span id="speedValue">500ms</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="graph-container">
+                <svg id="graph" width="800" height="600"></svg>
+            </div>
+
+            <div class="info-panel">
+                <div class="algorithm-display">
+                    <h3>Wigderson's Algorithm</h3>
+                    <div id="algorithmText"></div>
+                </div>
+
+                <div class="algorithm-phase">
+                    <h3>Current Phase: <span id="currentPhase">Not Started</span></h3>
+                    <div id="phaseDescription"></div>
+                </div>
+
+                <div class="statistics">
+                    <h3>Statistics</h3>
+                    <ul>
+                        <li>Total Vertices (n): <span id="totalVertices">0</span></li>
+                        <li>√n: <span id="sqrtN">0</span></li>
+                        <li>High-Degree Threshold (>√n): <span id="threshold">0</span></li>
+                        <li>High-Degree Vertices: <span id="highDegreeCount">0</span></li>
+                        <li>Colors Used: <span id="colorsUsed">0</span></li>
+                        <li>Theoretical Bound (3√n): <span id="theoreticalBound">0</span></li>
+                        <li>Vertices Colored: <span id="verticesColored">0</span></li>
+                    </ul>
+                </div>
+
+                <div class="step-log">
+                    <h3>Step Log</h3>
+                    <ul id="stepLog"></ul>
+                </div>
+
+                <div class="legend">
+                    <h3>Color Legend</h3>
+                    <div id="colorLegend"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Debug Modal -->
+        <div id="debugModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Debug Information</h2>
+                <pre id="debugContent"></pre>
+                <div class="modal-buttons">
+                    <button id="copyDebug">Copy to Clipboard</button>
+                    <button id="downloadDebug">Download as Text</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <script src="wigderson.js"></script>
+</body>
+</html>
