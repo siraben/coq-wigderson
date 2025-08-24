@@ -185,13 +185,7 @@ Lemma restrict_on_nbd_find_iff f g v i c :
   M.find i (restrict_on_nbd f g v) = Some c
   <-> S.In i (nodes (neighborhood g v)) /\ M.find i f = Some c.
 Proof.
-  unfold restrict_on_nbd.
-  split.
-  - intro H; split.
-    + eapply restrict_in_set; eauto.
-    + eapply restrict_agree; eauto.
-  - intros [Hin Hfind].
-    hauto use: @restrict_agree_2 unfold: coloring, PositiveMap.key, PositiveSet.elt.
+  hauto l: on use: @restrict_find_some_iff unfold: coloring, restrict_on_nbd.
 Qed.
 
 (* Domain of the restriction *)
@@ -199,9 +193,7 @@ Lemma restrict_on_nbd_domain_spec f g v :
   S.Equal (Mdomain (restrict_on_nbd f g v))
           (S.inter (nodes (neighborhood g v)) (Mdomain f)).
 Proof.
-  intro i; split; intro Hi.
-  - hfcrush use: @restrict_spec, Sin_domain, PositiveSet.inter_spec unfold: coloring, restrict_on_nbd, PositiveMap.key, PositiveSet.elt.
-  - hfcrush use: Sin_domain, PositiveSet.inter_1, PositiveSet.inter_2, @restrict_restricts unfold: restrict_on_nbd, coloring.
+  hcrush use: Sin_domain, @restrict_subset_keys, @restrict_in_iff, PositiveSet.inter_spec, PositiveSet.inter_2 unfold: PositiveSet.elt, PositiveSet.Equal, PositiveMap.key, PositiveSet.Subset, coloring, restrict_on_nbd.
 Qed.
 
 (** ** Neighborhood of vertex in $(n+1)$-colorable graph is $n$-colorable *)

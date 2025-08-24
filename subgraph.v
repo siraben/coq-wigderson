@@ -456,7 +456,6 @@ Lemma nodes_neighborhood_spec g v w :
 Proof.
   unfold neighborhood, neighbors.
   rewrite <- !in_nodes_iff.
-  Search nodes remove_node.
   rewrite nodes_remove_node_eq, S.diff_spec.
   hfcrush use: nodes_subgraph_of_spec, PositiveSet.mem_Leaf, PositiveSet.singleton_1, SP.Dec.F.singleton_iff unfold: negb, PositiveSet.empty, PositiveSet.t, PositiveSet.In, adj.
 Qed.

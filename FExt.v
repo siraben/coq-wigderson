@@ -68,5 +68,5 @@ Qed.
 Lemma nodes_restrict_eq g s :
   S.Equal (nodes (restrict g s)) (S.inter (nodes g) s).
 Proof.
-  qblast use: @restrict_subset_keys, PositiveSet.inter_1, @restrict_in_set2, @restrict_spec, PositiveSet.inter_3, SP.inter_sym, Sin_domain unfold: PositiveSet.Subset, nodes, PositiveSet.elt, PositiveMap.key, PositiveSet.Equal.
+  qblast use: PositiveSet.inter_1, Sin_domain, @restrict_in_iff, PositiveSet.inter_3, @restrict_subset_keys, SP.inter_sym unfold: PositiveSet.Subset, PositiveSet.elt, PositiveMap.key, nodes, PositiveSet.Equal.
 Qed.

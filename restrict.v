@@ -14,61 +14,89 @@ Import Nat.
 (* Restrict a map by a set of keys *)
 (* Fold over the set we are restricting with for better induction. *)
 Definition restrict {A} (m : M.t A) s :=
-  S.fold (fun k m' => match M.find k m with
-                   | Some v => M.add k v m'
-                   | None => m'
-                   end) s (@M.empty _).
+  WP.filter (fun k v => S.mem k s) m.
   
 (** ** Domain of restricted map is a subset of the original domain *)
 Lemma restrict_subset_keys {A} : forall (m : M.t A) s, S.Subset (Mdomain (restrict m s)) (Mdomain m).
 Proof.
   intros m s.
   unfold restrict.
-  apply SP.fold_rec_bis.
-  - sauto lq: on.
-  - hecrush.
-  - intros x a s' H H0 H1.
-    destruct (M.find x m) eqn:E.
-    + intros i Hi.
-      destruct (E.eq_dec x i).
-      * subst. qauto use: Sin_domain unfold: PositiveMap.MapsTo, PositiveMap.In.
-      * hauto lq: on use: WF.add_neq_in_iff, Sin_domain unfold: PositiveSet.elt, PositiveSet.Subset, PositiveMap.key.
-    + assumption.
+  intros v Hv.
+  apply Sin_domain.
+  apply Sin_domain in Hv.
+  destruct Hv as [e He].
+  rewrite WP.filter_iff in He; sfirstorder.
 Qed.
 
 (** ** Membership in a restricted map implies membership in the original map *)
 Lemma restrict_incl {A} :
   forall s (f : M.t A) i, M.In i (restrict f s) -> M.In i f.
 Proof.
-  hauto lq: on use: @restrict_subset_keys, Sin_domain unfold: PositiveSet.Subset, PositiveSet.elt, PositiveMap.key.
+  qauto use: Sin_domain, @restrict_subset_keys unfold: PositiveMap.key, PositiveSet.elt, PositiveSet.Subset.
+Qed.
+
+
+(** Restrict/lookup in one step *)
+Lemma restrict_find_some_iff {A} (m : M.t A) s k v :
+  M.find k (restrict m s) = Some v
+  <-> S.In k s /\ M.find k m = Some v.
+Proof.
+  unfold restrict.
+  split; intro H.
+  - (* -> *)
+    apply M.find_2 in H.
+    rewrite WP.filter_iff in H; [| sfirstorder].
+    sfirstorder.
+  - (* <- *)
+    destruct H as [Hin Hf].
+    apply M.find_1.
+    rewrite WP.filter_iff; [|sfirstorder].
+    sfirstorder.
+Qed.
+
+Lemma restrict_in_iff {A} (m : M.t A) s k :
+  M.In k (restrict m s) <-> S.In k s /\ M.In k m.
+Proof.
+  strivial use: WF.MapsTo_fun, @restrict_find_some_iff, @restrict_incl unfold: PositiveMap.In, PositiveMap.MapsTo.
+Qed.
+
+Lemma nodes_restrict_eq (g : graph) s :
+  S.Equal (nodes (restrict g s)) (S.inter (nodes g) s).
+Proof.
+  intro k; split; intro Hin.
+  - apply Sin_domain in Hin as [e Hf].
+    apply restrict_find_some_iff in Hf as [Hs Hfind].
+    apply S.inter_spec; split; [ apply Sin_domain; eexists; eauto | exact Hs ].
+  - apply S.inter_spec in Hin as [Hg Hs].
+    apply Sin_domain in Hg as [e Hmt].
+    apply Sin_domain. exists e.
+    strivial use: @restrict_find_some_iff unfold: PositiveSet.elt, nodemap, PositiveMap.MapsTo, PositiveMap.key, graph.
+Qed.
+
+
+Lemma find_filter {A} (f : M.key -> A -> bool) m k v :
+  M.find k (WP.filter f m) = Some v -> M.find k m = Some v.
+Proof.
+  intros H.
+  apply M.find_2 in H.
+  rewrite WP.filter_iff in H; [|sfirstorder].
+  sfirstorder.
 Qed.
 
 (** ** Membership in the original map implies membership in the restricted map *)
 Lemma restrict_restricts {A} :
   forall s (f : M.t A) i, S.In i s -> M.In i f -> M.In i (restrict f s).
 Proof.
-  intros s f i Hi Hf.
-  generalize dependent Hi.
-  unfold restrict.
-  apply SP.fold_rec_bis.
-  - sfirstorder.
-  - sauto q: on.
-  - intros x a s' H H0 H1 Hi.
-    destruct (E.eq_dec i x).
-    + subst. hfcrush use: WF.in_find_iff, WF.add_in_iff unfold: PositiveSet.elt, PositiveMap.key inv: option.
-    + qauto use: PositiveSet.add_3, WF.add_in_iff unfold: PositiveSet.elt, PositiveMap.key inv: option.
+  strivial use: @restrict_find_some_iff unfold: PositiveMap.key, PositiveMap.MapsTo, PositiveMap.In, PositiveSet.elt.
 Qed.
 
-(* extensive use of hammer *)
-Lemma restrict_full {A} :
-  forall s (f : M.t A) (v i : M.key),
-    S.In i s ->
-    M.In i f ->
-    S.Subset (Mdomain (restrict f s)) (Mdomain f) ->
-    S.In i (Mdomain (restrict f s)).
+Lemma restrict_full {A} (m : M.t A) :
+  M.Equal (restrict m (Mdomain m)) m.
 Proof.
-  hfcrush use: @restrict_restricts, Sin_domain unfold: PositiveSet.elt, PositiveMap.key.
-Qed.  
+  apply WF.Equal_mapsto_iff; intros k v; split; intro H.
+  - strivial use: @restrict_find_some_iff unfold: PositiveMap.MapsTo.
+  - hfcrush use: Sin_domain, WF.not_find_mapsto_iff, @restrict_find_some_iff unfold: PositiveSet.elt, PositiveMap.MapsTo, PositiveMap.key.
+Qed.
 
 (* Looking through restriction of a map, the values still agree *)
 (** ** Values in restricted maps agree with the original map *)
@@ -77,14 +105,7 @@ Lemma restrict_agree {A} : forall (m : M.t A) s k v,
     M.find k m = Some v.
 Proof.
   intros m s k v.
-  unfold restrict.
-  apply SP.fold_rec_bis.
-  - sfirstorder.
-  - sauto lq: on.
-  - intros x a s' H H0 H1 H2.
-    destruct (E.eq_dec k x).
-    + subst. hauto use: PositiveMap.gss unfold: PositiveMap.key, PositiveSet.elt inv: option.
-    + hauto use: PositiveMap.gso unfold: PositiveSet.elt, PositiveMap.key inv: option.
+  strivial use: @restrict_find_some_iff.
 Qed.
 
 (** ** Values in restricted maps agree with the original map (rephrased) *)
@@ -111,24 +132,7 @@ Lemma restrict_in_set {A} : forall (m : M.t A) s k v,
     M.find k (restrict m s) = Some v ->
     S.In k s.
 Proof.
-  intros m s k v.
-  unfold restrict.
-  apply SP.fold_rec_bis.
-  - sfirstorder.
-  - sauto lq: on rew: off.
-  - intros x a s' H H0 H1 H2.
-    destruct (E.eq_dec k x).
-    + subst. hauto l: on use: PositiveSet.add_1.
-    + hauto use: PositiveSet.add_2, PositiveMap.gso unfold: PositiveMap.key, PositiveSet.elt inv: option.
-Qed.
-
-(* Same as above, rephrased with M.In *)
-Lemma restrict_in_set2 {A} : forall (m : M.t A) s k,
-    M.In k (restrict m s) ->
-    S.In k s.
-Proof.
-  intros m s k [v].
-  eapply restrict_in_set; eauto.
+  strivial use: @restrict_find_some_iff.
 Qed.
 
 (** ** Restriction preserves map equality *)
@@ -140,7 +144,16 @@ Proof.
   apply WF.Equal_mapsto_iff.
   intros k0 e.
   unfold M.MapsTo.
-  hauto lq: on use: @restrict_agree_2, @restrict_in_set unfold: PositiveSet.elt, PositiveMap.key, PositiveMap.Equal, PositiveSet.Equal.
+  hfcrush use: @restrict_find_some_iff, @restrict_agree_2 unfold: PositiveSet.elt, PositiveMap.Equal, PositiveMap.key, PositiveSet.Equal.
+Qed.
+
+
+(** ** Specification of restriction *)
+Lemma restrict_spec : forall {A} (m : M.t A) s k,
+    M.In k (restrict m s) <-> M.In k m /\ S.In k s.
+Proof.
+  intros A m s k.
+  strivial use: @restrict_agree_2, @restrict_in_iff, SP.Dec.FSetDecideTestCases.test_iff_conj unfold: PositiveSet.elt, PositiveMap.key.
 Qed.
 
 (** ** Restriction and map commute *)
@@ -156,25 +169,9 @@ Proof.
     destruct (M.find k (restrict m s)) eqn:E; [|scongruence].
     simpl in H.
     rewrite <- H.
-    pose proof (restrict_in_set m s k _ E).
-    eapply restrict_agree in E.
-    pose proof (restrict_agree_2 m _ _ H0).
-    pose proof (restrict_agree_2 (M.map f m) s k H0).
-    ssimpl.
-    qauto use: WF.map_o unfold: PositiveMap.MapsTo, option_map.
-  - hfcrush use: WF.map_o, @restrict_in_set, @restrict_agree_2 unfold: PositiveSet.elt, PositiveMap.key.
-Qed.
-
-(** ** Specification of restriction *)
-Lemma restrict_spec : forall {A} (m : M.t A) s k,
-    M.In k (restrict m s) <-> M.In k m /\ S.In k s.
-Proof.
-  intros A m s k.
-  split; intros H.
-  - split.
-    + eauto using restrict_incl.
-    + eauto using restrict_in_set2.
-  - intuition auto using restrict_restricts.
+    rewrite restrict_find_some_iff.
+    qauto use: @restrict_find_some_iff, @restrict_incl, WF.in_find_iff, WF.map_o unfold: option_map.
+  - hfcrush use: WF.map_o, @restrict_agree_2, @restrict_find_some_iff unfold: PositiveSet.elt, PositiveMap.key.
 Qed.
 
 (** ** Cardinality of a restricted map *)
@@ -184,10 +181,7 @@ Proof.
   intros m s.
   apply Mcardinal_Scardinal.
   intros k.
-  rewrite restrict_spec.
-  rewrite S.inter_spec.
-  rewrite Sin_domain.
-  firstorder.
+  hfcrush use: @restrict_in_iff, Sin_domain, PositiveSet.inter_1, PositiveSet.inter_spec, PositiveSet.inter_2 unfold: PositiveMap.key, PositiveSet.elt.
 Qed.
 
 (** ** Adjacency in a restricted graph *)
@@ -199,8 +193,7 @@ Proof.
   - intros H.
     apply in_adj_exists in H.
     destruct H as [v [F I]].
-    split; eauto using restrict_in_set.
-    eauto using restrict_agree, find_in_adj.
+    hauto use: @restrict_find_some_iff, @restrict_agree, find_in_adj, I unfold: PositiveMap.key, PositiveOrderedTypeBits.t, node.
   - intros [I J].
     apply in_adj_exists in I.
     destruct I as [v [F I]].
@@ -215,4 +208,49 @@ Lemma restrict_find {A} (m : M.t A) s i :
 Proof.
   pose proof (@restrict_spec A m s i).
   hauto use: SP.Dec.F.not_mem_iff, @restrict_agree_2, WF.not_find_mapsto_iff unfold: PositiveSet.In, PositiveSet.elt, PositiveMap.key inv: bool.
+Qed.
+
+(** Idempotence / intersection law *)
+Lemma restrict_idem {A} (m : M.t A) s t :
+  M.Equal (restrict (restrict m s) t) (restrict m (S.inter s t)).
+Proof.
+  apply WF.Equal_mapsto_iff; intros k v; split; intro H.
+  - apply M.find_1 in H.
+    apply restrict_find_some_iff in H as [Ht Hst].
+    apply restrict_find_some_iff in Hst as [Hs Hmt].
+    apply M.find_1. apply restrict_find_some_iff.
+    split; [apply S.inter_spec; tauto|assumption].
+  - apply M.find_1 in H.
+    apply restrict_find_some_iff in H as [Hint Hmt].
+    apply S.inter_spec in Hint as [Hs Ht].
+    apply M.find_1. apply restrict_find_some_iff.
+    hauto lq: on use: @restrict_find unfold: PositiveSet.In inv: bool.
+Qed.
+
+(** Monotonicity *)
+Lemma restrict_mono {A} (m : M.t A) s t :
+  S.Subset s t -> M.Equal (restrict m s) (restrict (restrict m t) s).
+Proof.
+  intro Hsub.
+  apply WF.Equal_mapsto_iff; intros k v; split; intro H.
+  - apply M.find_1 in H.
+    apply restrict_find_some_iff in H as [Hs Hmt].
+    apply M.find_1. apply restrict_find_some_iff.
+    split; [assumption|].
+    apply M.find_1. apply restrict_find_some_iff.
+    split; [apply Hsub; assumption|assumption].
+  - apply M.find_1 in H.
+    apply restrict_find_some_iff in H as [Hs Ht].
+    apply restrict_find_some_iff in Ht as [_ Hmt].
+    apply M.find_1. apply restrict_find_some_iff. tauto.
+Qed.
+
+Lemma restrict_empty {A} (m : M.t A) :
+  M.Equal (restrict m S.empty) (@M.empty A).
+Proof.
+  apply WF.Equal_mapsto_iff; intros k v; split; intro H.
+  - apply M.find_2 in H. unfold restrict in H.
+    rewrite WP.filter_iff in H by firstorder. destruct H as [_ Hmem].
+    apply S.mem_2 in Hmem. inversion Hmem.
+  - sauto q: on.
 Qed.
