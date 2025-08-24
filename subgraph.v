@@ -74,6 +74,7 @@ Qed.
 Definition subgraph_of (g : graph) (s : S.t) :=
   M.map (fun adj => S.inter s adj) (restrict g s).
 
+
 (** ** Adjacency in an induced subgraph *)
 Lemma adj_subgraph_of_spec :
   forall g s i j,
@@ -88,6 +89,18 @@ Proof.
   rewrite S.inter_spec.
   rewrite adj_restrict.
   hauto l: on.
+Qed.
+
+(** Induced subgraph: adjacency is intersection, guarded by [j ∈ s] *)
+Lemma adj_subgraph_of_eq g s j :
+  S.Equal (adj (subgraph_of g s) j)
+  (if S.mem j s then S.inter s (adj g j) else S.empty).
+Proof.
+  unfold subgraph_of.
+  rewrite adj_map; [|sauto].
+  rewrite adj_restrict_eq.
+  destruct (S.mem j s) eqn:Em; [|sauto].
+  reflexivity.
 Qed.
 
 Lemma nodes_subgraph_of_spec g s i :

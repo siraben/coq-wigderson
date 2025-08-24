@@ -73,6 +73,12 @@ Proof.
     strivial use: @restrict_find_some_iff unfold: PositiveSet.elt, nodemap, PositiveMap.MapsTo, PositiveMap.key, graph.
 Qed.
 
+Lemma domain_restrict_eq {A} (m : M.t A) s :
+  S.Equal (Mdomain (restrict m s)) (S.inter (Mdomain m) s).
+Proof.
+  hfcrush use: @restrict_in_iff, PositiveSet.inter_spec, Sin_domain unfold: PositiveSet.Equal, PositiveMap.key, PositiveSet.elt.
+Qed.
+
 
 Lemma find_filter {A} (f : M.key -> A -> bool) m k v :
   M.find k (WP.filter f m) = Some v -> M.find k m = Some v.
@@ -201,6 +207,13 @@ Proof.
     rewrite <- restrict_agree_2 by auto.
     eauto.
     auto.
+Qed.
+
+(** Restriction gives a guarded equality for adjacency *)
+Lemma adj_restrict_eq g s j :
+  S.Equal (adj (restrict g s) j) (if S.mem j s then adj g j else S.empty).
+Proof.
+  hfcrush use: SP.Dec.F.empty_iff, adj_restrict unfold: PositiveSet.Equal, PositiveSet.In inv: bool.
 Qed.
 
 Lemma restrict_find {A} (m : M.t A) s i :

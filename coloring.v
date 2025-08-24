@@ -71,14 +71,7 @@ Lemma empty_graph_colorable : forall p f, coloring_ok f empty_graph p.
 Proof.
   intros p f.
   unfold empty_graph.
-  cbn.
-  split.
-  - intros ci H0.
-    unfold adj in H.
-    hauto use: SP.Dec.F.empty_iff, PositiveMap.gempty inv: option.
-  - unfold adj in H.
-    ssimpl.
-    scongruence use: PositiveMap.gempty.
+  sfirstorder use: max_deg_empty, max_deg_0_adj unfold: empty_graph, coloring_ok.
 Qed.
 
 (** ** A set is extensionally equal to folding over its elements *)
@@ -193,7 +186,7 @@ Lemma restrict_on_nbd_domain_spec f g v :
   S.Equal (Mdomain (restrict_on_nbd f g v))
           (S.inter (nodes (neighborhood g v)) (Mdomain f)).
 Proof.
-  hcrush use: Sin_domain, @restrict_subset_keys, @restrict_in_iff, PositiveSet.inter_spec, PositiveSet.inter_2 unfold: PositiveSet.elt, PositiveSet.Equal, PositiveMap.key, PositiveSet.Subset, coloring, restrict_on_nbd.
+  hfcrush use: @domain_restrict_eq, SP.inter_sym unfold: PositiveSet.Equal, coloring, restrict_on_nbd.
 Qed.
 
 (** ** Neighborhood of vertex in $(n+1)$-colorable graph is $n$-colorable *)
@@ -241,13 +234,7 @@ Proof.
       pose proof (subgraph_coloring_ok _ _ f p H2 ltac:(sauto)).
       split.
       * intros ci0 H5.
-        apply S.remove_spec.
-        assert (S.In j (adj g i)) by sfirstorder.
-        split.
-        ** pose proof (restrict_agree _ _ _ _ H5).
-           pose proof (restrict_in_set _ _ _ _ H5).
-           hauto b: on use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: coloring_ok.
-        ** qauto l: on use: nbd_adj, PositiveSet.remove_spec, @restrict_agree, @restrict_in_set unfold: coloring_ok.
+        hauto l: on use: S.remove_spec, restrict_on_nbd_find_iff, nodes_neighborhood_spec unfold: coloring_ok, coloring_complete.
 
       * intros ci0 cj H5 H6.
         qauto use: @restrict_agree unfold: coloring_ok.
@@ -388,16 +375,10 @@ Lemma two_color_step_domain_spec g v c1 c2 f :
 Proof.
   intro j; split; intro Hj.
   - hauto use: PositiveSet.add_spec, PositiveSet.add_2, Sin_domain, two_color_step_find_iff unfold: node, coloring, PositiveMap.In, PositiveMap.MapsTo, nodeset, adj, PositiveSet.elt, PositiveMap.key, PositiveOrderedTypeBits.t.
-  - destruct (E.eq_dec j v); apply Sin_domain; unfold M.In, M.MapsTo.
-    + subst.
-      exists c1.
-      unfold two_color_step.
-      scongruence use: PositiveMap.gss unfold: PositiveOrderedTypeBits.t, nodeset, PositiveMap.key, node, adj.
-    + exists c2.
-      unfold two_color_step.
-      qauto use: constant_color_find_some_iff, PositiveMap.gso, PositiveSet.add_3 unfold: adj, node, nodeset, PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveMap.key.
+  - apply Sin_domain; destruct (E.eq_dec j v).
+    + sfirstorder use: PositiveMap.gss unfold: PositiveMap.MapsTo, adj, PositiveSet.elt, PositiveMap.In, PositiveMap.key, two_color_step, nodeset.
+    + hauto lq: on use: PositiveSet.add_3, two_color_step_find_iff unfold: PositiveOrderedTypeBits.t, adj, PositiveSet.elt, nodeset, node, PositiveMap.MapsTo, PositiveMap.In, PositiveMap.key.
 Qed.
-
 
 (** ** Vertex is colored $c_1$ *)
 Lemma two_color_step_colors_v_c1 : forall g v c1 c2 f, M.find v (two_color_step g v c1 c2 f) = Some c1.
