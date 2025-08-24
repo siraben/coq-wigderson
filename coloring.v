@@ -344,10 +344,8 @@ Proof.
   intros g v c1 c2 f ci j H.
   unfold two_color_step in H.
   destruct (E.eq_dec j v).
-  - subst. left. reflexivity.
-  - right.
-    rewrite M.gso in H by auto.
-    qauto use: WF.in_find_iff, @constant_color_inv.
+  - sfirstorder.
+  - hauto use: PositiveMap.gso, @constant_color_inv unfold: nodeset, PositiveMap.key, adj, node, PositiveOrderedTypeBits.t.
 Qed.
 
 (** ** Adjacency in undirected graphs *)
@@ -470,22 +468,7 @@ Proof.
   intros g s p m H H0 H1.
   split.
   - sfirstorder.
-  - intros ci cj H3 H4 contra.
-    assert (S.In ci p) by hauto l: on.
-    assert (S.In cj p) by hauto l: on.
-    assert (S.In j (adj g i)).
-    {
-      hauto q: on use: subgraph_edges.
-    }
-    assert (S.In i s).
-    {
-      qauto use: WF.in_find_iff, Sin_domain unfold: PositiveSet.Subset.
-    }
-    assert (S.In j s).
-    {
-      qauto use: WF.in_find_iff, Sin_domain unfold: PositiveSet.Subset.
-    }
-    sfirstorder.
+  - hfcrush use: adj_subgraph_of_spec unfold: independent_set.
 Qed.
 
 (** ** Constant coloring is complete on independent sets *)
@@ -499,7 +482,8 @@ Proof.
     rewrite <- Sin_domain in Hi.
     apply subgraph_of_nodes in Hi.
     hecrush use: constant_color_colors, subgraph_of_is_subgraph.
-  - apply indep_set_ok.
+  -
+    apply indep_set_ok.
     + assumption.
     + intros ci H1.
       apply Sin_domain in H1.
@@ -520,7 +504,7 @@ Lemma coloring_max_deg_complete g d c s :
   coloring_complete (S.singleton c) (subgraph_of g s) (constant_color s c).
 Proof.
   intros H H0 H1 H2 H3.
-  sauto lq: on rew: off use: constant_col_indep_set, max_degree_extraction_independent_set.
+  hfcrush use: max_degree_extraction_independent_set, constant_col_indep_set.
 Qed.
 
 (** ** Union of two valid disjoint colorings is valid *)
@@ -666,15 +650,7 @@ Proof.
   unfold is_subgraph in H.
   assert (~ S.In v (nodes g') /\ S.In v (nodes g)).
   {
-    split.
-    - destruct H0.
-      unfold nodes.
-      intros contra.
-      apply Sin_domain in contra.
-      contradiction.
-    - unfold nodes.
-      apply Sin_domain.
-      qauto l: on.
+    sfirstorder use: FExt.in_nodes_iff.
   }
   enough (S.cardinal (nodes g') < S.cardinal (nodes g))%nat.
   {
@@ -870,13 +846,8 @@ Proof.
   - (* base: max_deg g = 0 *)
     intros f Hf.
     inversion Hf; subst; clear Hf.
-    intros x Hx. apply Sin_domain.
-    rewrite Sin_domain in Hx.
-    unfold M.In, M.MapsTo in Hx.
-    destruct Hx as [e' He'].
-    apply constant_color_inv in He'.
-    unfold nodes in He'.
-    now apply Sin_domain.
+    intros H Hv.
+    sauto lq: on rew: off use: constant_color_inv, Sin_domain.
   - (* step: max_deg g = S n *)
     intros f Hf.
     inversion Hf; subst; clear Hf.
@@ -898,20 +869,7 @@ Proof.
       pose proof (extract_vertices_remove g g'0 ns (S n) e0).
       hauto l: on.
     + (* x came from the recursive coloring f' over g' *)
-      apply Sin_domain.
-      remember (Pos.succ match n with
-                  | 0%nat => 1
-                  | S _ => Pos.succ (Pos.of_nat n)
-                  end) as d.
-      (* By IH on the recursive call: domain f' ⊆ nodes g' *)
-      pose proof (IHp _ e1).
-      assert (S.In x (nodes g'0)).
-      { hfcrush use: Sin_domain unfold: coloring, PositiveSet.Subset. }
-
-      pose proof (extract_vertices_degs_subgraph g g'0 (S n) ns e0) as Hsub.
-      pose proof (proj1 Hsub x H0).
-      clear -H1.
-      strivial use: Sin_domain unfold: nodes.
+      hauto lq: on use: FExt.in_nodes_iff, Sin_domain, subgraph_vert_m, extract_vertices_degs_subgraph unfold: PositiveSet.Subset, coloring, PositiveMap.key, PositiveSet.elt.
 Qed.
 
 Lemma phase2_colors_distinct :
