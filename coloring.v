@@ -22,6 +22,19 @@ Local Open Scope positive_scope.
 
 Create HintDb coloring_spec.
 
+Add Hammer Filter Coq.Numbers.BinNums.
+Add Hammer Filter Coq.micromega.RingMicromega.
+Add Hammer Filter Coq.micromega.Tauto.
+Add Hammer Filter Coq.micromega.ZifyClasses.
+Add Hammer Filter Coq.micromega.VarMap.
+Add Hammer Filter Coq.micromega.ZMicromega.
+Add Hammer Filter Coq.Vectors.VectorDef.
+Add Hammer Filter Coq.Vectors.VectorSpec.
+Add Hammer Filter Coq.Lists.SetoidList.
+Add Hammer Filter Coq.micromega.EnvRing.
+Add Hammer Filter Coq.funind.Recdef.
+Set Hammer ReconstrLimit 10.
+
 (** * Properties of coloring maps *)
 (** ** Definition of a set of colors *)
 Definition colors := S.t.
@@ -383,18 +396,14 @@ Qed.
 (** ** Vertex is colored $c_1$ *)
 Lemma two_color_step_colors_v_c1 : forall g v c1 c2 f, M.find v (two_color_step g v c1 c2 f) = Some c1.
 Proof.
-  intros g v c1 c2 f.
-  rewrite two_color_step_find_iff.
-  auto.
+  hfcrush use: two_color_step_find_iff.
 Qed.
 
 (** ** Neighbors are colored $c_2$ *)
 Lemma two_color_step_colors_adj_c2 : forall g v c1 c2 f i,
     i <> v -> S.In i (adj g v) -> M.find i (two_color_step g v c1 c2 f) = Some c2.
 Proof.
-  intros g v c1 c2 f i H H0.
-  rewrite two_color_step_find_iff.
-  auto.
+  hfcrush use: two_color_step_find_iff.
 Qed.
 
 
@@ -404,21 +413,18 @@ Lemma two_color_step_inv : forall g v c1 c2 f ci j,
     M.find j (two_color_step g v c1 c2 f) = Some ci ->
     j = v \/ S.In j (adj g v).
 Proof.
-  intros g v c1 c2 f ci j H.
   qauto use: two_color_step_find_iff.
 Qed.
 
 (** ** Adjacency in undirected graphs *)
 Lemma undirected_adj_in : forall (g : graph) (v : node) i , undirected g -> S.In i (adj g v) -> M.In i g.
 Proof.
-  intros g v i H H0.
   hauto use: SP.Dec.F.empty_iff unfold: undirected, adj.
 Qed.
 
 (** ** Membership of a two-element set *)
 Lemma in_two_set_inv : forall i a b, S.In i (SP.of_list [a;b]) -> i = a \/ i = b.
 Proof.
-  intros i a b H.
   qauto use: PositiveSet.singleton_1, PositiveSet.add_spec, PositiveSet.cardinal_1.
 Qed.
 

@@ -18,6 +18,19 @@ Import Nat.
 
 Local Open Scope nat.
 
+Add Hammer Filter Coq.Numbers.BinNums.
+Add Hammer Filter Coq.micromega.RingMicromega.
+Add Hammer Filter Coq.micromega.Tauto.
+Add Hammer Filter Coq.micromega.ZifyClasses.
+Add Hammer Filter Coq.micromega.VarMap.
+Add Hammer Filter Coq.micromega.ZMicromega.
+Add Hammer Filter Coq.Vectors.VectorDef.
+Add Hammer Filter Coq.Vectors.VectorSpec.
+Add Hammer Filter Coq.Lists.SetoidList.
+Add Hammer Filter Coq.micromega.EnvRing.
+Add Hammer Filter Coq.funind.Recdef.
+Set Hammer ReconstrLimit 10.
+
 (** * Properties of subgraphs and degrees *)
 
 (** ** Subgraph predicate
@@ -1591,12 +1604,12 @@ Proof.
     { apply Sin_domain.
       apply (degree_gt_0_in g (` v) d).
       hauto l: on.
-    } 
+    }
     (* S Equalities: add back the freshly removed v *)
     rewrite IHp.
     rewrite add_back_diff_singleton; eauto.
     reflexivity.
-  - inversion Hext; subst. strivial use: SP.diff_subset_equal, subgraph_refl unfold: is_subgraph, PositiveSet.Equal.
+  - qauto use: SP.diff_subset_equal, subgraph_refl unfold: is_subgraph, PositiveSet.Equal.
 Qed.
 
 (** ** Vertices in extraction are not in resulting graph but are in original graph *)
