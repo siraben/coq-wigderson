@@ -6,7 +6,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #87CEEB 0%, #4A90E2 100%);
     min-height: 100vh;
     padding: 20px;
 }
@@ -21,7 +21,7 @@ body {
 }
 
 header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #5DADE2 0%, #3498DB 100%);
     color: white;
     padding: 30px;
     text-align: center;
@@ -65,7 +65,7 @@ h1 {
 
 .control-group button {
     padding: 10px 20px;
-    background: #667eea;
+    background: #3498DB;
     color: white;
     border: none;
     border-radius: 5px;
@@ -76,9 +76,9 @@ h1 {
 }
 
 .control-group button:hover {
-    background: #5a67d8;
+    background: #2980B9;
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
 }
 
 .control-group button:disabled {
@@ -411,7 +411,7 @@ h1 {
 
 .modal-buttons button {
     padding: 10px 20px;
-    background: #667eea;
+    background: #3498DB;
     color: white;
     border: none;
     border-radius: 5px;
@@ -422,9 +422,9 @@ h1 {
 }
 
 .modal-buttons button:hover {
-    background: #5a67d8;
+    background: #2980B9;
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
 }
 
 /* Responsive design */

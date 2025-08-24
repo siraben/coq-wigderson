@@ -913,7 +913,13 @@ class App {
         document.getElementById('reset').addEventListener('click', () => this.reset());
         document.getElementById('stepForward').addEventListener('click', () => this.stepForward());
         document.getElementById('stepBack').addEventListener('click', () => this.stepBackward());
-        document.getElementById('runAll').addEventListener('click', () => this.runAll());
+        document.getElementById('runAll').addEventListener('click', () => {
+            if (this.isRunning) {
+                this.stopAnimation();
+            } else {
+                this.runAll();
+            }
+        });
         document.getElementById('debugLog').addEventListener('click', () => this.showDebugLog());
         document.getElementById('toggleDegree').addEventListener('click', () => this.toggleDegrees());
         
@@ -955,6 +961,32 @@ class App {
         
         document.getElementById('copyDebug').addEventListener('click', () => this.copyDebugToClipboard());
         document.getElementById('downloadDebug').addEventListener('click', () => this.downloadDebugLog());
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger if user is typing in an input field
+            if (e.target.tagName === 'INPUT') return;
+            
+            // Don't trigger if modal is open
+            const modal = document.getElementById('debugModal');
+            if (modal && modal.style.display === 'block') return;
+            
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                this.stepBackward();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                this.stepForward();
+            } else if (e.key === ' ') {
+                // Spacebar to run/stop animation
+                e.preventDefault();
+                if (this.isRunning) {
+                    this.stopAnimation();
+                } else {
+                    this.runAll();
+                }
+            }
+        });
     }
     
     generateNewGraph() {
@@ -1022,8 +1054,8 @@ class App {
         this.isRunning = true;
         
         const button = document.getElementById('runAll');
-        button.textContent = 'Running...';
-        button.disabled = true;
+        button.textContent = 'Stop';
+        button.disabled = false;
         
         while (this.algorithm.currentStep < this.algorithm.steps.length - 1) {
             this.stepForward();
@@ -1035,6 +1067,13 @@ class App {
         button.textContent = 'Run All Steps';
         button.disabled = false;
         this.isRunning = false;
+    }
+    
+    stopAnimation() {
+        this.isRunning = false;
+        const button = document.getElementById('runAll');
+        button.textContent = 'Run All Steps';
+        button.disabled = false;
     }
     
     updateUI() {
