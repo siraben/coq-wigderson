@@ -351,19 +351,24 @@ class WigdersonAlgorithm {
     
     // Step backward in the algorithm
     stepBackward() {
-        if (this.currentStep >= 0) {
-            // Rebuild coloring from scratch up to currentStep - 1
-            this.coloring = {};
-            const targetStep = this.currentStep - 1;
-            this.currentStep = -1;
+        if (this.currentStep > 0) {
+            // We can go back from any step > 0
+            this.currentStep--;
             
-            for (let i = 0; i <= targetStep; i++) {
-                this.currentStep = i;
+            // Rebuild coloring from scratch up to the new currentStep
+            this.coloring = {};
+            for (let i = 0; i <= this.currentStep; i++) {
                 this.applyStep(this.steps[i]);
             }
             
-            return this.currentStep >= 0 ? this.steps[this.currentStep] : null;
+            return this.steps[this.currentStep];
+        } else if (this.currentStep === 0) {
+            // Going back from step 0 means no steps applied
+            this.currentStep = -1;
+            this.coloring = {};
+            return null;
         }
+        // Already at -1, can't go further back
         return null;
     }
     
