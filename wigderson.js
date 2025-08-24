@@ -1028,6 +1028,7 @@ class App {
             this.addStepToLog(step);
             this.updatePhaseInfo(step);
             this.updateAlgorithmHighlight(step);
+            this.updateColorLegend();
         }
     }
     
@@ -1047,6 +1048,7 @@ class App {
             document.getElementById('phaseDescription').textContent = '';
             this.updateAlgorithmHighlight(null);
         }
+        this.updateColorLegend();
     }
     
     async runAll() {
@@ -1123,17 +1125,83 @@ class App {
         const legend = document.getElementById('colorLegend');
         legend.innerHTML = '';
         
-        // Get unique colors used
-        const maxColors = 20; // Show first 20 colors
-        for (let i = 0; i < Math.min(maxColors, this.algorithm.colorPalette.length); i++) {
+        // Get colors actually used in the current coloring
+        const usedColors = new Map();
+        const coloring = this.algorithm.coloring;
+        
+        // Count vertices for each color
+        for (const [vertex, color] of Object.entries(coloring)) {
+            if (!usedColors.has(color)) {
+                usedColors.set(color, []);
+            }
+            usedColors.get(color).push(parseInt(vertex));
+        }
+        
+        // Sort colors numerically
+        const sortedColors = Array.from(usedColors.keys()).sort((a, b) => a - b);
+        
+        // Create legend items only for used colors
+        sortedColors.forEach(colorIndex => {
+            const vertices = usedColors.get(colorIndex);
             const colorDiv = document.createElement('div');
             colorDiv.className = 'color-item';
+            colorDiv.dataset.colorIndex = colorIndex;
             colorDiv.innerHTML = `
-                <span class="color-box" style="background-color: ${this.algorithm.colorPalette[i]}"></span>
-                <span>Color ${i}</span>
+                <span class="color-box" style="background-color: ${this.algorithm.colorPalette[colorIndex % this.algorithm.colorPalette.length]}"></span>
+                <span>Color ${colorIndex} (${vertices.length})</span>
             `;
+            
+            // Add hover effects
+            colorDiv.addEventListener('mouseenter', () => {
+                this.highlightColorGroup(colorIndex, vertices);
+            });
+            
+            colorDiv.addEventListener('mouseleave', () => {
+                this.unhighlightColorGroup();
+            });
+            
             legend.appendChild(colorDiv);
+        });
+        
+        // If no colors are used yet, show a message
+        if (sortedColors.length === 0) {
+            legend.innerHTML = '<div style="color: #999; font-style: italic;">No colors assigned yet</div>';
         }
+    }
+    
+    highlightColorGroup(colorIndex, vertices) {
+        // Dim all nodes first
+        this.visualization.nodeGroup.selectAll('g.node').select('circle')
+            .style('opacity', 0.2);
+        
+        // Highlight nodes with the selected color
+        this.visualization.nodeGroup.selectAll('g.node')
+            .filter(d => vertices.includes(d.id))
+            .select('circle')
+            .style('opacity', 1)
+            .attr('stroke-width', 4)
+            .attr('stroke', '#000');
+        
+        // Also dim edges
+        this.visualization.linkGroup.selectAll('line')
+            .style('opacity', 0.1);
+        
+        // Highlight edges between nodes of the same color (should be none in valid coloring)
+        this.visualization.linkGroup.selectAll('line')
+            .filter(d => vertices.includes(d.source.id) || vertices.includes(d.target.id))
+            .style('opacity', 0.5);
+    }
+    
+    unhighlightColorGroup() {
+        // Restore normal appearance
+        this.visualization.nodeGroup.selectAll('g.node').select('circle')
+            .style('opacity', 1);
+        
+        this.visualization.linkGroup.selectAll('line')
+            .style('opacity', 0.6);
+        
+        // Restore normal stroke from updateGraph
+        this.visualization.updateGraph();
     }
     
     showDebugLog() {

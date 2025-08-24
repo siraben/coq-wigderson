@@ -262,6 +262,15 @@ h1 {
     gap: 5px;
     font-size: 12px;
     color: #6c757d;
+    padding: 3px 5px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.color-item:hover {
+    background: #e9ecef;
+    transform: translateX(3px);
 }
 
 .color-box {
@@ -269,6 +278,7 @@ h1 {
     height: 20px;
     border: 1px solid #dee2e6;
     border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 /* Graph node styles */
