@@ -20,6 +20,8 @@ Import Nat.
 
 Local Open Scope positive_scope.
 
+Create HintDb coloring_spec.
+
 (** * Properties of coloring maps *)
 (** ** Definition of a set of colors *)
 Definition colors := S.t.
@@ -178,6 +180,30 @@ Qed.
 Definition restrict_on_nbd (f : coloring) (g : graph) (v : node) :=
   restrict f (nodes (neighborhood g v)).
 
+(* Core find-spec for the neighborhood restriction *)
+Lemma restrict_on_nbd_find_iff f g v i c :
+  M.find i (restrict_on_nbd f g v) = Some c
+  <-> S.In i (nodes (neighborhood g v)) /\ M.find i f = Some c.
+Proof.
+  unfold restrict_on_nbd.
+  split.
+  - intro H; split.
+    + eapply restrict_in_set; eauto.
+    + eapply restrict_agree; eauto.
+  - intros [Hin Hfind].
+    hauto use: @restrict_agree_2 unfold: coloring, PositiveMap.key, PositiveSet.elt.
+Qed.
+
+(* Domain of the restriction *)
+Lemma restrict_on_nbd_domain_spec f g v :
+  S.Equal (Mdomain (restrict_on_nbd f g v))
+          (S.inter (nodes (neighborhood g v)) (Mdomain f)).
+Proof.
+  intro i; split; intro Hi.
+  - hfcrush use: @restrict_spec, Sin_domain, PositiveSet.inter_spec unfold: coloring, restrict_on_nbd, PositiveMap.key, PositiveSet.elt.
+  - hfcrush use: Sin_domain, PositiveSet.inter_1, PositiveSet.inter_2, @restrict_restricts unfold: restrict_on_nbd, coloring.
+Qed.
+
 (** ** Neighborhood of vertex in $(n+1)$-colorable graph is $n$-colorable *)
 Lemma nbd_Sn_colorable_n : forall (g : graph) (f : coloring) (p : colors) (n : nat),
     coloring_complete p g f ->
@@ -315,6 +341,33 @@ Proof.
     + hauto use: PositiveMap.gso.
 Qed.
 
+
+Lemma constant_color_find_iff (s : S.t) (c : node) i :
+  M.find i (constant_color s c) = Some c <-> S.In i s.
+Proof.
+  sauto lq: on use: @constant_color_inv, @constant_color_colors unfold: PositiveSet.elt, nodeset, PositiveMap.key.
+Qed.
+#[global] Hint Rewrite constant_color_find_iff : coloring_spec.
+
+
+Lemma constant_color_find_some_iff (s : S.t) (c d : node) i :
+  M.find i (constant_color s c) = Some d <-> S.In i s /\ d = c.
+Proof.
+  hauto use: constant_color_find_iff, @constant_color_inv unfold: nodeset.
+Qed.
+
+Lemma domain_constant_color (s : S.t) (c : node) :
+  S.Equal (Mdomain (constant_color s c)) s.
+Proof.
+  intro i; split; intro Hi.
+  - (* -> *)
+    rewrite Sin_domain in Hi.
+    strivial use: constant_color_find_some_iff unfold: PositiveMap.key, PositiveSet.elt, PositiveMap.MapsTo, PositiveMap.In.
+  - (* <- *) apply Sin_domain. (* show M.In i (constant_color s c) *)
+    exists c. now apply constant_color_colors.
+Qed.
+
+
 (** * 2-color step *)
 (** Let [g] be a graph, [v] be a vertex, $c_1$ and $c_2$ the colors we
 have that this function colors [v] with $c_1$ and colors its neighbors
@@ -323,18 +376,55 @@ with $c_2$. *)
 Definition two_color_step (g : graph) (v : node) c1 c2 (f : coloring) : coloring :=
   M.add v c1 (constant_color (adj g v) c2).
 
+
+(* One-shot lookup characterization *)
+Lemma two_color_step_find_iff g v c1 c2 f j ci :
+  M.find j (two_color_step g v c1 c2 f) = Some ci
+  <-> (j = v /\ ci = c1) \/ (j <> v /\ S.In j (adj g v) /\ ci = c2).
+Proof.
+  unfold two_color_step.
+  destruct (E.eq_dec j v) as [->|Hneq].
+  - rewrite PositiveMap.gss. firstorder congruence.
+  - rewrite PositiveMap.gso by exact Hneq.
+    rewrite constant_color_find_some_iff.
+    firstorder congruence.
+Qed.
+
+
+Lemma two_color_step_domain_spec g v c1 c2 f :
+  S.Equal (Mdomain (two_color_step g v c1 c2 f)) (S.add v (adj g v)).
+Proof.
+  intro j; split; intro Hj.
+  - hauto use: PositiveSet.add_spec, PositiveSet.add_2, Sin_domain, two_color_step_find_iff unfold: node, coloring, PositiveMap.In, PositiveMap.MapsTo, nodeset, adj, PositiveSet.elt, PositiveMap.key, PositiveOrderedTypeBits.t.
+  - destruct (E.eq_dec j v); apply Sin_domain; unfold M.In, M.MapsTo.
+    + subst.
+      exists c1.
+      unfold two_color_step.
+      scongruence use: PositiveMap.gss unfold: PositiveOrderedTypeBits.t, nodeset, PositiveMap.key, node, adj.
+    + exists c2.
+      unfold two_color_step.
+      qauto use: constant_color_find_some_iff, PositiveMap.gso, PositiveSet.add_3 unfold: adj, node, nodeset, PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveMap.key.
+Qed.
+
+
 (** ** Vertex is colored $c_1$ *)
 Lemma two_color_step_colors_v_c1 : forall g v c1 c2 f, M.find v (two_color_step g v c1 c2 f) = Some c1.
 Proof.
-  scongruence use: PositiveMap.gss unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key, adj, nodeset, two_color_step.
+  intros g v c1 c2 f.
+  rewrite two_color_step_find_iff.
+  auto.
 Qed.
 
 (** ** Neighbors are colored $c_2$ *)
 Lemma two_color_step_colors_adj_c2 : forall g v c1 c2 f i,
-    no_selfloop g -> S.In i (adj g v) -> M.find i (two_color_step g v c1 c2 f) = Some c2.
+    i <> v -> S.In i (adj g v) -> M.find i (two_color_step g v c1 c2 f) = Some c2.
 Proof.
-  hauto use: PositiveMap.gso, @constant_color_colors unfold: two_color_step.
+  intros g v c1 c2 f i H H0.
+  rewrite two_color_step_find_iff.
+  auto.
 Qed.
+
+
 
 (** ** Vertex colored by 2-color step is either [v] or a neighbor *)
 Lemma two_color_step_inv : forall g v c1 c2 f ci j,
@@ -342,10 +432,7 @@ Lemma two_color_step_inv : forall g v c1 c2 f ci j,
     j = v \/ S.In j (adj g v).
 Proof.
   intros g v c1 c2 f ci j H.
-  unfold two_color_step in H.
-  destruct (E.eq_dec j v).
-  - sfirstorder.
-  - hauto use: PositiveMap.gso, @constant_color_inv unfold: nodeset, PositiveMap.key, adj, node, PositiveOrderedTypeBits.t.
+  qauto use: two_color_step_find_iff.
 Qed.
 
 (** ** Adjacency in undirected graphs *)
@@ -374,11 +461,8 @@ Proof.
   intros g v c1 c2 Hc H Hu magic H0.
   split.
   - intros ci H2.
-    unfold two_color_step in H2.
-    destruct (E.eq_dec i v).
-    + subst. hauto use: PositiveMap.gss, PositiveSet.add_1.
-    + rewrite M.gso in H2 by auto.
-      hauto q: on use: constant_color_inv, constant_color_colors, PositiveSet.add_2, PositiveSet.add_1.
+    apply two_color_step_find_iff in H2.
+    hauto q: on use: PositiveSet.add_spec unfold: fold_right, SP.of_list.
   - intros ci cj H2 H3.
     remember (two_color_step g v c1 c2 (M.empty node)) as f.
     assert (Hv: M.find v f = Some c1).
@@ -400,7 +484,7 @@ Proof.
     + contradiction.
     + hauto l: on use: two_color_step_colors_adj_c2.
     + hauto l: on use: two_color_step_colors_adj_c2.
-    + rewrite two_color_step_colors_adj_c2 in H2, H3 by auto.
+    + rewrite two_color_step_colors_adj_c2 in H2, H3; auto; [|sfirstorder|sfirstorder].
       (* Contradiction! We supposed that the graph was 2-colorable to
          begin with, but here we have a configuration of vertices that
          cannot be 2-colored. *)
