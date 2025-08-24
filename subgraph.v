@@ -533,8 +533,7 @@ Lemma subgraph_of_monotone g s1 s2 :
 Proof.
   intros H.
   split.
-  - unfold S.Subset.
-    hfcrush use: nodes_subgraph_of_spec unfold: PositiveSet.Subset.
+  - hfcrush use: nodes_subgraph_of_spec unfold: PositiveSet.Subset.
   - hfcrush use: SP.in_subset, adj_subgraph_of_spec unfold: PositiveSet.Subset.
 Qed.
 
@@ -660,15 +659,9 @@ Lemma degree_subgraph_of_spec g s i d :
   degree i (subgraph_of g s) = Some d
   <-> S.In i (nodes g) /\ S.In i s /\ d = S.cardinal (S.inter s (adj g i)).
 Proof.
-  unfold degree. rewrite find_subgraph_of_spec.
-  ssimpl.
-  - hauto l: on use: Sin_domain.
-  - hauto unfold: adj.
-  - hauto lq: on unfold: adj.
-  - exfalso.
-    apply S.mem_2 in H1.
-    apply Sin_domain in H1.
-    sfirstorder.
+  unfold degree.
+  rewrite find_subgraph_of_spec.
+  hauto drew: off use: degree_spec, Sin_domain, find_subgraph_of_spec unfold: nodeset, negb, PositiveSet.inter, PositiveSet.In, degree, adj, PositiveSet.empty inv: option, bool.
 Qed.
 
 Lemma degree_remove_nodes_spec g s i d :
