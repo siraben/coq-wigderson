@@ -152,6 +152,17 @@ Proof.
   split; [apply subgraph_vertices|apply subgraph_edges].
 Qed.
 
+Lemma subgraph_of_undirected : forall g s, undirected g -> undirected (subgraph_of g s).
+Proof.
+  hfcrush use: adj_subgraph_of_spec unfold: undirected, node, PositiveSet.elt, PositiveOrderedTypeBits.t.
+Qed.
+
+Lemma subgraph_of_empty g : M.Equal (subgraph_of g S.empty) (M.empty _).
+Proof.
+  unfold subgraph_of.
+  now rewrite restrict_empty.
+Qed.
+
 (** * Removal of nodes *)
 (** ** Removing a distinct vertex from a graph *)
 (** If [i] and [j] are distinct vertices then removing [j] from the
@@ -492,6 +503,13 @@ Lemma nodes_neighborhood_spec_undir g v w :
   <-> w <> v /\ S.In w (adj g v).
 Proof.
   hfcrush use: in_adj_neighbor_in_nodes, nodes_neighborhood_spec, in_nodes_iff.
+Qed.
+
+Lemma neighborhood_undirected g v :
+  undirected g -> undirected (neighborhood g v).
+Proof.
+  intros Ug.
+  now apply remove_node_undirected, subgraph_of_undirected.
 Qed.
 
 (** ** Neighborhoods do not include the vertex *)
