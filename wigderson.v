@@ -148,37 +148,7 @@ Definition two_color_nbd (g : graph) (v : node) (c1 c2 : positive) : option colo
 Admitted.
 
 (* Two coloring of a neighborhood of a 3-colorable graph is complete *)
-(* Let c1, c2, c3 be distinct colors.  Assume the graph can be
-   3-colored and that in this 3-coloring the vertex v has color c3,
-   and that the coloring is complete. Then two_color_nbd colors the
-   neighborhood of v correctly with two colors. *)
-(** ** Completeness of two-coloring of a neighborhood *)
-Lemma two_color_nbd_complete : forall (g : graph) (v : node) c1 c2 c3 m,
-    c1 <> c2 ->
-    c1 <> c3 ->
-    c2 <> c3 ->
-    no_selfloop g ->
-    undirected g ->
-    M.In v g ->
-    (exists m, M.find v m = Some c3 /\ coloring_complete (SP.of_list [c1;c2;c3]) g m) ->
-    two_color_nbd g v c1 c2 = Some m ->
-    coloring_complete (SP.of_list [c1;c2]) (subgraph_of g (nodes (neighborhood g v))) m.
-Proof.
-Admitted.
 
-(** ** Failure of two-coloring of a neighborhood implies non-3-colorability *)
-Lemma two_color_nbd_fail_n3_col : forall (g : graph) (v : node) c1 c2 c3,
-    c1 <> c2 ->
-    c1 <> c3 ->
-    c2 <> c3 ->
-    no_selfloop g ->
-    undirected g ->
-    M.In v g ->
-    two_color_nbd g v c1 c2 = None ->
-    ~ (exists m, M.find v m = Some c3 /\ coloring_complete (SP.of_list [c1;c2;c3]) g m).
-Proof.
-Admitted.
-  
 Program Fixpoint phase1
   (* The criterion for high-degree vertices *)
   (k : nat)
