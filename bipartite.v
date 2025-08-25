@@ -190,16 +190,8 @@ Qed.
 Lemma R_of_spec g f c i :
   S.In i (R_of g f c) <-> S.In i (nodes g) /\ M.find i f <> Some c.
 Proof.
-  unfold R_of. rewrite S.diff_spec.
-  split.
-  - intros [Hg HnotL]. split; [assumption|].
-    intro Hsome. apply HnotL.
-    apply L_of_spec. split; [assumption|assumption].
-  - intros [Hg Hneq]. split; [assumption|].
-    intro HinL. apply L_of_spec in HinL as [_ Hfind]. congruence.
+  qauto use: PositiveSet.diff_3, PositiveSet.diff_spec, L_of_spec unfold: R_of.
 Qed.
-
-(* Some handy consequences you’ll likely want *)
 
 Lemma L_R_cover g f c :
   S.Equal (S.union (L_of g f c) (R_of g f c)) (nodes g).
@@ -346,12 +338,8 @@ Proof.
     intros contra.
     hfcrush use: PositiveSet.inter_1, PositiveSet.inter_spec, PositiveSet.inter_2 unfold: PositiveSet.Empty.
   - (* cover nodes of induced subgraph *)
-    rewrite nodes_subgraph_of_spec, S.union_spec.
-    intro Hv; split.
-    + rewrite S.inter_spec in Hv.
-      sfirstorder use: PositiveSet.union_2, PositiveSet.inter_1, PositiveSet.union_3 unfold: PositiveSet.Equal.
-    + sfirstorder use: PositiveSet.inter_2.
-  - hfcrush use: PositiveSet.union_3, PositiveSet.union_1, PositiveSet.union_2, nodes_subgraph_of_spec, PositiveSet.inter_3 unfold: PositiveSet.Equal.
+    hcrush use: PositiveSet.union_3, PositiveSet.union_2, nodes_subgraph_of_spec, PositiveSet.union_1, PositiveSet.inter_spec unfold: PositiveSet.Equal.
+  - hfcrush use: PositiveSet.union_2, PositiveSet.inter_3, nodes_subgraph_of_spec, PositiveSet.union_1, PositiveSet.union_3 unfold: PositiveSet.Equal.
   - hauto depth: 2 lq: on exh: on use: adj_subgraph_of_spec, PositiveSet.inter_1 unfold: PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.elt.
   - hauto depth: 2 lq: on exh: on use: adj_subgraph_of_spec, PositiveSet.inter_1 unfold: PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.elt.
 Qed.
@@ -390,10 +378,7 @@ Proof.
     { unfold neighbors. now rewrite adj_empty_if_notin by auto. }
     unfold neighborhood. rewrite H.
     (* subgraph_of g S.empty is empty graph; removing v changes nothing *)
-    assert (M.Equal (subgraph_of g S.empty) (@M.empty _)).
-    {
-      hauto use: subgraph_of_empty.
-    }
+    assert (M.Equal (subgraph_of g S.empty) (@M.empty _)) by hauto use: subgraph_of_empty.
     unfold bipartite.
     exists S.empty, S.empty.
     hauto lq: on drew: off use: SP.Dec.F.empty_iff, nodes_neighborhood_spec, PositiveSet.choose_2 unfold: is_bipartition, PositiveSet.choose, PositiveSet.empty, PositiveSet.union, neighbors, PositiveSet.inter, neighborhood, PositiveSet.Equal, independent_set.
