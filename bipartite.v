@@ -67,7 +67,7 @@ Lemma bicolor_ok g L R c1 c2 :
   coloring_ok (SP.of_list [c1; c2]) g (bicolor L R c1 c2).
 Proof.
   intros Ug Hneq (Hdisj & Hcov & HindL & HindR).
-  (* Use your general union-of-colorings lemma with disjoint palettes {c1} and {c2} *)
+  (* Use our general union-of-colorings lemma with disjoint palettes {c1} and {c2} *)
   assert (HokL : coloring_ok (S.singleton c1) g (constant_color L c1)).
   { split.
     - hauto l: on use: constant_color_inv2, PositiveSet.singleton_2.
@@ -366,13 +366,13 @@ Lemma neighborhood_bipartite_of_three_coloring :
     bipartite (neighborhood g v).
 Proof.
   intros g f p v Ug Hc H3.
-  (* If v is in G, we can use your nbd_2_colorable_3.  If not, the neighborhood is empty and bipartite. *)
+  (* If v is in G, we can use our nbd_2_colorable_3.  If not, the neighborhood is empty and bipartite. *)
   destruct (WF.In_dec g v) as [Hv|Hnv].
   - (* v is colored *)
     unfold coloring_complete in Hc.
     destruct (proj1 Hc v Hv) as [cv Hfv].
     unfold M.MapsTo in Hfv.
-    (* From your lemma we get a 2-coloring complete on the neighborhood *)
+    (* From our lemma we get a 2-coloring complete on the neighborhood *)
     destruct (nbd_2_colorable_3 g f p Hc H3 v cv ltac:(assumption)) as [H2col HcompN].
     assert (undirected (neighborhood g v)) by now apply neighborhood_undirected.
     (* Turn that complete 2-coloring into a bipartition *)
