@@ -159,10 +159,9 @@ Program Fixpoint phase1
   match S.choose (subset_nodes (high_deg k) g) with
   | Some v =>
       let nbhd := neighborhood g v in
-      (* i is the map that turns the coloring using colors 1,2 into c+1, c+2 *)
       let coloring_of_nbhd := two_color_nbd g v (c+1) (c+2) in
       let g' := remove_nodes g (S.add v (nodes nbhd)) in
-      (* color the high-degree vertex 1 each time *)
+      (* color the high-degree vertex with c each time *)
       match coloring_of_nbhd with
       | None => None
       | Some m' => option_map (fun (p : coloring * graph) => let (c2,g2) := p in (Munion (M.add v c m') c2, g2)) (phase1 k (c+2) g')
