@@ -16,7 +16,7 @@ class WigdersonAlgorithm {
     }
 
     // Generate a 3-colorable graph
-    generate3ColorableGraph(n) {
+    generate3ColorableGraph(n, edgeProbability = 0.4) {
         // Create three partitions for guaranteed 3-colorability
         const partitions = [[], [], []];
         const nodes = [];
@@ -45,7 +45,7 @@ class WigdersonAlgorithm {
                 // Only add edges between different partitions
                 if (partition_i !== partition_j) {
                     // Add edge with some probability to vary density
-                    if (Math.random() < 0.4) {
+                    if (Math.random() < edgeProbability) {
                         edges.push({
                             source: i,
                             target: j
@@ -1005,6 +1005,11 @@ class App {
             this.algorithm.animationSpeed = parseInt(e.target.value);
         });
         
+        const edgeProbabilitySlider = document.getElementById('edgeProbability');
+        edgeProbabilitySlider.addEventListener('input', (e) => {
+            document.getElementById('edgeProbabilityValue').textContent = e.target.value;
+        });
+        
         // Modal event listeners
         const modal = document.getElementById('debugModal');
         const closeBtn = document.getElementsByClassName('close')[0];
@@ -1051,7 +1056,8 @@ class App {
     
     generateNewGraph() {
         const n = parseInt(document.getElementById('verticesInput').value);
-        this.algorithm.generate3ColorableGraph(n);
+        const edgeProbability = parseFloat(document.getElementById('edgeProbability').value);
+        this.algorithm.generate3ColorableGraph(n, edgeProbability);
         this.algorithm.runAlgorithm();
         this.visualization.initGraph();
         this.reset();
