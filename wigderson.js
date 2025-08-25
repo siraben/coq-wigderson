@@ -262,29 +262,75 @@ class WigdersonAlgorithm {
         return { processedVertices, phase1Coloring };
     }
     
-    // Phase 2: Color remaining graph with colors i, i+1, i+2, ...
-    // Simply assign consecutive colors starting from i
+    // Phase 2: Greedy coloring by degree classes
     phase2(processedVertices, phase1Coloring) {
+        // Get remaining vertices
         const remainingVertices = this.graph.nodes
-            .filter(v => !processedVertices.has(v.id));
+            .filter(v => !processedVertices.has(v.id))
+            .map(v => v.id);
+        
+        if (remainingVertices.length === 0) return;
         
         // Start coloring from color i (where Phase 1 left off)
-        const i = this.phase1Colors;
+        let currentColor = this.phase1Colors;
+        const coloredInPhase2 = new Set();
+        let lastMaxDegree = -1;
         
-        // Assign consecutive colors i, i+1, i+2, ... to remaining vertices
-        remainingVertices.forEach((vertex, index) => {
-            const color = i + index;
+        // Process vertices one by one by decreasing degree
+        while (remainingVertices.length > coloredInPhase2.size) {
+            // Calculate degrees in the remaining subgraph (excluding already colored vertices)
+            const vertexDegrees = [];
+            for (const v of remainingVertices) {
+                if (coloredInPhase2.has(v)) continue;
+                
+                let degree = 0;
+                for (const neighbor of this.graph.adjacencyList[v]) {
+                    if (!processedVertices.has(neighbor) && !coloredInPhase2.has(neighbor)) {
+                        degree++;
+                    }
+                }
+                vertexDegrees.push({ id: v, degree: degree });
+            }
             
+            if (vertexDegrees.length === 0) break;
+            
+            // Find the maximum degree in the remaining graph
+            const maxDegree = Math.max(...vertexDegrees.map(v => v.degree));
+            
+            // Get all vertices with the maximum degree
+            const maxDegreeVertices = vertexDegrees
+                .filter(v => v.degree === maxDegree)
+                .map(v => v.id);
+            
+            // If max degree has decreased, we need a new color
+            if (lastMaxDegree !== -1 && maxDegree < lastMaxDegree) {
+                currentColor++;
+            }
+            lastMaxDegree = maxDegree;
+            
+            // Select just one vertex to color at this step
+            const vertexToColor = maxDegreeVertices[0];
+            
+            // Add step to identify this max degree vertex
+            this.steps.push({
+                type: 'phase2_identify',
+                phase: 'Phase 2',
+                vertices: [vertexToColor],
+                degree: maxDegree,
+                description: `Identifying vertex ${vertexToColor} with degree ${maxDegree}`
+            });
+            
+            // Color this vertex
             this.steps.push({
                 type: 'phase2',
                 phase: 'Phase 2',
-                vertex: vertex.id,
-                color: color,
-                description: `Coloring vertex ${vertex.id} with color ${color}`
+                vertex: vertexToColor,
+                color: currentColor,
+                maxDegree: maxDegree,
+                description: `Coloring vertex ${vertexToColor} (degree ${maxDegree}) with color ${currentColor}`
             });
-        });
-        
-        // Phase 2 uses colors i through i + (number of remaining vertices - 1)
+            coloredInPhase2.add(vertexToColor);
+        }
     }
     
     // Run the complete algorithm
@@ -818,11 +864,21 @@ class Visualization {
                 .select('circle')
                 .classed('highlighted', true)
                 .attr('stroke-dasharray', '5,5');
+        } else if (step.type === 'phase2_identify') {
+            // Highlight all max degree vertices in Phase 2 with red rings
+            this.nodeGroup.selectAll('g.node')
+                .filter(d => step.vertices.includes(d.id))
+                .select('circle')
+                .attr('stroke', '#ff0000')
+                .attr('stroke-width', 4);
         } else if (step.type === 'phase2') {
+            // Highlight the vertex being colored in Phase 2
             this.nodeGroup.selectAll('g.node')
                 .filter(d => d.id === step.vertex)
                 .select('circle')
                 .classed('highlighted', true)
+                .attr('stroke', '#00ff00')  // Green for Phase 2 coloring
+                .attr('stroke-width', 4)
                 .attr('stroke-dasharray', '5,5');
         }
     }
@@ -887,7 +943,11 @@ class App {
             lineToHighlight = 6; // Line 6: 2-color H with colors i, i+1
         } else if (step.type === 'phase_transition') {
             lineToHighlight = 10; // Line 10: end while
+        } else if (step.type === 'phase2_identify') {
+            // When identifying max degree vertex in Phase 2
+            lineToHighlight = 11; // Line 11: color G with colors i, i+1, ...
         } else if (step.type === 'phase2') {
+            // When coloring vertex in Phase 2
             lineToHighlight = 11; // Line 11: color G with colors i, i+1, ...
         } else if (step.type === 'complete') {
             lineToHighlight = 11; // Line 11: halt
