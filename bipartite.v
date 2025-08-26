@@ -323,7 +323,6 @@ Proof.
     + (* extract 2-coloring info from palette [1;2] *)
       unfold two_coloring, n_coloring. split; [hauto|].
       intros v c' Hf. rewrite SP.of_list_1. rewrite InA_iff.
-      Search coloring_complete.
       admit.
 Admitted.
 
