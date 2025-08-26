@@ -24,8 +24,6 @@ Add Hammer Filter Coq.micromega.Tauto.
 Add Hammer Filter Coq.micromega.ZifyClasses.
 Add Hammer Filter Coq.micromega.VarMap.
 Add Hammer Filter Coq.micromega.ZMicromega.
-Add Hammer Filter Coq.Vectors.VectorDef.
-Add Hammer Filter Coq.Vectors.VectorSpec.
 Add Hammer Filter Coq.Lists.SetoidList.
 Add Hammer Filter Coq.micromega.EnvRing.
 Add Hammer Filter Coq.funind.Recdef.

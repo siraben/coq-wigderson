@@ -14,8 +14,8 @@
       {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            coq_8_19
-            coqPackages_8_19.coq-hammer
+            coq_8_20
+            coqPackages_8_20.coq-hammer
             vampire
             eprover
             cvc4
