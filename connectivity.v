@@ -11,6 +11,7 @@ Require Import Decidable.
 Require Import Program.
 Require Import FunInd.
 Require Import Psatz.
+Require Import bipartite.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 From Hammer Require Import Reflect.
@@ -90,7 +91,7 @@ Proof.
   induction H0.
   - cbn.
     rewrite !Forall_cons_iff.
-    best use: Sin_domain unfold: nodes.
+    sauto lq: on rew: off use: Sin_domain unfold: nodes.
   - cbn.
     apply Forall_cons_iff.
     split.
@@ -154,4 +155,87 @@ Proof.
       * unfold step. rewrite adj_remove_nodes_spec. repeat split; try now apply Forall_forall in Hall.
         all: sauto.
       * apply IHW. eapply Forall_inv_tail. exact Hall.
+Qed.
+
+(* note: should replace g with closed property rather than undirected *)
+Lemma step_L_R g L R x y :
+  undirected g ->
+  is_bipartition g L R ->
+  S.In x L -> step g x y -> S.In y R.
+Proof.
+  intros Ug (Hdisj & Hcov & HindL & HindR) Hx Hxy.
+  (* y cannot be in L, otherwise (x,y) violates independence of L *)
+  assert (~ S.In y L) by sfirstorder.
+  (* y is a node, hence lies in L∪R; with y∉L it must be in R *)
+  assert (Hy_nodes : S.In y (nodes g)).
+  {
+     hauto use: FExt.in_adj_neighbor_in_nodes unfold: PositiveOrderedTypeBits.t, step, node, PositiveSet.elt.
+  }
+  hauto use: SP.Dec.F.union_iff unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, PositiveSet.Equal.
+Qed.
+
+Lemma step_R_L g L R x y :
+  undirected g ->
+  is_bipartition g L R ->
+  S.In x R -> step g x y -> S.In y L.
+Proof.
+  intros Ug (Hdisj & Hcov & HindL & HindR) Hx Hxy.
+  assert (~ S.In y R).
+  {
+    sfirstorder.
+  }
+  assert (Hy_nodes : S.In y (nodes g)).
+  {
+    hauto use: FExt.in_adj_neighbor_in_nodes unfold: PositiveOrderedTypeBits.t, step, node, PositiveSet.elt.
+  }
+  qauto use: SP.Dec.F.union_iff unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, PositiveSet.Equal.
+Qed.
+
+Lemma bipartition_walk_parity_even g L R :
+  undirected g ->
+  is_bipartition g L R ->
+  forall x l z, walk g x l z ->
+    (* start in L *)
+    (S.In x L ->
+       (Nat.even (length l) = true  -> S.In z L) /\
+       (Nat.even (length l) = false -> S.In z R))
+  /\ (* start in R *)
+    (S.In x R ->
+       (Nat.even (length l) = true  -> S.In z R) /\
+       (Nat.even (length l) = false -> S.In z L)).
+Proof.
+  intros Ug Hbip x l z W; revert x z W.
+  induction l as [|y l IH]; intros x z W; simpl.
+  - inversion W; subst; split; intros Hx; split; intro He.
+    + now cbn in He; inversion He.
+    + sauto.
+    + now cbn in He; inversion He.
+    + sauto.
+  - inversion W as [|x' y' l' z' Hxy Hyz]; subst.
+    specialize (IH y z Hyz). destruct IH as [IH_L IH_R].
+    split.
+    + (* start in L *)
+      intros HxL.
+      assert (HyR : S.In y R).
+      {
+        sauto lq: on rew: off use: step_L_R unfold: node, PositiveSet.elt, PositiveOrderedTypeBits.t.
+      }
+      destruct (IH_R HyR) as [EvTrue EvFalse].
+      hauto lq: on use: even_1, even_succ, odd_1, even_0 unfold: Init.Nat.odd inv: nat.
+    + (* start in R *)
+      intros HxR.
+      assert (HyL : S.In y L) by (eapply step_R_L; eauto).
+      hauto lq: on use: even_1, even_succ, odd_1, even_0 unfold: Init.Nat.odd inv: nat.
+Qed.
+
+Lemma bipartition_walk_parity_L g L R x l z :
+  undirected g -> 
+  is_bipartition g L R ->
+  S.In x L -> walk g x l z ->
+  (Nat.even (length l) = true  -> S.In z L) /\
+  (Nat.odd  (length l) = true  -> S.In z R).
+Proof.
+  intros Ug Hbip HxL W.
+  pose proof (bipartition_walk_parity_even g L R Ug Hbip x l z W) as [HL _].
+  hauto lq: on drew: off use: even_0, negb_odd, even_succ, even_1 unfold: Init.Nat.odd.
 Qed.
