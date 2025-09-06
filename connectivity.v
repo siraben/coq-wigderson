@@ -21,8 +21,6 @@ Import Nat.
 
 Local Open Scope positive_scope.
 
-Create HintDb coloring_spec.
-
 Add Hammer Filter Coq.Numbers.BinNums.
 Add Hammer Filter Coq.micromega.RingMicromega.
 Add Hammer Filter Coq.micromega.Tauto.
@@ -82,7 +80,7 @@ Proof.
   intros g x l z H H0.
   induction H0; assumption.
 Qed.
-  
+
 Lemma walk_all_in_nodes :
   forall g x l z, undirected g -> walk g x l z ->
              Forall (fun v => S.In v (nodes g)) (x :: l ++ [z]).
@@ -164,14 +162,7 @@ Lemma step_L_R g L R x y :
   S.In x L -> step g x y -> S.In y R.
 Proof.
   intros Ug (Hdisj & Hcov & HindL & HindR) Hx Hxy.
-  (* y cannot be in L, otherwise (x,y) violates independence of L *)
-  assert (~ S.In y L) by sfirstorder.
-  (* y is a node, hence lies in L∪R; with y∉L it must be in R *)
-  assert (Hy_nodes : S.In y (nodes g)).
-  {
-     hauto use: FExt.in_adj_neighbor_in_nodes unfold: PositiveOrderedTypeBits.t, step, node, PositiveSet.elt.
-  }
-  hauto use: SP.Dec.F.union_iff unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, PositiveSet.Equal.
+  qauto use: SP.Dec.F.union_iff, FExt.in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
 Qed.
 
 Lemma step_R_L g L R x y :
@@ -180,15 +171,7 @@ Lemma step_R_L g L R x y :
   S.In x R -> step g x y -> S.In y L.
 Proof.
   intros Ug (Hdisj & Hcov & HindL & HindR) Hx Hxy.
-  assert (~ S.In y R).
-  {
-    sfirstorder.
-  }
-  assert (Hy_nodes : S.In y (nodes g)).
-  {
-    hauto use: FExt.in_adj_neighbor_in_nodes unfold: PositiveOrderedTypeBits.t, step, node, PositiveSet.elt.
-  }
-  qauto use: SP.Dec.F.union_iff unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, PositiveSet.Equal.
+  qauto use: SP.Dec.F.union_iff, FExt.in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
 Qed.
 
 Lemma bipartition_walk_parity_even g L R :
@@ -216,10 +199,7 @@ Proof.
     split.
     + (* start in L *)
       intros HxL.
-      assert (HyR : S.In y R).
-      {
-        sauto lq: on rew: off use: step_L_R unfold: node, PositiveSet.elt, PositiveOrderedTypeBits.t.
-      }
+      assert (HyR : S.In y R) by (eapply step_L_R; eauto).
       destruct (IH_R HyR) as [EvTrue EvFalse].
       hauto lq: on use: even_1, even_succ, odd_1, even_0 unfold: Init.Nat.odd inv: nat.
     + (* start in R *)
@@ -229,7 +209,7 @@ Proof.
 Qed.
 
 Lemma bipartition_walk_parity_L g L R x l z :
-  undirected g -> 
+  undirected g ->
   is_bipartition g L R ->
   S.In x L -> walk g x l z ->
   (Nat.even (length l) = true  -> S.In z L) /\
