@@ -270,6 +270,11 @@ Definition graph := nodemap nodeset.
 Definition adj (g: graph) (i: node) : nodeset :=
   match M.find i g with Some a => a | None => S.empty end.
 
+(** Well-formedness means everything that is in an adjacency set
+    exists in the graph itself. *)
+Definition well_formed (g: graph) :=
+  forall i j, S.In j (adj g i) -> M.In j g.
+
 Definition undirected (g: graph) :=
   forall i j, S.In j (adj g i) -> S.In i (adj g j).
 
