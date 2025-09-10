@@ -26,12 +26,12 @@ Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
 Local Open Scope positive_scope.
 
 
-(* Wigderson's algorithm definition
+(** Wigderson's algorithm definition
 
-let G be a graph, |G.v| = k
-a vertex v is high-degree if deg(v) > sqrt(k)
-phase1 is selecting the high-degree vertices and coloring their neighborhoods
-phase2 is coloring the remaining nodes with at most sqrt(k) colors
+    Let G be a graph, |G.v| = k.
+    A vertex v is high-degree if deg(v) > sqrt(k).
+    Phase 1 is selecting the high-degree vertices and coloring their neighborhoods.
+    Phase 2 is coloring the remaining nodes with at most sqrt(k) colors.
  *)
 
 (** ** Termination of selectW *)

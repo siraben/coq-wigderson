@@ -140,13 +140,13 @@ Definition two_coloring (f : coloring) p := n_coloring f p 2.
 
 (** ** $(n+1)$-coloring not using a color is $n$-coloring *)
 (** Let:
-- [f] be a coloring
-- [p] be palette of colors of size [n]
-- [c] be a color in [p]
+- [f] be a coloring.
+- [p] be palette of colors of size [n].
+- [c] be a color in [p].
 
 Assume that [f] is a $(n+1)$-coloring wrt. [p], [c] is in [p], and [c] is unused by [f].
-Then [f] is a $n$-coloring wrt. [c\{p}].
- *)
+Then [f] is a $n$-coloring wrt. [p\{c}].
+*)
 
 Lemma n_coloring_missed (f : coloring) p c n :
   n_coloring f p (S n) ->
