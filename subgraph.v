@@ -150,6 +150,15 @@ Proof.
   split; [apply subgraph_vertices|apply subgraph_edges].
 Qed.
 
+Lemma subgraph_of_well_formed : forall g s, well_formed g -> well_formed (subgraph_of g s).
+Proof.
+  intros g s Hwf i j Hij.
+  apply adj_subgraph_of_spec in Hij as [Hi [Hj Hij]].
+  unfold subgraph_of.
+  rewrite WF.map_in_iff.
+  qauto l: on use: restrict_spec.
+Qed.
+
 Lemma subgraph_of_undirected : forall g s, undirected g -> undirected (subgraph_of g s).
 Proof.
   hfcrush use: adj_subgraph_of_spec unfold: undirected, node, PositiveSet.elt, PositiveOrderedTypeBits.t.
@@ -444,8 +453,7 @@ Proof.
   strivial use: in_remove_nodes_iff.
 Qed.
 
-(** ** Removing a subgraph preserves undirectedness *)
-
+(** ** Removing a subgraph preserves well-formedness and undirectedness *)
 Lemma remove_nodes_undirected : forall g s, undirected g -> undirected (remove_nodes g s).
 Proof.
   hauto l: on use: adj_remove_nodes_spec unfold: undirected.
@@ -458,7 +466,30 @@ Proof.
   hauto l: on use: adj_remove_nodes_spec unfold: no_selfloop.
 Qed.
 
-(** ** Removing a node preserves undirectedness *)
+(** ** Removing a node preserves well-formedness and undirectedness *)
+
+Lemma remove_node_well_formed : forall g n, well_formed g -> well_formed (remove_node n g).
+Proof.
+  intros g n Hwf i j Hij.
+  unfold remove_node.
+  rewrite WF.map_in_iff.
+  rewrite adj_remove_node_spec in Hij.
+  rewrite WF.remove_in_iff.
+  sfirstorder.
+Qed.
+
+Lemma remove_nodes_well_formed : forall g s, well_formed g -> well_formed (remove_nodes g s).
+Proof.
+  intros g s Hwf i j Hij.
+  apply adj_remove_nodes_spec in Hij as [Hi Hij].
+  unfold remove_nodes.
+  rewrite WF.map_in_iff.
+  rewrite restrict_spec.
+  split.
+  - sfirstorder.
+  - sfirstorder use: in_adj_neighbor_in_nodes_wf, PositiveSet.diff_3 unfold: nodeset.
+Qed.
+
 
 Lemma remove_node_undirected : forall g i, undirected g -> undirected (remove_node i g).
 Proof.

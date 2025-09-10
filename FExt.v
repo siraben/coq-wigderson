@@ -43,7 +43,16 @@ Proof.
   rewrite adj_in_iff_find; firstorder using in_nodes_iff.
 Qed.
 
-(* With undirectedness you also get the neighbor is a key. *)
+(* With well-formedness you get that the neighbor is a key. *)
+Lemma in_adj_neighbor_in_nodes_wf g i j :
+  well_formed g -> S.In i (adj g j) -> S.In i (nodes g).
+Proof.
+  intros Hwf Hi.
+  unfold nodes. rewrite Sin_domain.
+  exact (Hwf j i Hi).
+Qed.
+
+(* Legacy version with undirectedness *)
 Lemma in_adj_neighbor_in_nodes g i j :
   undirected g -> S.In i (adj g j) -> S.In i (nodes g).
 Proof.
@@ -51,7 +60,16 @@ Proof.
   now apply in_adj_center_in_nodes in Hij.
 Qed.
 
-(* Consolidated: both endpoints are nodes in an undirected graph. *)
+(* Consolidated: both endpoints are nodes in a well-formed graph. *)
+Lemma in_adj_both_in_nodes_wf g i j :
+  well_formed g -> S.In i (adj g j) -> S.In i (nodes g) /\ S.In j (nodes g).
+Proof.
+  intros Hwf Hi. split.
+  - eapply in_adj_neighbor_in_nodes_wf; eauto.
+  - eapply in_adj_center_in_nodes; eauto.
+Qed.
+
+(* Legacy version for undirected graphs *)
 Lemma in_adj_both_in_nodes g i j :
   undirected g -> S.In i (adj g j) -> S.In i (nodes g) /\ S.In j (nodes g).
 Proof.

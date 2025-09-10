@@ -414,7 +414,14 @@ Proof.
   qauto use: two_color_step_find_iff.
 Qed.
 
-(** ** Adjacency in undirected graphs *)
+(** ** Adjacency in well-formed graphs *)
+Lemma well_formed_adj_in : forall (g : graph) (v : node) i , well_formed g -> S.In i (adj g v) -> M.In i g.
+Proof.
+  intros g v i Hwf Hi.
+  exact (Hwf v i Hi).
+Qed.
+
+(** ** Legacy lemma for backward compatibility *)
 Lemma undirected_adj_in : forall (g : graph) (v : node) i , undirected g -> S.In i (adj g v) -> M.In i g.
 Proof.
   hauto use: SP.Dec.F.empty_iff unfold: undirected, adj.

@@ -280,6 +280,14 @@ Definition undirected (g: graph) :=
 
 Definition no_selfloop (g: graph) := forall i, ~ S.In i (adj g i).
 
+(** Undirected graphs are well-formed *)
+Lemma undirected_well_formed : forall g,
+  undirected g -> well_formed g.
+Proof.
+  intros g Hund i j Hij.
+  sauto unfold: undirected, adj.
+Qed.
+
 Definition nodes (g: graph) := Mdomain g.
 
 Definition subset_nodes
