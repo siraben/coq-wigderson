@@ -26,8 +26,8 @@ Lemma lt_proper: Proper (eq ==> eq ==> iff) E.lt.
 Proof. exact M.ME.MO.IsTO.lt_compat. Qed.
 
 (** Domain extraction from maps *)
-Definition Mdomain {A} (m: M.t A) : S.t := 
-   M.fold (fun n _ s => S.add n s) m S.empty.
+Definition Mdomain {A} (m: M.t A) : S.t :=
+  M.fold (fun n _ s => S.add n s) m S.empty.
 
 (** Useful tactic *)
 Ltac inv H := inversion H; clear H; subst.
@@ -35,24 +35,23 @@ Ltac inv H := inversion H; clear H; subst.
 (** Core lemmas about equality and sorting *)
 Lemma eqlistA_Eeq_eq: forall al bl, eqlistA E.eq al bl <-> al=bl.
 Proof.
-split; intro.
-* induction H. reflexivity. unfold E.eq in H. subst. reflexivity.
-* subst. induction bl. constructor. constructor.
-   unfold E.eq. reflexivity. assumption.
+  split; intro.
+  * induction H; hauto lq: on rew: off.
+  * subst. induction bl; sauto lq: on.
 Qed.
 
 Lemma SortE_equivlistE_eqlistE:
- forall al bl, Sorted E.lt al ->
-                   Sorted E.lt bl ->
-                   equivlistA E.eq al bl -> eqlistA E.eq al bl.
+  forall al bl, Sorted E.lt al ->
+           Sorted E.lt bl ->
+           equivlistA E.eq al bl -> eqlistA E.eq al bl.
 Proof.
   apply SortA_equivlistA_eqlistA; auto.
   apply lt_strict.
   apply lt_proper.
 Qed.
 
-Lemma filter_sortE: forall f l, 
-     Sorted E.lt l -> Sorted E.lt (List.filter f l).
+Lemma filter_sortE: forall f l,
+    Sorted E.lt l -> Sorted E.lt (List.filter f l).
 Proof.
   apply filter_sort with E.eq; intuition.
 Qed.
@@ -63,105 +62,105 @@ Proof.
   congruence.
 Qed.
 
-Lemma Sremove_elements:  forall (i: E.t) (s: S.t), 
-  S.In i s -> 
-     S.elements (S.remove i s) = 
-         List.filter (fun x => if E.eq_dec x i then false else true) (S.elements s).
+Lemma Sremove_elements:  forall (i: E.t) (s: S.t),
+    S.In i s ->
+    S.elements (S.remove i s) =
+      List.filter (fun x => if E.eq_dec x i then false else true) (S.elements s).
 Proof.
-intros.
-apply eqlistA_Eeq_eq.
-apply SortE_equivlistE_eqlistE.
-* (* To prove this one, [SearchAbout S.elements] *)
-  apply PositiveSet.elements_3.
-* (* Use [filter_sortE] to prove this one *)
-  apply filter_sortE. apply PositiveSet.elements_3.
-*
-  intro j.
-  rewrite filter_InA; [ | apply Proper_eq_eq].
-  pose proof S.remove_1.
-  pose proof S.remove_2.
-  pose proof S.remove_3.
-  pose proof S.elements_1.
-  pose proof S.elements_2.
-  hauto lq: on rew: off.
+  intros.
+  apply eqlistA_Eeq_eq.
+  apply SortE_equivlistE_eqlistE.
+  * (* To prove this one, [SearchAbout S.elements] *)
+    apply PositiveSet.elements_3.
+  * (* Use [filter_sortE] to prove this one *)
+    apply filter_sortE. apply PositiveSet.elements_3.
+  *
+    intro j.
+    rewrite filter_InA; [ | apply Proper_eq_eq].
+    pose proof S.remove_1.
+    pose proof S.remove_2.
+    pose proof S.remove_3.
+    pose proof S.elements_1.
+    pose proof S.elements_2.
+    hauto lq: on rew: off.
 Qed.
 
 Lemma InA_map_fst_key:
- forall A j l, 
-   InA E.eq j (map (@fst M.E.t A) l) <-> exists e, InA (@M.eq_key_elt A) (j,e) l.
+  forall A j l,
+    InA E.eq j (map (@fst M.E.t A) l) <-> exists e, InA (@M.eq_key_elt A) (j,e) l.
 Proof.
   split; induction l; intros H; sauto lq: on rew: off.
 Qed.
 
 Lemma Sorted_lt_key:
-  forall A (al: list (positive*A)), 
-   Sorted (@M.lt_key A) al <->  Sorted E.lt (map (@fst positive A) al).
+  forall A (al: list (positive*A)),
+    Sorted (@M.lt_key A) al <->  Sorted E.lt (map (@fst positive A) al).
 Proof.
   induction al; sauto.
 Qed.
 
 (** Cardinality lemmas *)
-Lemma cardinal_map:  forall A B (f: A -> B) g, 
-     M.cardinal (M.map f g) = M.cardinal g.
+Lemma cardinal_map:  forall A B (f: A -> B) g,
+    M.cardinal (M.map f g) = M.cardinal g.
 Proof.
-(** Hint:  To prove this theorem, I used these lemmas.  
+  (** Hint:  To prove this theorem, I used these lemmas.
      You might find a different way. *)
-pose proof M.elements_1.
-pose proof M.elements_2.
-pose proof M.elements_3.
-pose proof map_length.
-pose proof eqlistA_length.
-pose proof SortE_equivlistE_eqlistE.
-pose proof InA_map_fst_key.
-pose proof WF.map_mapsto_iff.
-pose proof Sorted_lt_key.
-intros A B f g.
-rewrite !M.cardinal_1.
-pose proof (SortE_equivlistE_eqlistE (map fst (M.elements g)) (map fst (M.elements (M.map f g))) ltac:(hauto l:on) ltac:(hauto l:on)).
-assert (equivlistA E.eq (map fst (M.elements g)) (map fst (M.elements (M.map f g)))).
-{
-  unfold equivlistA.
-  intros x.
-  split; intros HH.
-  - hauto lq: on rew: off.
-  - fcrush.
-}
-hauto l: on.
+  pose proof M.elements_1.
+  pose proof M.elements_2.
+  pose proof M.elements_3.
+  pose proof map_length.
+  pose proof eqlistA_length.
+  pose proof SortE_equivlistE_eqlistE.
+  pose proof InA_map_fst_key.
+  pose proof WF.map_mapsto_iff.
+  pose proof Sorted_lt_key.
+  intros A B f g.
+  rewrite !M.cardinal_1.
+  pose proof (SortE_equivlistE_eqlistE (map fst (M.elements g)) (map fst (M.elements (M.map f g))) ltac:(hauto l:on) ltac:(hauto l:on)).
+  assert (equivlistA E.eq (map fst (M.elements g)) (map fst (M.elements (M.map f g)))).
+  {
+    unfold equivlistA.
+    intros x.
+    split; intros HH.
+    - hauto lq: on rew: off.
+    - fcrush.
+  }
+  hauto l: on.
 Qed.
 
 Lemma Sremove_cardinal_less: forall i s,
-        S.In i s -> S.cardinal (S.remove i s) < S.cardinal s.
+    S.In i s -> S.cardinal (S.remove i s) < S.cardinal s.
 Proof.
   sfirstorder use: SP.remove_cardinal_1, le_n unfold: lt.
 Qed.
 
 Lemma specialize_SortA_equivlistA_eqlistA:
   forall A al bl,
-  Sorted (@M.lt_key A) al ->
-  Sorted (@M.lt_key A) bl ->
-  equivlistA (@M.eq_key_elt A) al bl ->
-  eqlistA (@M.eq_key_elt A) al bl.
+    Sorted (@M.lt_key A) al ->
+    Sorted (@M.lt_key A) bl ->
+    equivlistA (@M.eq_key_elt A) al bl ->
+    eqlistA (@M.eq_key_elt A) al bl.
 Proof.
   intros.
-apply SortA_equivlistA_eqlistA with (@M.lt_key A); auto.
-apply M.eqke_equiv.
-apply M.ltk_strorder.
-clear.
-repeat intro.
-unfold M.lt_key, M.eq_key_elt in *.
-destruct H, H0. rewrite H,H0. split; auto.
+  apply SortA_equivlistA_eqlistA with (@M.lt_key A); auto.
+  apply M.eqke_equiv.
+  apply M.ltk_strorder.
+  clear.
+  repeat intro.
+  unfold M.lt_key, M.eq_key_elt in *.
+  destruct H, H0. rewrite H,H0. split; auto.
 Qed.
 
-Lemma Proper_eq_key_elt: 
- forall A, 
-   Proper (@M.eq_key_elt A ==> @M.eq_key_elt A ==> iff)
-                (fun x y : E.t * A => E.lt (fst x) (fst y)).
+Lemma Proper_eq_key_elt:
+  forall A,
+    Proper (@M.eq_key_elt A ==> @M.eq_key_elt A ==> iff)
+      (fun x y : E.t * A => E.lt (fst x) (fst y)).
 Proof.
- repeat intro. destruct H,H0. rewrite H,H0. split; auto.
+  repeat intro. destruct H,H0. rewrite H,H0. split; auto.
 Qed.
 
-Lemma Mremove_cardinal_less: forall A i (s: M.t A), M.In i s -> 
-        M.cardinal (M.remove i s) < M.cardinal s.
+Lemma Mremove_cardinal_less: forall A i (s: M.t A), M.In i s ->
+                                               M.cardinal (M.remove i s) < M.cardinal s.
 Proof.
   intros A i s H.
   pose proof WP.cardinal_2.
@@ -190,7 +189,7 @@ Qed.
 
 Lemma Sin_domain: forall A n (g: M.t A), S.In n (Mdomain g) <-> M.In n g.
 Proof.
-(** To reason about [M.fold], used in the definition of [Mdomain],
+  (** To reason about [M.fold], used in the definition of [Mdomain],
     a useful theorem is [WP.fold_rec_bis]. *)
   intros A n g.
   unfold Mdomain.
@@ -271,16 +270,16 @@ Definition graph := nodemap nodeset.
 Definition adj (g: graph) (i: node) : nodeset :=
   match M.find i g with Some a => a | None => S.empty end.
 
-Definition undirected (g: graph) := 
-   forall i j, S.In j (adj g i) -> S.In i (adj g j).
+Definition undirected (g: graph) :=
+  forall i j, S.In j (adj g i) -> S.In i (adj g j).
 
 Definition no_selfloop (g: graph) := forall i, ~ S.In i (adj g i).
 
 Definition nodes (g: graph) := Mdomain g.
 
 Definition subset_nodes
-                    (P: node -> nodeset -> bool)
-                    (g: graph) := Mdomain (WP.filter P g).
+  (P: node -> nodeset -> bool)
+  (g: graph) := Mdomain (WP.filter P g).
 
 Definition low_deg (K: nat) (n: node) (adj: nodeset) : bool := S.cardinal adj <? K.
 
@@ -298,10 +297,10 @@ Proof.
   qauto use: WP.filter_iff, Sin_domain unfold: nodes.
 Qed.
 
-Lemma select_terminates: 
+Lemma select_terminates:
   forall (K: nat) (g : graph) (n : S.elt),
-   S.choose (subset_nodes (low_deg K) g) = Some n -> 
-   M.cardinal (remove_node n g) < M.cardinal g.
+    S.choose (subset_nodes (low_deg K) g) = Some n ->
+    M.cardinal (remove_node n g) < M.cardinal g.
 Proof.
   intros K g n H.
   assert (S.Subset (subset_nodes (low_deg K) g) (nodes g)).
@@ -323,19 +322,19 @@ Function select (K: nat) (g: graph) {measure M.cardinal g}: list node :=
   | Some n => n :: select K (remove_node n g)
   | None => nil
   end.
-Proof. apply select_terminates. 
+Proof. apply select_terminates.
 Defined.
 
 Definition coloring := M.t node.
 
-Definition colors_of (f: coloring) (s: S.t) : S.t := 
-   S.fold (fun n s => match M.find n f with Some c => S.add c s | None => s end) s S.empty.
+Definition colors_of (f: coloring) (s: S.t) : S.t :=
+  S.fold (fun n s => match M.find n f with Some c => S.add c s | None => s end) s S.empty.
 
 Definition color1 (palette: S.t) (g: graph) (n: node) (f: coloring) : coloring :=
-   match S.choose (S.diff palette (colors_of f (adj g n))) with
-   | Some c => M.add n c f
-   | None => f
-   end.
+  match S.choose (S.diff palette (colors_of f (adj g n))) with
+  | Some c => M.add n c f
+  | None => f
+  end.
 
 Definition color (palette: S.t) (g: graph) : coloring :=
   fold_right (color1 palette g)  (M.empty _) (select (S.cardinal palette) g).
@@ -344,9 +343,9 @@ Definition color (palette: S.t) (g: graph) : coloring :=
 (** * Correctness specification *)
 
 Definition coloring_ok (palette: S.t) (g: graph) (f: coloring) :=
- forall i j, S.In j (adj g i) -> 
-     (forall ci, M.find i f = Some ci -> S.In ci palette) /\
-     (forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci<>cj).
+  forall i j, S.In j (adj g i) ->
+         (forall ci, M.find i f = Some ci -> S.In ci palette) /\
+           (forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci<>cj).
 
 Lemma adj_ext: forall g i j, E.eq i j -> S.eq (adj g i) (adj g j).
 Proof.
@@ -405,10 +404,10 @@ Proof.
   unfold colors_of.
   rewrite S.fold_1.
   set (F := fun (a : S.t) (e : S.elt) =>
-        match M.find e f with
-        | Some c0 => S.add c0 a
-        | None    => a
-        end).
+              match M.find e f with
+              | Some c0 => S.add c0 a
+              | None    => a
+              end).
   set (l := S.elements s).
   assert (HinA : InA E.eq i l).
   { sfirstorder use: PositiveSet.elements_1. }
@@ -464,11 +463,11 @@ Proof.
       rewrite WP.F.add_o in Hfi.
       rewrite WP.F.add_o in Hfj.
       destruct (E.eq_dec i n) as [->|Hi_ne];
-      destruct (E.eq_dec j n) as [->|Hj_ne].
+        destruct (E.eq_dec j n) as [->|Hj_ne].
       * (* i = n, j = n: impossible by no self-loop *)
         exfalso. specialize (Hnoloop n). unfold no_selfloop in Hnoloop.
         specialize (Hnoloop). contradiction.
-        (* More explicitly: Hij : S.In n (adj g n) contradicts no_selfloop *)
+      (* More explicitly: Hij : S.In n (adj g n) contradicts no_selfloop *)
       * (* i = n, j <> n *)
         hauto use: in_colors_of_1 unfold: nodeset, coloring, adj inv: sumbool.
       * (* i <> n, j = n *)
@@ -498,10 +497,10 @@ Proof.
 Qed.
 
 Theorem color_correct:
-  forall palette g, 
-       no_selfloop g -> 
-       undirected g -> 
-       coloring_ok palette g (color palette g).
+  forall palette g,
+    no_selfloop g ->
+    undirected g ->
+    coloring_ok palette g (color palette g).
 Proof.
   strivial use: fold_color_preserves_ok unfold: color, select.
 Qed.
@@ -514,7 +513,7 @@ Local Open Scope positive.
 Definition add_edge (e: (E.t*E.t)) (g: graph) : graph :=
   match e with
   | (u,v) => M.add u (S.add v (adj g u))
-           (M.add v (S.add u (adj g v)) g)
+              (M.add v (S.add u (adj g v)) g)
   end.
 
 Definition mk_graph (el: list (E.t*E.t)) :=
