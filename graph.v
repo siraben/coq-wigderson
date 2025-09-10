@@ -429,11 +429,7 @@ Lemma coloring_ok_empty :
   forall palette g,
     coloring_ok palette g (M.empty _).
 Proof.
-  intros palette g i j Hij; split.
-  - intros ci Hf.
-    rewrite WP.F.empty_o in Hf; discriminate.
-  - intros ci cj Hi Hj.
-    rewrite WP.F.empty_o in Hi; discriminate.
+  intros palette g i j Hij; sauto use: WP.F.empty_o.
 Qed.
 
 Lemma color1_preserves_ok :
@@ -465,17 +461,14 @@ Proof.
       destruct (E.eq_dec i n) as [->|Hi_ne];
         destruct (E.eq_dec j n) as [->|Hj_ne].
       * (* i = n, j = n: impossible by no self-loop *)
-        exfalso. specialize (Hnoloop n). unfold no_selfloop in Hnoloop.
-        specialize (Hnoloop). contradiction.
+        sfirstorder.
       (* More explicitly: Hij : S.In n (adj g n) contradicts no_selfloop *)
       * (* i = n, j <> n *)
         hauto use: in_colors_of_1 unfold: nodeset, coloring, adj inv: sumbool.
       * (* i <> n, j = n *)
         hfcrush use: in_colors_of_1 unfold: undirected, coloring, nodeset, adj inv: sumbool.
       * (* i <> n, j <> n: both entries unchanged; defer to Hok *)
-        eapply (proj2 (Hok i j Hij)); eauto.
-        ** hauto q: on.
-        ** hauto q: on.
+        eapply (proj2 (Hok i j Hij)); eauto; hauto q: on.
   - (* No color chosen: map unchanged *)
     (* color1 returns f; correctness carries over *)
     qauto l: on.
