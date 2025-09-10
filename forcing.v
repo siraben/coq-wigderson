@@ -358,7 +358,12 @@ Proof.
     hauto lq: on use: disjoint_by_subsets, SP.diff_subset unfold: nodeset.
   - (* cover: nodes(remove_nodes g s) = nodes g \ s *)
     rewrite nodes_remove_nodes_eq.
-    qauto use: PositiveSet.diff_1, PositiveSet.union_2, PositiveSet.diff_spec, PositiveSet.diff_2, PositiveSet.union_1, PositiveSet.union_3 unfold: PositiveSet.Equal, nodeset.
+    intros H.
+    rewrite S.diff_spec.
+    rewrite S.union_spec in H.
+    destruct H.
+    + sfirstorder use: PositiveSet.diff_1, PositiveSet.union_2, PositiveSet.diff_2 unfold: PositiveSet.Equal, nodeset.
+    + sfirstorder use: PositiveSet.diff_2, PositiveSet.diff_1, PositiveSet.union_3 unfold: nodeset, PositiveSet.Equal.
   - (* L independent after removal *)
     hfcrush use: PositiveSet.union_3, nodes_remove_nodes_spec, PositiveSet.union_2, PositiveSet.diff_3, PositiveSet.union_1 unfold: PositiveSet.Equal, nodeset.
   - (* R independent after removal *)
@@ -377,3 +382,118 @@ Qed.
 Definition reached g seed :=
   let LR := force_component_sets g seed in S.union (fst LR) (snd LR).
 
+Lemma force_layers_preserve_L :
+  forall g L R FL FR k,
+    S.Subset L (fst (force_layers g L R FL FR k)).
+Proof.
+  intros g L R FL FR k.
+  revert L R FL FR.
+  induction k as [|k IH]; intros L R FL FR; simpl.
+  - (* k = 0 *) intros x Hx; exact Hx.
+  - (* k = S k *)
+    set (Vis  := S.union L R).
+    set (Radd := add_to_R g FL Vis).
+    set (Ladd := add_to_L g FR Vis).
+    intro x; intro Hx.
+    (* After this step, L becomes L ∪ Ladd; x∈L hence x∈L∪Ladd *)
+    specialize (IH (S.union L Ladd) (S.union R Radd) Ladd Radd).
+    apply IH. apply S.union_spec; now left.
+Qed.
+
+Lemma force_layers_preserve_R :
+  forall g L R FL FR k,
+    S.Subset R (snd (force_layers g L R FL FR k)).
+Proof.
+  intros g L R FL FR k.
+  revert L R FL FR.
+  induction k as [|k IH]; intros L R FL FR; simpl.
+  - (* k = 0 *) intros x Hx; exact Hx.
+  - (* k = S k *)
+    set (Vis  := S.union L R).
+    set (Radd := add_to_R g FL Vis).
+    set (Ladd := add_to_L g FR Vis).
+    intro x; intro Hx.
+    (* After this step, R becomes R ∪ Radd; x∈R hence x∈R∪Radd *)
+    specialize (IH (S.union L Ladd) (S.union R Radd) Ladd Radd).
+    apply IH. apply S.union_spec; now left.
+Qed.
+
+Lemma force_layers_seed_in_L g seed k :
+  S.In seed (fst (force_layers g (S.singleton seed) S.empty
+                                 (S.singleton seed) S.empty k)).
+Proof.
+  eapply force_layers_preserve_L.
+  (* seed ∈ {seed} *)
+  now apply S.singleton_2.
+Qed.
+
+Lemma seed_in_reached g seed :
+  S.In seed (reached g seed).
+Proof.
+  unfold reached, force_component_sets.
+  apply S.union_spec; left.
+  apply force_layers_seed_in_L.
+Qed.
+
+(** Colors a graph by repeatedly finding a connected component,
+    2-coloring it, and recursing on the rest of the graph. *)
+Function force_all (g : graph) (c1 c2 : node)
+  {measure M.cardinal g} : coloring :=
+  match S.choose (nodes g) with
+  | None => @M.empty _
+  | Some seed =>
+      let LR := force_component_sets g seed in
+      let L := fst LR in let R := snd LR in
+      let S := S.union L R in
+      Munion
+        (bicolor L R c1 c2)
+        (force_all (remove_nodes g S) c1 c2)
+  end.
+Proof.
+  intros g c1 c2 seed Hchoose.
+  (* seed ∈ nodes g *)
+  assert (HinG : M.In seed g).
+  { sfirstorder use: FExt.in_nodes_iff, PositiveSet.choose_1 unfold: nodes. }
+  (* seed ∈ reached set *)
+  assert (HinS : S.In seed (reached g seed)) by apply seed_in_reached.
+  (* strict decrease of cardinality *)
+  eapply remove_nodes_lt; eauto.
+Defined.
+
+Functional Scheme force_all_ind := Induction for force_all Sort Prop.
+
+Lemma coloring_union_no_cross g p S f1 f2 :
+  (* f1 colors the induced subgraph on S *)
+  coloring_ok p (subgraph_of g S) f1 ->
+  (* f2 colors the complement *)
+  coloring_ok p (remove_nodes g S) f2 ->
+  (* No cross edges out of S *)
+  S.Subset (nbs g S) S ->
+  coloring_ok p g (Munion f1 f2).
+Proof.
+  intros OK1 OK2 Closed.
+  split.
+  - intros ci Hci.
+    apply Munion_case in Hci.
+    destruct Hci.
+    + unfold coloring_ok in *.
+      pose proof (OK1 i j).
+      assert (S.In j (adj (subgraph_of g S) i)).
+      {
+        admit.
+      }
+      sfirstorder.
+    + admit.
+  - intros ci cj Hfi Hfj Hadj.
+    (* Split by which branch provided the colors *)
+    apply Munion_case in Hfi; apply Munion_case in Hfj.
+    destruct Hfi as [Hi1|Hi2]; destruct Hfj as [Hj1|Hj2].
+    + (* both in S: reduce to subgraph_of g S *)
+      admit.
+    + (* i in S, j outside — impossible by closure *)
+      admit.
+    + (* symmetric to previous case *)
+      admit.
+    + (* both outside S: reduce to remove_nodes g S *)
+      admit.
+Abort.
