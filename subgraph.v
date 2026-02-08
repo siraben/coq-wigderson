@@ -1,15 +1,14 @@
+(** * subgraph.v - Subgraphs, neighborhoods, degree, and independent sets *)
 Require Import graph.
 Require Import List.
-Require Import Setoid.  (* Generalized rewriting *)
-Require Import FSets.   (* Efficient functional sets *)
-Require Import FMaps.   (* Efficient functional maps *)
+Require Import Setoid.
+Require Import FSets.
+Require Import FMaps.
 Require Import PArith.
 Require Import Psatz.
 Require Import restrict.
 Require Import Program.
 Require Import FunInd.
-Require Import Decidable.
-Require Import FExt.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 Import Arith.
@@ -18,6 +17,7 @@ Import Nat.
 
 Local Open Scope nat.
 
+(* Hammer filters shared across coloring/subgraph/connectivity/forcing *)
 Add Hammer Filter Coq.Numbers.BinNums.
 Add Hammer Filter Coq.micromega.RingMicromega.
 Add Hammer Filter Coq.micromega.Tauto.
@@ -55,7 +55,7 @@ Proof. sfirstorder. Qed.
 (** ** Vertices in the subgraph are in original graph *)
 
 Lemma subgraph_vert_m : forall g' g v, is_subgraph g' g -> M.In v g' -> M.In v g.
-Proof. qauto l: on use: Sin_domain. Qed.
+Proof. qauto l: on use: in_domain. Qed.
 
 Lemma is_subgraph_nodes_subset g' g :
   is_subgraph g' g -> S.Subset (nodes g') (nodes g).
@@ -235,8 +235,8 @@ Proof.
   split.
   - intros i Hi.
     unfold nodes in *.
-    apply Sin_domain in Hi.
-    apply Sin_domain.
+    apply in_domain in Hi.
+    apply in_domain.
     destruct (E.eq_dec i v).
     * subst. unfold remove_node in Hi.
       rewrite WF.map_in_iff in Hi.
@@ -319,7 +319,7 @@ Qed.
 Lemma remove_nodes_lt : forall g s i, S.In i s -> M.In i g -> (M.cardinal (remove_nodes g s) < M.cardinal g).
 Proof.
   intros g s i H H0.
-  rewrite !Mcardinal_domain, nodes_remove_nodes_eq.
+  rewrite !m_cardinal_domain, nodes_remove_nodes_eq.
   apply SP.subset_cardinal_lt with (x := i).
   - apply SP.diff_subset.
   - rewrite in_nodes_iff. assumption.
@@ -357,7 +357,7 @@ Proof.
       split.
       * sauto lq: on use: WF.remove_neq_in_iff.
       * split.
-        ** hauto l: on use: Sin_domain, WF.remove_neq_in_iff.
+        ** hauto l: on use: in_domain, WF.remove_neq_in_iff.
         ** sfirstorder use: SP.Dec.F.singleton_iff unfold: PositiveSet.elt, PositiveMap.key.
   - intros k e e' H H0.
     unfold remove_node, remove_nodes, M.MapsTo in *.
@@ -381,7 +381,7 @@ Proof.
            *** rewrite S.diff_spec.
                split.
                **** unfold nodes.
-                    apply Sin_domain.
+                    apply in_domain.
                     sfirstorder.
                **** intros contra.
                     sfirstorder use: PositiveSet.singleton_1 unfold: PositiveSet.elt, PositiveMap.key.
@@ -399,10 +399,10 @@ Proof.
   unfold nodes.
   unfold S.Equal.
   intros a.
-  rewrite Sin_domain.
+  rewrite in_domain.
   rewrite WF.remove_in_iff.
   rewrite S.remove_spec.
-  rewrite Sin_domain.
+  rewrite in_domain.
   tauto.
 Qed.
 
@@ -426,8 +426,8 @@ Proof.
   split.
   - unfold remove_nodes.
     intros i Hi.
-    apply Sin_domain.
-    apply Sin_domain in Hi.
+    apply in_domain.
+    apply in_domain in Hi.
     rewrite WP.F.map_in_iff in *.
     rewrite restrict_spec in *.
     hfcrush use: PositiveSet.diff_1, PositiveSet.diff_2, PositiveSet.diff_3 unfold: PositiveSet.Subset.
@@ -708,7 +708,7 @@ Lemma degree_subgraph_of_spec g s i d :
 Proof.
   unfold degree.
   rewrite find_subgraph_of_spec.
-  hauto drew: off use: degree_spec, Sin_domain, find_subgraph_of_spec unfold: nodeset, negb, PositiveSet.inter, PositiveSet.In, degree, adj, PositiveSet.empty inv: option, bool.
+  hauto drew: off use: degree_spec, in_domain, find_subgraph_of_spec unfold: nodeset, negb, PositiveSet.inter, PositiveSet.In, degree, adj, PositiveSet.empty inv: option, bool.
 Qed.
 
 Lemma degree_remove_nodes_spec g s i d :
@@ -950,7 +950,7 @@ Definition extract_deg_vert (g : graph) (d : nat) :=
 
 (* Annoying lemma *)
 (** ** InA to In conversion for pairs *)
-Lemma InA_in_iff {A} : forall p (l : list (M.key * A)), (InA (@M.eq_key_elt A) p l) <-> In p l.
+Lemma inA_in_iff {A} : forall p (l : list (M.key * A)), (InA (@M.eq_key_elt A) p l) <-> In p l.
 Proof. induction l; sauto q: on. Qed.
 
 (** ** Decidability of extracting a vertex of a given degree *)
@@ -969,7 +969,7 @@ Proof.
     destruct H.
     assert (InA (@M.eq_key_elt _) (v,k) (M.elements g)).
     {
-      now apply InA_in_iff.
+      now apply inA_in_iff.
     }
     apply WF.elements_mapsto_iff in H1.
     ssimpl.
@@ -984,7 +984,7 @@ Proof.
     destruct (M.find v g) eqn:E2.
     + assert (In (v,n) (M.elements g)).
       {
-        apply InA_in_iff.
+        apply inA_in_iff.
         apply WF.elements_mapsto_iff.
         hauto lq: on drew: off.
       }
@@ -1014,7 +1014,7 @@ Proof.
   simpl.
   unfold remove_node.
   rewrite cardinal_map.
-  sauto lq: on rew: off use: Mremove_cardinal_less, degree_gt_0_in.
+  sauto lq: on rew: off use: m_remove_cardinal_less, degree_gt_0_in.
 Defined.
 
 Functional Scheme extract_vertices_deg_ind := Induction for extract_vertices_deg Sort Prop.
@@ -1313,7 +1313,7 @@ Proof.
   simpl.
   unfold remove_node.
   rewrite cardinal_map.
-  sauto lq: on rew: off use: Mremove_cardinal_less, degree_gt_0_in.
+  sauto lq: on rew: off use: m_remove_cardinal_less, degree_gt_0_in.
 Defined.
 
 Functional Scheme extract_vertices_degs_ind := Induction for extract_vertices_degs Sort Prop.
@@ -1641,7 +1641,7 @@ Proof.
       sauto lq: on rew: off use: in_nodes_iff.
     }
     assert (S.In (`v) (nodes g)).
-    { apply Sin_domain.
+    { apply in_domain.
       apply (degree_gt_0_in g (` v) d).
       hauto l: on.
     }

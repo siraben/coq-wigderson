@@ -1,16 +1,16 @@
+(** * wigderson.v - Wigderson's graph coloring algorithm and correctness proof *)
 Require Import graph.
 Require Import subgraph.
 Require Import coloring.
 Require Import List.
-Require Import Setoid.  (* Generalized rewriting *)
-Require Import FSets.   (* Efficient functional sets *)
-Require Import FMaps.   (* Efficient functional maps *)
+Require Import Setoid.
+Require Import FSets.
+Require Import FMaps.
 Require Import PArith.
 Require Import FunInd.
 Require Import restrict.
 Require Import munion.
 Require Import Psatz.
-Require Import FExt.
 Require Import forcing.
 Require Import bipartite.
 From Hammer Require Import Hammer.
@@ -51,10 +51,10 @@ Proof.
       by hauto l: on use: S.choose_1.
     pose proof (subset_nodes_sub (high_deg K) g n H1).
     unfold nodes, Mdomain in H2.
-    now apply Sin_domain in H2.
+    now apply in_domain in H2.
   }
   rewrite cardinal_map.
-  now apply Mremove_cardinal_less.
+  now apply m_remove_cardinal_less.
 Qed.
 
 Function selectW (K: nat) (g: graph) {measure M.cardinal g} : list node :=
@@ -71,7 +71,7 @@ Lemma subset_nodes_prop : forall (P: node -> nodeset -> bool) (g: graph) v,
 Proof.
   intros P g v H.
   unfold subset_nodes in H.
-  apply Sin_domain in H.
+  apply in_domain in H.
   destruct H as [e He].
   epose proof (@WP.filter_iff _ P _ g v e).
   rewrite H in He.
@@ -169,7 +169,7 @@ Proof.
   assert (Vin : M.In v g).
   { apply in_nodes_iff. apply S.choose_1 in Hchoose.
     apply subset_nodes_sub in Hchoose. auto. }
-  rewrite !Mcardinal_domain. rewrite nodes_remove_nodes_eq.
+  rewrite !m_cardinal_domain. rewrite nodes_remove_nodes_eq.
   eapply SP.subset_cardinal_lt with (x := v).
   - apply SP.diff_subset.
   - now rewrite in_nodes_iff.
@@ -192,7 +192,7 @@ Proof.
     set (m' := two_color_nbd g v (c+1) (c+2)) in *.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in Hfi.
-    apply Munion_case in Hfi as [Hfi|Hfi].
+    apply munion_case in Hfi as [Hfi|Hfi].
     + destruct (E.eq_dec i v) as [->|Hne].
       * rewrite M.gss in Hfi. injection Hfi as <-. lia.
       * rewrite M.gso in Hfi by auto.
@@ -227,7 +227,7 @@ Proof.
     set (m' := two_color_nbd g v (c+1) (c+2)) in *.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in Hfi.
-    apply Munion_case in Hfi as [Hfi|Hfi].
+    apply munion_case in Hfi as [Hfi|Hfi].
     + destruct (E.eq_dec i v) as [->|Hne].
       * apply in_nodes_iff. apply S.choose_1 in Echoose. apply subset_nodes_sub in Echoose. auto.
       * rewrite M.gso in Hfi by auto.
@@ -270,8 +270,8 @@ Proof.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph.
     simpl in Hfi, Hfj.
     (* Both colored by Munion (M.add v c m') f2 *)
-    apply Munion_case in Hfi as [Hfi|Hfi];
-    apply Munion_case in Hfj as [Hfj|Hfj].
+    apply munion_case in Hfi as [Hfi|Hfi];
+    apply munion_case in Hfj as [Hfj|Hfj].
     + (* Both in current step: M.add v c m' *)
       destruct (E.eq_dec i v) as [->|Hine]; destruct (E.eq_dec j v) as [->|Hjne].
       * (* i = v, j = v: self-loop, contradiction *)
@@ -294,10 +294,10 @@ Proof.
         unfold m', two_color_nbd in Hfi, Hfj.
         (* i and j are in dom(force_all nbhd ...) hence in nodes nbhd ⊆ adj g v *)
         assert (HiN : S.In i (adj g v)).
-        { apply nbd_adj. apply FExt.in_nodes_iff.
+        { apply nbd_adj. apply in_nodes_iff.
           eapply force_all_domain; eauto. }
         assert (HjN : S.In j (adj g v)).
-        { apply nbd_adj. apply FExt.in_nodes_iff.
+        { apply nbd_adj. apply in_nodes_iff.
           eapply force_all_domain; eauto. }
         (* The edge (i,j) is in neighborhood g v *)
         assert (Hadj' : S.In j (adj nbhd i)).
@@ -629,11 +629,11 @@ Proof.
   unfold is_subgraph in H.
   assert (~ S.In v (nodes g') /\ S.In v (nodes g)).
   {
-    sfirstorder use: FExt.in_nodes_iff.
+    sfirstorder use: in_nodes_iff.
   }
   enough (S.cardinal (nodes g') < S.cardinal (nodes g))%nat.
   {
-    scongruence use: Mcardinal_domain unfold: snd, extract_vertices_degs, PositiveMap.t, nodes, fst inv: R_extract_vertices_degs.
+    scongruence use: m_cardinal_domain unfold: snd, extract_vertices_degs, PositiveMap.t, nodes, fst inv: R_extract_vertices_degs.
   }
   apply SP.subset_cardinal_lt with (x := v); sauto lq: on rew: off.
 Defined.
@@ -706,12 +706,12 @@ Proof.
   split; intros H.
   - unfold siota.
     apply SP.of_list_1.
-    apply InA_iff.
+    apply inA_iff.
     apply in_map_iff.
     destruct i; [exists 1%nat|exists (S i)%nat]; hauto l: on use: in_seq.
   - destruct i eqn:He; [sfirstorder|].
     apply SP.of_list_1 in H.
-    rewrite InA_iff in H.
+    rewrite inA_iff in H.
     rewrite in_map_iff in H.
     hauto l: on use: in_seq.
 Qed.
@@ -753,7 +753,7 @@ Proof.
   split.
   - intros ci H5.
     apply S.add_spec.
-    apply Munion_case in H5.
+    apply munion_case in H5.
     destruct H5.
     + left.
       apply constant_color_inv2 in H4.
@@ -761,7 +761,7 @@ Proof.
     + right.
       sfirstorder.
   - intros ci cj H5 H6.
-    apply Munion_case in H5, H6.
+    apply munion_case in H5, H6.
     destruct H5, H6.
     + intros contra.
       apply constant_color_inv in H4, H5.
@@ -800,7 +800,7 @@ Proof.
     inversion H.
     subst g''.
     rewrite <- H2 in H0.
-    apply Munion_case in H0.
+    apply munion_case in H0.
     destruct H0.
     + apply constant_color_inv2 in H0.
       hauto l: on.
@@ -822,16 +822,16 @@ Proof.
     intros f Hf.
     inversion Hf; subst; clear Hf.
     intros H Hv.
-    sauto lq: on rew: off use: constant_color_inv, Sin_domain.
+    sauto lq: on rew: off use: constant_color_inv, in_domain.
   - (* step: max_deg g = S n *)
     intros f Hf.
     inversion Hf; subst; clear Hf.
     intros x Hx.
     (* membership in domain of Munion => membership in one branch *)
-    rewrite Sin_domain in Hx.
-    apply Munion_in in Hx as [Hx|Hx].
+    rewrite in_domain in Hx.
+    apply munion_in in Hx as [Hx|Hx].
     + (* x came from the fresh constant coloring on ns *)
-      apply Sin_domain.
+      apply in_domain.
       remember (Pos.succ match n with
                   | 0%nat => 1
                   | S _ => Pos.succ (Pos.of_nat n)
@@ -844,7 +844,7 @@ Proof.
       pose proof (extract_vertices_remove g g'0 ns (S n) e0).
       hauto l: on.
     + (* x came from the recursive coloring f' over g' *)
-      hauto lq: on use: FExt.in_nodes_iff, Sin_domain, subgraph_vert_m, extract_vertices_degs_subgraph unfold: PositiveSet.Subset, coloring, PositiveMap.key, PositiveSet.elt.
+      hauto lq: on use: in_nodes_iff, in_domain, subgraph_vert_m, extract_vertices_degs_subgraph unfold: PositiveSet.Subset, coloring, PositiveMap.key, PositiveSet.elt.
 Qed.
 
 Lemma phase2_colors_distinct :
@@ -875,7 +875,7 @@ Proof.
     clear Hph''.
     replace (Pos.succ _) with (Pos.of_nat (S (S n))) in * by auto.
     (* Decompose the two lookups through Munion *)
-    apply Munion_case in Hfi0; apply Munion_case in Hfj0.
+    apply munion_case in Hfi0; apply munion_case in Hfj0.
     destruct Hfi0 as [Hi_now|Hi_later];
     destruct Hfj0 as [Hj_now|Hj_later].
     + (* both colored now → contradiction with independence of ns *)
@@ -910,12 +910,12 @@ Proof.
       assert (Di : M.In i g').
       { apply phase2_domain_subset with (g' := g''') in e1.
         clear -e1 Hi_later.
-        hecrush use: Sin_domain.
+        hecrush use: in_domain.
       }
       assert (Dj : M.In j g').
       { apply phase2_domain_subset with (g' := g''') in e1.
         clear -e1 Hj_later.
-        hecrush use: Sin_domain.
+        hecrush use: in_domain.
       }      
       (* adjacency is preserved among surviving vertices *)
       assert (Hadj' : S.In j (adj g' i)).
@@ -961,18 +961,18 @@ Proof.
         pose proof (phase2_domain_subset g' f' g'' e1) as DomSub.
         assert (Hi_dom : S.In i (Mdomain f')).
         {
-          qauto use: Sin_domain, WF.in_find_iff unfold: coloring, node, PositiveSet.elt, PositiveOrderedTypeBits.t, PositiveMap.key.
+          qauto use: in_domain, WF.in_find_iff unfold: coloring, node, PositiveSet.elt, PositiveOrderedTypeBits.t, PositiveMap.key.
         }
         assert (Hj_dom : S.In j (Mdomain f')).
         {
-          qauto use: WF.in_find_iff, Sin_domain unfold: coloring, PositiveMap.key, PositiveSet.elt.
+          qauto use: WF.in_find_iff, in_domain unfold: coloring, PositiveMap.key, PositiveSet.elt.
         }
         pose proof (DomSub _ Hi_dom) as Hi_nodes'.
         pose proof (DomSub _ Hj_dom) as Hj_nodes'.
         assert (Hadj' : S.In j (adj g' i)).
         {
-          assert (M.In i g') by hauto l: on use: Sin_domain.
-          assert (M.In j g') by hauto l: on use: Sin_domain.
+          assert (M.In i g') by hauto l: on use: in_domain.
+          assert (M.In j g') by hauto l: on use: in_domain.
           pose proof (adj_preserved_after_extract _ _ _ _ i j e0 H2 H3).
           sauto lq: on.
         }
@@ -1034,8 +1034,8 @@ Proof.
   { assert (H := phase1_undirected k 1 g Ug). rewrite Eph in H. simpl in H. exact H. }
   assert (Hloop' : no_selfloop g').
   { assert (H := phase1_no_selfloop k 1 g Hloop). rewrite Eph in H. simpl in H. exact H. }
-  apply Munion_case in Hfi as [Hfi|Hfi];
-  apply Munion_case in Hfj as [Hfj|Hfj].
+  apply munion_case in Hfi as [Hfi|Hfi];
+  apply munion_case in Hfj as [Hfj|Hfj].
   - (* Both from f1: use phase1_coloring_ok *)
     assert (Hfi' : M.find i (fst (phase1 k 1 g)) = Some ci) by (rewrite Eph; simpl; auto).
     assert (Hfj' : M.find j (fst (phase1 k 1 g)) = Some cj) by (rewrite Eph; simpl; auto).
@@ -1065,10 +1065,10 @@ Proof.
     (* Show ci_orig ≠ cj_orig via phase2_colors_distinct *)
     assert (Hi_g' : M.In i g').
     { apply in_nodes_iff. eapply phase2_domain_subset; eauto.
-      apply Sin_domain. exists ci_orig. auto. }
+      apply in_domain. exists ci_orig. auto. }
     assert (Hj_g' : M.In j g').
     { apply in_nodes_iff. eapply phase2_domain_subset; eauto.
-      apply Sin_domain. exists cj_orig. auto. }
+      apply in_domain. exists cj_orig. auto. }
     assert (Hg'_eq : g' = snd (phase1 k 1 g)) by (rewrite Eph; auto).
     assert (Hadj' : S.In j (adj g' i)).
     { rewrite Hg'_eq.

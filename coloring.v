@@ -1,15 +1,14 @@
+(** * coloring.v - Graph coloring theory and two-color step *)
 Require Import graph.
 Require Import subgraph.
 Require Import restrict.
 Require Import munion.
 Require Import List.
-Require Import Setoid.  (* Generalized rewriting *)
-Require Import FSets.   (* Efficient functional sets *)
-Require Import FMaps.   (* Efficient functional maps *)
+Require Import Setoid.
+Require Import FSets.
+Require Import FMaps.
 Require Import PArith.
 Require Import Decidable.
-Require Import Program.
-Require Import FunInd.
 Require Import Psatz.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
@@ -22,6 +21,7 @@ Local Open Scope positive_scope.
 
 Create HintDb coloring_spec.
 
+(* Hammer filters shared across coloring/subgraph/connectivity/forcing *)
 Add Hammer Filter Coq.Numbers.BinNums.
 Add Hammer Filter Coq.micromega.RingMicromega.
 Add Hammer Filter Coq.micromega.Tauto.
@@ -239,7 +239,7 @@ Proof.
         qauto l: on use: @restrict_restricts.
       }
       apply H3.
-      apply Sin_domain.
+      apply in_domain.
       assumption.
     + pose proof (nbd_subgraph g v).
       pose proof (subgraph_coloring_ok _ _ f p H2 ltac:(sauto)).
@@ -351,9 +351,9 @@ Lemma domain_constant_color (s : S.t) (c : node) :
 Proof.
   intro i; split; intro Hi.
   - (* -> *)
-    rewrite Sin_domain in Hi.
+    rewrite in_domain in Hi.
     strivial use: constant_color_find_some_iff unfold: PositiveMap.key, PositiveSet.elt, PositiveMap.MapsTo, PositiveMap.In.
-  - (* <- *) apply Sin_domain. (* show M.In i (constant_color s c) *)
+  - (* <- *) apply in_domain. (* show M.In i (constant_color s c) *)
     exists c. now apply constant_color_colors.
 Qed.
 
@@ -385,8 +385,8 @@ Lemma two_color_step_domain_spec g v c1 c2 f :
   S.Equal (Mdomain (two_color_step g v c1 c2 f)) (S.add v (adj g v)).
 Proof.
   intro j; split; intro Hj.
-  - hauto use: PositiveSet.add_spec, PositiveSet.add_2, Sin_domain, two_color_step_find_iff unfold: node, coloring, PositiveMap.In, PositiveMap.MapsTo, nodeset, adj, PositiveSet.elt, PositiveMap.key, PositiveOrderedTypeBits.t.
-  - apply Sin_domain; destruct (E.eq_dec j v).
+  - hauto use: PositiveSet.add_spec, PositiveSet.add_2, in_domain, two_color_step_find_iff unfold: node, coloring, PositiveMap.In, PositiveMap.MapsTo, nodeset, adj, PositiveSet.elt, PositiveMap.key, PositiveOrderedTypeBits.t.
+  - apply in_domain; destruct (E.eq_dec j v).
     + sfirstorder use: PositiveMap.gss unfold: PositiveMap.MapsTo, adj, PositiveSet.elt, PositiveMap.In, PositiveMap.key, two_color_step, nodeset.
     + hauto lq: on use: PositiveSet.add_3, two_color_step_find_iff unfold: PositiveOrderedTypeBits.t, adj, PositiveSet.elt, nodeset, node, PositiveMap.MapsTo, PositiveMap.In, PositiveMap.key.
 Qed.
@@ -412,19 +412,6 @@ Lemma two_color_step_inv : forall g v c1 c2 f ci j,
     j = v \/ S.In j (adj g v).
 Proof.
   qauto use: two_color_step_find_iff.
-Qed.
-
-(** ** Adjacency in well-formed graphs *)
-Lemma well_formed_adj_in : forall (g : graph) (v : node) i , well_formed g -> S.In i (adj g v) -> M.In i g.
-Proof.
-  intros g v i Hwf Hi.
-  exact (Hwf v i Hi).
-Qed.
-
-(** ** Legacy lemma for backward compatibility *)
-Lemma undirected_adj_in : forall (g : graph) (v : node) i , undirected g -> S.In i (adj g v) -> M.In i g.
-Proof.
-  hauto use: SP.Dec.F.empty_iff unfold: undirected, adj.
 Qed.
 
 (** ** Membership of a two-element set *)
@@ -510,7 +497,7 @@ Proof.
   intros g v c1 c2 H H0 H1 H2 H3.
   split.
   - intros i H4.
-    apply Sin_domain in H4.
+    apply in_domain in H4.
     rewrite nodes_subgraph_of_spec in H4.
     qauto use: WF.in_find_iff, nodes_neighborhood_spec, two_color_step_colors_adj_c2 unfold: PositiveMap.key, PositiveOrderedTypeBits.t, coloring, PositiveSet.elt, node.
   - qauto l: on use: two_color_step_correct, subgraph_of_is_subgraph, subgraph_coloring_ok.
@@ -523,7 +510,7 @@ Lemma max_deg_0_constant_col : forall (g : graph) c,
 Proof.
   intros g c H.
   split.
-  - sauto use: constant_color_colors, Sin_domain.
+  - sauto use: constant_color_colors, in_domain.
   - split; sfirstorder use: max_deg_0_adj.
 Qed.
 
@@ -548,14 +535,14 @@ Proof.
   intros g s c H.
   split.
   - intros i Hi.
-    rewrite <- Sin_domain in Hi.
+    rewrite <- in_domain in Hi.
     rewrite nodes_subgraph_of_spec in Hi.
     hecrush use: constant_color_colors, subgraph_of_is_subgraph.
   -
     apply indep_set_ok.
     + assumption.
     + intros ci H1.
-      apply Sin_domain in H1.
+      apply in_domain in H1.
       hauto q: on use: constant_color_inv.
     + intros i ci H0.
       apply constant_color_inv2 in H0.
@@ -592,11 +579,11 @@ Proof.
   unfold coloring_ok.
   split.
   - intros ci H0.
-    apply Munion_case in H0.
+    apply munion_case in H0.
     sfirstorder use: PositiveSet.union_3, PositiveSet.union_2.
   - intros ci cj H0 H1.
-    apply Munion_case in H0.
-    apply Munion_case in H1.
+    apply munion_case in H0.
+    apply munion_case in H1.
     destruct H0, H1.
     + sfirstorder unfold: coloring_ok.
     + assert (S.In ci p1) by sfirstorder.
@@ -635,15 +622,15 @@ Proof.
   intros g s1 s2 c1 c2 H H0 H2.
   split.
   - intros i Hi.
-    rewrite <- Sin_domain in Hi.
+    rewrite <- in_domain in Hi.
     apply nodes_subgraph_of_spec in Hi.
     destruct Hi.
     rewrite S.union_spec in H3.
     destruct H3.
-    + apply Munion_in.
+    + apply munion_in.
       left.
       hecrush use: constant_color_colors.
-    + apply Munion_in.
+    + apply munion_in.
       right.
       hecrush use: constant_color_colors.
   - assert (S.Equal (SP.of_list [c1; c2]) (S.union (S.singleton c1) (S.singleton c2))).
@@ -654,14 +641,14 @@ Proof.
     apply (ok_coloring_set_eq _ _ _ _ H1).
     split.
     + intros ci H5.
-      apply Munion_case in H5.
+      apply munion_case in H5.
       enough (ci = c1 \/ ci = c2).
       {
         sfirstorder use: PositiveSet.singleton_2, PositiveSet.union_2, PositiveSet.union_3 unfold: PositiveSet.singleton.
       }
       hauto q: on use: constant_color_inv2.
     + intros ci cj H5 H6.
-      apply Munion_case in H5, H6.
+      apply munion_case in H5, H6.
       destruct H5, H6.
       * hauto lq: on rew: off use: subgraph_edges, constant_color_inv unfold: independent_set, PositiveSet.Subset.
       * hauto lq: on rew: off use: constant_color_inv2.

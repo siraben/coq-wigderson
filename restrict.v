@@ -1,7 +1,8 @@
+(** * restrict.v - Map restriction by key sets *)
 Require Import graph.
-Require Import Setoid.  (* Generalized rewriting *)
-Require Import FSets.   (* Efficient functional sets *)
-Require Import FMaps.   (* Efficient functional maps *)
+Require Import Setoid.
+Require Import FSets.
+Require Import FMaps.
 Require Import PArith.
 Require Import Decidable.
 From Hammer Require Import Hammer.
@@ -22,8 +23,8 @@ Proof.
   intros m s.
   unfold restrict.
   intros v Hv.
-  apply Sin_domain.
-  apply Sin_domain in Hv.
+  apply in_domain.
+  apply in_domain in Hv.
   destruct Hv as [e He].
   rewrite WP.filter_iff in He; sfirstorder.
 Qed.
@@ -32,7 +33,7 @@ Qed.
 Lemma restrict_incl {A} :
   forall s (f : M.t A) i, M.In i (restrict f s) -> M.In i f.
 Proof.
-  qauto use: Sin_domain, @restrict_subset_keys unfold: PositiveMap.key, PositiveSet.elt, PositiveSet.Subset.
+  qauto use: in_domain, @restrict_subset_keys unfold: PositiveMap.key, PositiveSet.elt, PositiveSet.Subset.
 Qed.
 
 
@@ -64,19 +65,19 @@ Lemma nodes_restrict_eq (g : graph) s :
   S.Equal (nodes (restrict g s)) (S.inter (nodes g) s).
 Proof.
   intro k; split; intro Hin.
-  - apply Sin_domain in Hin as [e Hf].
+  - apply in_domain in Hin as [e Hf].
     apply restrict_find_some_iff in Hf as [Hs Hfind].
-    apply S.inter_spec; split; [ apply Sin_domain; eexists; eauto | exact Hs ].
+    apply S.inter_spec; split; [ apply in_domain; eexists; eauto | exact Hs ].
   - apply S.inter_spec in Hin as [Hg Hs].
-    apply Sin_domain in Hg as [e Hmt].
-    apply Sin_domain. exists e.
+    apply in_domain in Hg as [e Hmt].
+    apply in_domain. exists e.
     strivial use: @restrict_find_some_iff unfold: PositiveSet.elt, nodemap, PositiveMap.MapsTo, PositiveMap.key, graph.
 Qed.
 
 Lemma domain_restrict_eq {A} (m : M.t A) s :
   S.Equal (Mdomain (restrict m s)) (S.inter (Mdomain m) s).
 Proof.
-  hfcrush use: @restrict_in_iff, PositiveSet.inter_spec, Sin_domain unfold: PositiveSet.Equal, PositiveMap.key, PositiveSet.elt.
+  hfcrush use: @restrict_in_iff, PositiveSet.inter_spec, in_domain unfold: PositiveSet.Equal, PositiveMap.key, PositiveSet.elt.
 Qed.
 
 
@@ -101,7 +102,7 @@ Lemma restrict_full {A} (m : M.t A) :
 Proof.
   apply WF.Equal_mapsto_iff; intros k v; split; intro H.
   - strivial use: @restrict_find_some_iff unfold: PositiveMap.MapsTo.
-  - hfcrush use: Sin_domain, WF.not_find_mapsto_iff, @restrict_find_some_iff unfold: PositiveSet.elt, PositiveMap.MapsTo, PositiveMap.key.
+  - hfcrush use: in_domain, WF.not_find_mapsto_iff, @restrict_find_some_iff unfold: PositiveSet.elt, PositiveMap.MapsTo, PositiveMap.key.
 Qed.
 
 (* Looking through restriction of a map, the values still agree *)
@@ -185,9 +186,9 @@ Lemma restrict_cardinal {A} : forall (m : M.t A) s,
     M.cardinal (restrict m s) = S.cardinal (S.inter (Mdomain m) s).
 Proof.
   intros m s.
-  apply Mcardinal_Scardinal.
+  apply m_cardinal_s_cardinal.
   intros k.
-  hfcrush use: @restrict_in_iff, Sin_domain, PositiveSet.inter_1, PositiveSet.inter_spec, PositiveSet.inter_2 unfold: PositiveMap.key, PositiveSet.elt.
+  hfcrush use: @restrict_in_iff, in_domain, PositiveSet.inter_1, PositiveSet.inter_spec, PositiveSet.inter_2 unfold: PositiveMap.key, PositiveSet.elt.
 Qed.
 
 (** ** Adjacency in a restricted graph *)

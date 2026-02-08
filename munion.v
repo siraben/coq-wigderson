@@ -1,8 +1,9 @@
+(** * munion.v - Map union and disjointness *)
 Require Import graph.
 Require Import List.
-Require Import Setoid.  (* Generalized rewriting *)
-Require Import FSets.   (* Efficient functional sets *)
-Require Import FMaps.   (* Efficient functional maps *)
+Require Import Setoid.
+Require Import FSets.
+Require Import FMaps.
 Require Import PArith.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
@@ -27,11 +28,11 @@ Proof. hauto l: on. Qed.
 (* Note: since we're using equality on finite sets can we get for free
    that map disjointness is decidable *)
 (** ** Decidability of map disjointness *)
-Lemma Mdisjoint_dec {A} (f g : M.t A) : {Mdisjoint f g} + {~ Mdisjoint f g}.
+Lemma mdisjoint_dec {A} (f g : M.t A) : {Mdisjoint f g} + {~ Mdisjoint f g}.
 Proof. apply S.eq_dec. Qed.
 
 (** ** Membership of a map union *)
-Lemma Munion_case {A} : forall (c d : M.t A) i v,
+Lemma munion_case {A} : forall (c d : M.t A) i v,
     M.find i (Munion c d) = Some v -> M.find i c = Some v \/ M.find i d = Some v.
 Proof.
   intros c d i.
@@ -46,7 +47,7 @@ Proof.
 Qed.
 
 (** ** Left-priority lookup in a map union *)
-Lemma Munion_find_l {A} : forall (c d : M.t A) i v,
+Lemma munion_find_l {A} : forall (c d : M.t A) i v,
     M.find i c = Some v -> M.find i (Munion c d) = Some v.
 Proof.
   intros c d i.
@@ -62,12 +63,12 @@ Proof.
 Qed.
 
 (** ** Membership of a map union (expressed with M.In) *)
-Lemma Munion_in {A} : forall i (m1 m2 : M.t A),
+Lemma munion_in {A} : forall i (m1 m2 : M.t A),
     M.In i (Munion m1 m2) <-> M.In i m1 \/ M.In i m2.
 Proof.
   intros i m1 m2.
   split.
-  - hfcrush use: WP.F.not_find_mapsto_iff, @Munion_case unfold: PositiveMap.MapsTo, PositiveMap.In.
+  - hfcrush use: WP.F.not_find_mapsto_iff, @munion_case unfold: PositiveMap.MapsTo, PositiveMap.In.
   - intros H.
     unfold Munion.
     destruct H.

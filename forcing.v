@@ -1,3 +1,4 @@
+(** * forcing.v - BFS-based forced coloring of bipartite graphs *)
 Require Import graph.
 Require Import subgraph.
 Require Import restrict.
@@ -7,8 +8,6 @@ Require Import Setoid.
 Require Import FSets.
 Require Import FMaps.
 Require Import PArith.
-Require Import Decidable.
-Require Import Program.
 Require Import FunInd.
 Require Import Psatz.
 Require Import bipartite.
@@ -21,8 +20,7 @@ Import Arith.
 Import ListNotations.
 Import Nat.
 
-Import ListNotations Arith Nat.
-
+(* Hammer filters shared across coloring/subgraph/connectivity/forcing *)
 Add Hammer Filter Coq.Numbers.BinNums.
 Add Hammer Filter Coq.micromega.RingMicromega.
 Add Hammer Filter Coq.micromega.Tauto.
@@ -69,7 +67,7 @@ Lemma nbs_subset_nodes g s :
 Proof.
   intros Ug i Hi.
   apply nbs_spec in Hi as (v&Hv&Hiv).
-  sauto lq: on use: FExt.in_adj_neighbor_in_nodes unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
+  sauto lq: on use: in_adj_neighbor_in_nodes unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
 Qed.
 
 (* Convenience: next frontier additions, excluding already "visited" *)
@@ -143,9 +141,9 @@ Proof.
   split; intros x Hx;
   apply nbs_spec in Hx as (v&Hv&Hxv).
   - (* v in BL, neighbor x is in nodes g; cannot be in BL by independence, hence in BR by cover *)
-    qauto use: SP.Dec.F.union_iff, FExt.in_adj_neighbor_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.Equal.
+    qauto use: SP.Dec.F.union_iff, in_adj_neighbor_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.Equal.
   - (* symmetric *)
-    qauto use: SP.Dec.F.union_iff, FExt.in_adj_neighbor_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.Equal.
+    qauto use: SP.Dec.F.union_iff, in_adj_neighbor_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.Equal.
 Qed.
 
 Lemma nbs_mono g s1 s2 :
@@ -453,7 +451,7 @@ Proof.
   intros g c1 c2 seed Hchoose.
   (* seed ∈ nodes g *)
   assert (HinG : M.In seed g).
-  { sfirstorder use: FExt.in_nodes_iff, PositiveSet.choose_1 unfold: nodes. }
+  { sfirstorder use: in_nodes_iff, PositiveSet.choose_1 unfold: nodes. }
   (* seed ∈ reached set *)
   assert (HinS : S.In seed (reached g seed)) by apply seed_in_reached.
   (* strict decrease of cardinality *)
@@ -482,22 +480,22 @@ Proof.
     { apply Closed. apply nbs_spec. exists i. split; assumption. }
     (* i has a color in f1 *)
     assert (HiIn : M.In i f1).
-    { rewrite <- Sin_domain. rewrite Hdom. exact HiS. }
+    { rewrite <- in_domain. rewrite Hdom. exact HiS. }
     destruct HiIn as [ci Hci]. unfold M.MapsTo in Hci.
-    (* Use Munion_find_l to pin colors to f1 *)
+    (* Use munion_find_l to pin colors to f1 *)
     split.
     + intros ci' Hci'.
-      rewrite (Munion_find_l _ _ _ _ Hci) in Hci'. injection Hci' as <-.
+      rewrite (munion_find_l _ _ _ _ Hci) in Hci'. injection Hci' as <-.
       assert (Hadj' : S.In j (adj (subgraph_of g S) i)).
       { apply adj_subgraph_of_spec. auto. }
       destruct (OK1 i j Hadj') as [Hpal _].
       exact (Hpal ci Hci).
     + intros ci' cj' Hci' Hcj' Heq.
-      rewrite (Munion_find_l _ _ _ _ Hci) in Hci'. injection Hci' as <-.
+      rewrite (munion_find_l _ _ _ _ Hci) in Hci'. injection Hci' as <-.
       assert (HjIn : M.In j f1).
-      { rewrite <- Sin_domain. rewrite Hdom. exact HjS. }
+      { rewrite <- in_domain. rewrite Hdom. exact HjS. }
       destruct HjIn as [cj Hcj]. unfold M.MapsTo in Hcj.
-      rewrite (Munion_find_l _ _ _ _ Hcj) in Hcj'. injection Hcj' as <-.
+      rewrite (munion_find_l _ _ _ _ Hcj) in Hcj'. injection Hcj' as <-.
       assert (Hadj' : S.In j (adj (subgraph_of g S) i)).
       { apply adj_subgraph_of_spec. auto. }
       destruct (OK1 i j Hadj') as [_ Hneq].
@@ -510,23 +508,23 @@ Proof.
     (* i has no color in f1, so Munion gives f2's color *)
     assert (Hfi1 : M.find i f1 = None).
     { destruct (M.find i f1) as [vi|] eqn:E; [|reflexivity].
-      exfalso. apply HiS. rewrite <- Hdom. apply Sin_domain.
+      exfalso. apply HiS. rewrite <- Hdom. apply in_domain.
       exists vi. exact E. }
     split.
     + intros ci Hci.
-      apply Munion_case in Hci as [Hci|Hci].
+      apply munion_case in Hci as [Hci|Hci].
       * congruence.
       * assert (Hadj' : S.In j (adj (remove_nodes g S) i)).
         { apply adj_remove_nodes_spec. auto. }
         destruct (OK2 i j Hadj') as [Hpal _].
         exact (Hpal ci Hci).
     + intros ci cj Hci Hcj Heq.
-      apply Munion_case in Hci as [Hci|Hci]; [congruence|].
+      apply munion_case in Hci as [Hci|Hci]; [congruence|].
       assert (Hfj1 : M.find j f1 = None).
       { destruct (M.find j f1) as [vj|] eqn:E; [|reflexivity].
-        exfalso. apply HjS. rewrite <- Hdom. apply Sin_domain.
+        exfalso. apply HjS. rewrite <- Hdom. apply in_domain.
         exists vj. exact E. }
-      apply Munion_case in Hcj as [Hcj|Hcj]; [congruence|].
+      apply munion_case in Hcj as [Hcj|Hcj]; [congruence|].
       assert (Hadj' : S.In j (adj (remove_nodes g S) i)).
       { apply adj_remove_nodes_spec. auto. }
       destruct (OK2 i j Hadj') as [_ Hneq].
@@ -792,32 +790,25 @@ Proof.
   - intros x Hx; auto.
   - intros x Hx; auto.
   - intros x Hx. apply S.singleton_1 in Hx. subst; auto.
-  - intros x Hx. exfalso. exact (Snot_in_empty _ Hx).
+  - intros x Hx. exfalso. exact (not_in_empty _ Hx).
   - intros i Hi. apply nbs_spec in Hi as (v & Hv & _).
     apply S.diff_spec in Hv as [Hv1 Hv2]. contradiction.
   - intros i Hi. apply nbs_spec in Hi as (v & Hv & _).
-    exfalso. exact (Snot_in_empty _ Hv).
+    exfalso. exact (not_in_empty _ Hv).
   - apply SP.subset_cardinal. intros x Hx. apply S.diff_spec in Hx as [Hx _]. auto.
 Qed.
 
 Lemma domain_bicolor L R c1 c2 :
   S.Equal (Mdomain (bicolor L R c1 c2)) (S.union L R).
 Proof.
-  unfold bicolor. intro i. rewrite Sin_domain. rewrite Munion_in.
+  unfold bicolor. intro i. rewrite in_domain. rewrite munion_in.
   split.
   - intros [Hi|Hi]; apply S.union_spec;
     [left; rewrite <- domain_constant_color | right; rewrite <- domain_constant_color];
-    apply Sin_domain; exact Hi.
+    apply in_domain; exact Hi.
   - intro Hi. apply S.union_spec in Hi as [Hi|Hi];
-    [left | right]; apply Sin_domain;
+    [left | right]; apply in_domain;
     rewrite domain_constant_color; exact Hi.
-Qed.
-
-Lemma remove_nodes_undirected g s : undirected g -> undirected (remove_nodes g s).
-Proof.
-  intros Ug i j Hj.
-  apply adj_remove_nodes_spec in Hj as (Hj & Hjs & His).
-  apply adj_remove_nodes_spec. split; [|split]; auto.
 Qed.
 
 Lemma force_all_ok g c1 c2 :
@@ -848,7 +839,7 @@ Proof.
     { subst n.
       eapply remove_nodes_lt with (i := seed).
       - unfold Sreach, L, R, LR. apply seed_in_reached.
-      - apply FExt.in_nodes_iff. auto. }
+      - apply in_nodes_iff. auto. }
     assert (Hok_rem : coloring_ok (SP.of_list [c1;c2]) (remove_nodes g Sreach) (force_all (remove_nodes g Sreach) c1 c2)).
     { apply (IH _ Hlt _ (Logic.eq_refl _)); auto.
       - apply remove_nodes_undirected; auto.
@@ -862,7 +853,7 @@ Proof.
     intros i j Hadj. exfalso.
     apply S.choose_2 in Echoose.
     assert (HiG : S.In i (nodes g)).
-    { eapply FExt.in_adj_center_in_nodes. eauto. }
+    { eapply in_adj_center_in_nodes. eauto. }
     exact (Echoose _ HiG).
 Qed.
 
@@ -878,16 +869,16 @@ Proof.
   - set (LR := force_component_sets g seed) in *.
     set (L := fst LR) in *. set (R := snd LR) in *.
     set (Sreach := S.union L R) in *.
-    apply Munion_case in Hfi as [Hfi|Hfi].
+    apply munion_case in Hfi as [Hfi|Hfi].
     + (* ci from bicolor L R c1 c2 *)
-      unfold bicolor in Hfi. apply Munion_case in Hfi as [Hfi|Hfi].
+      unfold bicolor in Hfi. apply munion_case in Hfi as [Hfi|Hfi].
       * left. symmetry. eapply constant_color_inv2. eauto.
       * right. symmetry. eapply constant_color_inv2. eauto.
     + (* ci from force_all (remove_nodes g Sreach) c1 c2 *)
       assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
       { subst n. eapply remove_nodes_lt with (i := seed).
         - unfold Sreach, L, R, LR. apply seed_in_reached.
-        - apply FExt.in_nodes_iff. apply S.choose_1 in Echoose. auto. }
+        - apply in_nodes_iff. apply S.choose_1 in Echoose. auto. }
       eapply IH; eauto.
   - rewrite WF.empty_o in Hfi. discriminate.
 Qed.
@@ -905,9 +896,9 @@ Proof.
     (S.singleton seed) S.empty (S.cardinal (nodes g))) as [L' R'].
   simpl. destruct H as [HL HR].
   - intros x Hx. apply S.singleton_1 in Hx. subst. auto.
-  - intros x Hx. exfalso. exact (Snot_in_empty _ Hx).
+  - intros x Hx. exfalso. exact (not_in_empty _ Hx).
   - intros x Hx. apply S.singleton_1 in Hx. subst. auto.
-  - intros x Hx. exfalso. exact (Snot_in_empty _ Hx).
+  - intros x Hx. exfalso. exact (not_in_empty _ Hx).
   - intros x Hx. apply S.union_spec in Hx as [Hx|Hx]; auto.
 Qed.
 
@@ -925,20 +916,20 @@ Proof.
     set (L := fst LR) in *. set (R := snd LR) in *.
     set (Sreach := S.union L R) in *.
     assert (Hseed : S.In seed (nodes g)) by (apply S.choose_1; auto).
-    apply Munion_case in Hfi as [Hfi|Hfi].
+    apply munion_case in Hfi as [Hfi|Hfi].
     + (* i from bicolor L R c1 c2 — in reached g seed ⊆ nodes g *)
-      apply FExt.in_nodes_iff.
+      apply in_nodes_iff.
       apply (reached_subset_nodes g seed Ug Hseed).
       unfold reached, force_component_sets.
       fold LR L R.
-      unfold bicolor in Hfi. apply Munion_case in Hfi as [Hfi|Hfi];
+      unfold bicolor in Hfi. apply munion_case in Hfi as [Hfi|Hfi];
       apply constant_color_inv in Hfi;
       apply S.union_spec; [left | right]; auto.
     + (* i from recursive call *)
       assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
       { subst n. eapply remove_nodes_lt with (i := seed).
         - unfold Sreach, L, R, LR. apply seed_in_reached.
-        - apply FExt.in_nodes_iff. auto. }
+        - apply in_nodes_iff. auto. }
       assert (Ug' : undirected (remove_nodes g Sreach)).
       { apply remove_nodes_undirected. auto. }
       assert (M.In i (remove_nodes g Sreach)).

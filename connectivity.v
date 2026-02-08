@@ -1,15 +1,11 @@
+(** * connectivity.v - Walks, reachability, and bipartition parity *)
 Require Import graph.
 Require Import subgraph.
-Require Import restrict.
-Require Import munion.
 Require Import List.
-Require Import Setoid.  (* Generalized rewriting *)
-Require Import FSets.   (* Efficient functional sets *)
-Require Import FMaps.   (* Efficient functional maps *)
+Require Import Setoid.
+Require Import FSets.
+Require Import FMaps.
 Require Import PArith.
-Require Import Decidable.
-Require Import Program.
-Require Import FunInd.
 Require Import Psatz.
 Require Import bipartite.
 From Hammer Require Import Hammer.
@@ -21,6 +17,7 @@ Import Nat.
 
 Local Open Scope positive_scope.
 
+(* Hammer filters shared across coloring/subgraph/connectivity/forcing *)
 Add Hammer Filter Coq.Numbers.BinNums.
 Add Hammer Filter Coq.micromega.RingMicromega.
 Add Hammer Filter Coq.micromega.Tauto.
@@ -72,7 +69,7 @@ Proof.
   intros g x l z H.
   induction H.
   - assumption.
-  - hauto lq: on use: FExt.in_nodes_iff, FExt.in_adj_center_in_nodes unfold: node, PositiveSet.elt, PositiveOrderedTypeBits.t, step.
+  - hauto lq: on use: in_nodes_iff, in_adj_center_in_nodes unfold: node, PositiveSet.elt, PositiveOrderedTypeBits.t, step.
 Qed.
 
 Lemma walk_end_in   : forall g x l z, undirected g -> walk g x l z -> M.In z g.
@@ -89,11 +86,11 @@ Proof.
   induction H0.
   - cbn.
     rewrite !Forall_cons_iff.
-    sauto lq: on rew: off use: Sin_domain unfold: nodes.
+    sauto lq: on rew: off use: in_domain unfold: nodes.
   - cbn.
     apply Forall_cons_iff.
     split.
-    + sauto lq: on use: FExt.in_adj_center_in_nodes unfold: PositiveSet.elt, PositiveMap.key, step inv: walk, list.
+    + sauto lq: on use: in_adj_center_in_nodes unfold: PositiveSet.elt, PositiveMap.key, step inv: walk, list.
     + assumption.
 Qed.
 
@@ -135,7 +132,7 @@ Proof.
       * inversion Hall; subst.
         inversion H3; subst.
         unfold step. rewrite adj_subgraph_of_spec. repeat split; try now apply Forall_forall in Hall.
-        all: eauto using walk_start_in, walk_end_in, Sin_domain.
+        all: eauto using walk_start_in, walk_end_in, in_domain.
       * apply IHW. eapply Forall_inv_tail. exact Hall.
 Qed.
 
@@ -162,7 +159,7 @@ Lemma step_L_R g L R x y :
   S.In x L -> step g x y -> S.In y R.
 Proof.
   intros Ug (Hdisj & Hcov & HindL & HindR) Hx Hxy.
-  qauto use: SP.Dec.F.union_iff, FExt.in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
+  qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
 Qed.
 
 Lemma step_R_L g L R x y :
@@ -171,7 +168,7 @@ Lemma step_R_L g L R x y :
   S.In x R -> step g x y -> S.In y L.
 Proof.
   intros Ug (Hdisj & Hcov & HindL & HindR) Hx Hxy.
-  qauto use: SP.Dec.F.union_iff, FExt.in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
+  qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
 Qed.
 
 Lemma bipartition_walk_parity_even g L R :

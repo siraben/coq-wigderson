@@ -1,7 +1,8 @@
+(** * graph.v - Core graph definitions, greedy coloring, and map/set infrastructure *)
 Require Import List.
-Require Import Setoid.  (* Generalized rewriting *)
-Require Import FSets.   (* Efficient functional sets *)
-Require Import FMaps.   (* Efficient functional maps *)
+Require Import Setoid.
+Require Import FSets.
+Require Import FMaps.
 Require Import PArith.
 From Hammer Require Import Tactics.
 From Hammer Require Import Hammer.
@@ -56,13 +57,13 @@ Proof.
   apply filter_sort with E.eq; intuition.
 Qed.
 
-Lemma Proper_eq_eq:
+Lemma proper_eq_eq:
   forall f, Proper (E.eq ==> @eq bool) f.
 Proof.
   congruence.
 Qed.
 
-Lemma Sremove_elements:  forall (i: E.t) (s: S.t),
+Lemma s_remove_elements:  forall (i: E.t) (s: S.t),
     S.In i s ->
     S.elements (S.remove i s) =
       List.filter (fun x => if E.eq_dec x i then false else true) (S.elements s).
@@ -76,7 +77,7 @@ Proof.
     apply filter_sortE. apply PositiveSet.elements_3.
   *
     intro j.
-    rewrite filter_InA; [ | apply Proper_eq_eq].
+    rewrite filter_InA; [ | apply proper_eq_eq].
     pose proof S.remove_1.
     pose proof S.remove_2.
     pose proof S.remove_3.
@@ -85,14 +86,14 @@ Proof.
     hauto lq: on rew: off.
 Qed.
 
-Lemma InA_map_fst_key:
+Lemma inA_map_fst_key:
   forall A j l,
     InA E.eq j (map (@fst M.E.t A) l) <-> exists e, InA (@M.eq_key_elt A) (j,e) l.
 Proof.
   split; induction l; intros H; sauto lq: on rew: off.
 Qed.
 
-Lemma Sorted_lt_key:
+Lemma sorted_lt_key:
   forall A (al: list (positive*A)),
     Sorted (@M.lt_key A) al <->  Sorted E.lt (map (@fst positive A) al).
 Proof.
@@ -111,9 +112,9 @@ Proof.
   pose proof map_length.
   pose proof eqlistA_length.
   pose proof SortE_equivlistE_eqlistE.
-  pose proof InA_map_fst_key.
+  pose proof inA_map_fst_key.
   pose proof WF.map_mapsto_iff.
-  pose proof Sorted_lt_key.
+  pose proof sorted_lt_key.
   intros A B f g.
   rewrite !M.cardinal_1.
   pose proof (SortE_equivlistE_eqlistE (map fst (M.elements g)) (map fst (M.elements (M.map f g))) ltac:(hauto l:on) ltac:(hauto l:on)).
@@ -128,7 +129,7 @@ Proof.
   hauto l: on.
 Qed.
 
-Lemma Sremove_cardinal_less: forall i s,
+Lemma s_remove_cardinal_less: forall i s,
     S.In i s -> S.cardinal (S.remove i s) < S.cardinal s.
 Proof.
   sfirstorder use: SP.remove_cardinal_1, le_n unfold: lt.
@@ -151,7 +152,7 @@ Proof.
   destruct H, H0. rewrite H,H0. split; auto.
 Qed.
 
-Lemma Proper_eq_key_elt:
+Lemma proper_eq_key_elt:
   forall A,
     Proper (@M.eq_key_elt A ==> @M.eq_key_elt A ==> iff)
       (fun x y : E.t * A => E.lt (fst x) (fst y)).
@@ -159,7 +160,7 @@ Proof.
   repeat intro. destruct H,H0. rewrite H,H0. split; auto.
 Qed.
 
-Lemma Mremove_cardinal_less: forall A i (s: M.t A), M.In i s ->
+Lemma m_remove_cardinal_less: forall A i (s: M.t A), M.In i s ->
                                                M.cardinal (M.remove i s) < M.cardinal s.
 Proof.
   intros A i s H.
@@ -182,12 +183,12 @@ Proof.
   induction l; hauto lq: on use: fold_right_app.
 Qed.
 
-Lemma Snot_in_empty: forall n, ~ S.In n S.empty.
+Lemma not_in_empty: forall n, ~ S.In n S.empty.
 Proof.
   sfirstorder.
 Qed.
 
-Lemma Sin_domain: forall A n (g: M.t A), S.In n (Mdomain g) <-> M.In n g.
+Lemma in_domain: forall A n (g: M.t A), S.In n (Mdomain g) <-> M.In n g.
 Proof.
   (** To reason about [M.fold], used in the definition of [Mdomain],
     a useful theorem is [WP.fold_rec_bis]. *)
@@ -219,7 +220,7 @@ Proof.
       * hauto use: WF.add_neq_in_iff, PositiveSet.add_2 unfold: PositiveMap.key, PositiveSet.elt.
 Qed.
 
-Lemma Mcardinal_Scardinal: forall A (m : M.t A) s,
+Lemma m_cardinal_s_cardinal: forall A (m : M.t A) s,
     (forall k, M.In k m <-> S.In k s) ->
     M.cardinal m = S.cardinal s.
 Proof.
@@ -249,13 +250,13 @@ Proof.
     sfirstorder.
 Qed.
 
-Lemma Mcardinal_domain: forall A (m : M.t A),
+Lemma m_cardinal_domain: forall A (m : M.t A),
     M.cardinal m = S.cardinal (Mdomain m).
 Proof.
   intros A m.
-  apply Mcardinal_Scardinal.
+  apply m_cardinal_s_cardinal.
   intros k.
-  rewrite Sin_domain.
+  rewrite in_domain.
   hauto lq: on.
 Qed.
 
@@ -307,7 +308,7 @@ Proof.
   intros P g.
   unfold subset_nodes.
   intros i Hi.
-  qauto use: WP.filter_iff, Sin_domain unfold: nodes.
+  qauto use: WP.filter_iff, in_domain unfold: nodes.
 Qed.
 
 Lemma select_terminates:
@@ -322,8 +323,8 @@ Proof.
   }
   unfold remove_node.
   rewrite cardinal_map.
-  apply Mremove_cardinal_less.
-  hfcrush use: Sin_domain, PositiveSet.choose_1 unfold: graph, nodemap, PositiveSet.Subset, nodes.
+  apply m_remove_cardinal_less.
+  hfcrush use: in_domain, PositiveSet.choose_1 unfold: graph, nodemap, PositiveSet.Subset, nodes.
 Qed.
 
 (* ================================================================= *)
@@ -394,7 +395,7 @@ Proof.
   unfold adj.
   destruct M.find eqn:E; intros H.
   - unfold nodes.
-    rewrite Sin_domain.
+    rewrite in_domain.
     sfirstorder.
   - rewrite SP.FM.empty_iff in H. contradiction.
 Qed.
@@ -528,5 +529,78 @@ Definition mk_graph (el: list (E.t*E.t)) :=
 Definition empty_graph : graph := (@M.empty _).
 
 (** ** InA to In conversion *)
-Lemma InA_iff {A} : forall p (l : list A), (InA Logic.eq p l) <-> In p l.
+Lemma inA_iff {A} : forall p (l : list A), (InA Logic.eq p l) <-> In p l.
 Proof. induction l; sauto q: on. Qed.
+
+(* ================================================================= *)
+(** * Extended map/set/domain lemmas *)
+
+Local Open Scope positive_scope.
+
+Lemma in_nodes_iff g v : S.In v (nodes g) <-> M.In v g.
+Proof. unfold nodes; now rewrite in_domain. Qed.
+
+Lemma find_iff_in {A} (m : M.t A) k v :
+  M.find k m = Some v <-> M.In k m /\ exists e, M.MapsTo k e m /\ v = e.
+Proof. sfirstorder. Qed.
+
+Lemma in_dec_nodes g v : {S.In v (nodes g)} + {~ S.In v (nodes g)}.
+Proof. destruct (WF.In_dec g v); firstorder using in_nodes_iff. Qed.
+
+Lemma adj_in_iff_find g j i :
+  S.In i (adj g j) <-> exists e, M.find j g = Some e /\ S.In i e.
+Proof.
+  qauto use: PositiveSet.mem_Leaf unfold: negb, PositiveSet.empty, PositiveSet.In, adj.
+Qed.
+
+Lemma in_adj_center_in_nodes g i j :
+  S.In i (adj g j) -> S.In j (nodes g).
+Proof.
+  rewrite adj_in_iff_find; firstorder using in_nodes_iff.
+Qed.
+
+Lemma in_adj_neighbor_in_nodes_wf g i j :
+  well_formed g -> S.In i (adj g j) -> S.In i (nodes g).
+Proof.
+  intros Hwf Hi.
+  unfold nodes. rewrite in_domain.
+  exact (Hwf j i Hi).
+Qed.
+
+Lemma in_adj_neighbor_in_nodes g i j :
+  undirected g -> S.In i (adj g j) -> S.In i (nodes g).
+Proof.
+  intros U Hij. apply U in Hij.
+  now apply in_adj_center_in_nodes in Hij.
+Qed.
+
+Lemma in_adj_both_in_nodes_wf g i j :
+  well_formed g -> S.In i (adj g j) -> S.In i (nodes g) /\ S.In j (nodes g).
+Proof.
+  intros Hwf Hi. split.
+  - eapply in_adj_neighbor_in_nodes_wf; eauto.
+  - eapply in_adj_center_in_nodes; eauto.
+Qed.
+
+Lemma in_adj_both_in_nodes g i j :
+  undirected g -> S.In i (adj g j) -> S.In i (nodes g) /\ S.In j (nodes g).
+Proof.
+  sfirstorder use: in_adj_center_in_nodes, in_adj_neighbor_in_nodes.
+Qed.
+
+Lemma nodes_map_eq f m :
+  S.Equal (nodes (M.map f m)) (nodes m).
+Proof.
+  hfcrush use: in_domain, WF.map_in_iff unfold: PositiveMap.key, PositiveSet.Equal, nodes, PositiveSet.elt.
+Qed.
+
+Lemma well_formed_adj_in : forall (g : graph) (v : node) i , well_formed g -> S.In i (adj g v) -> M.In i g.
+Proof.
+  intros g v i Hwf Hi.
+  exact (Hwf v i Hi).
+Qed.
+
+Lemma undirected_adj_in : forall (g : graph) (v : node) i , undirected g -> S.In i (adj g v) -> M.In i g.
+Proof.
+  hauto use: SP.Dec.F.empty_iff unfold: undirected, adj.
+Qed.

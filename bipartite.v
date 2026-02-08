@@ -1,6 +1,6 @@
+(** * bipartite.v - Bipartition and 2-coloring equivalence *)
 Require Import graph.
 Require Import subgraph.
-Require Import restrict.
 Require Import coloring.
 Require Import munion.
 Require Import List.
@@ -8,9 +8,6 @@ Require Import Setoid.
 Require Import FSets.
 Require Import FMaps.
 Require Import PArith.
-Require Import Decidable.
-Require Import Program.
-Require Import FunInd.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 From Hammer Require Import Reflect.
@@ -51,7 +48,7 @@ Proof.
   unfold no_selfloop.
   intros v Hv.
   (* v is in nodes -> v is in L or R; both independent → no self-loop *)
-  hfcrush use: SP.Dec.F.union_iff, FExt.in_adj_center_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.Equal.
+  hfcrush use: SP.Dec.F.union_iff, in_adj_center_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.Equal.
 Qed.
 
 (** * From bipartition to complete 2-coloring *)
@@ -97,12 +94,12 @@ Lemma bicolor_complete g L R c1 c2 :
   (forall i, M.In i g -> M.In i (bicolor L R c1 c2)).
 Proof.
   intros (Hdisj & Hcov & _ & _) i Hi.
-  apply Sin_domain in Hi.
+  apply in_domain in Hi.
   assert (HiUR : S.In i (S.union L R)) by sfirstorder.
   apply S.union_spec in HiUR as [HiL|HiR].
-  - apply Munion_in. left. apply Sin_domain.
+  - apply munion_in. left. apply in_domain.
     strivial use: domain_constant_color unfold: PositiveMap.key, PositiveSet.elt, PositiveSet.Equal.
-  - apply Munion_in. right. apply Sin_domain.
+  - apply munion_in. right. apply in_domain.
     strivial use: domain_constant_color unfold: PositiveSet.Equal, PositiveSet.elt, PositiveMap.key.
 Qed.
 
@@ -238,7 +235,7 @@ Proof.
     - apply S.union_spec in Hi as [Hi|Hi]; [apply L_of_spec in Hi|apply R_of_spec in Hi]; tauto.
     - assert (M.In i f).
       {
-        hauto l: on use: Sin_domain.
+        hauto l: on use: in_domain.
       }
       destruct H as [ix Hix]; unfold M.MapsTo in Hix.
       destruct (Pos.eqb ix c) eqn:E.
@@ -264,8 +261,8 @@ Proof.
     apply R_of_spec in Hi as [HiG Hni].
     apply R_of_spec in Hj as [HjG Hnj].
     (* completeness gives some colors *)
-    destruct (Hcomp i) as [ci HInfi]; [ now apply Sin_domain |].
-    destruct (Hcomp j) as [cj HInfj]; [ now apply Sin_domain |].
+    destruct (Hcomp i) as [ci HInfi]; [ now apply in_domain |].
+    destruct (Hcomp j) as [cj HInfj]; [ now apply in_domain |].
     inversion HInfi; subst; clear HInfi.
     inversion HInfj; subst; clear HInfj.
     (* palette has cardinal 2 → both ci and cj are among these two; not equal to c means equal to the other one *)
@@ -329,8 +326,8 @@ Proof.
       intros i j Hi Hj Hadj.
       apply R_of_spec in Hi as [HiG Hni].
       apply R_of_spec in Hj as [HjG Hnj].
-      assert (HMi : M.In i f) by (apply Hdom; now apply Sin_domain).
-      assert (HMj : M.In j f) by (apply Hdom; now apply Sin_domain).
+      assert (HMi : M.In i f) by (apply Hdom; now apply in_domain).
+      assert (HMj : M.In j f) by (apply Hdom; now apply in_domain).
       destruct HMi as [ci Hci]. destruct HMj as [cj Hcj].
       unfold M.MapsTo in Hci, Hcj.
       destruct (Hok j i Hadj) as [Hpal_j Hneq].
@@ -339,7 +336,7 @@ Proof.
       specialize (Hpal_j _ Hcj). specialize (Hpal_i _ Hci).
       assert (ci <> 1) by congruence.
       assert (cj <> 1) by congruence.
-      rewrite SP.of_list_1, InA_iff in Hpal_i, Hpal_j.
+      rewrite SP.of_list_1, inA_iff in Hpal_i, Hpal_j.
       simpl in Hpal_i, Hpal_j.
       assert (ci = 2) by (destruct Hpal_i as [|[|[]]]; congruence).
       assert (cj = 2) by (destruct Hpal_j as [|[|[]]]; congruence).
