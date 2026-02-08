@@ -526,3 +526,7 @@ Definition mk_graph (el: list (E.t*E.t)) :=
   fold_right add_edge (M.empty _) el.
 
 Definition empty_graph : graph := (@M.empty _).
+
+(** ** InA to In conversion *)
+Lemma InA_iff {A} : forall p (l : list A), (InA Logic.eq p l) <-> In p l.
+Proof. induction l; sauto q: on. Qed.

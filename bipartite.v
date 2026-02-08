@@ -11,7 +11,6 @@ Require Import PArith.
 Require Import Decidable.
 Require Import Program.
 Require Import FunInd.
-Require Import wigderson.
 From Hammer Require Import Hammer.
 From Hammer Require Import Tactics.
 From Hammer Require Import Reflect.

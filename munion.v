@@ -45,6 +45,22 @@ Proof.
     + hauto use: PositiveMapAdditionalFacts.gsident, WF.add_neq_o, PositiveMap.gss.
 Qed.
 
+(** ** Left-priority lookup in a map union *)
+Lemma Munion_find_l {A} : forall (c d : M.t A) i v,
+    M.find i c = Some v -> M.find i (Munion c d) = Some v.
+Proof.
+  intros c d i.
+  unfold Munion.
+  apply WP.fold_rec_bis.
+  - hauto unfold: PositiveMap.Equal.
+  - hauto use: WP.F.empty_o.
+  - intros k e a m' H H0 H1 v H2.
+    destruct (E.eq_dec i k) as [->|Hneq].
+    + hauto use: PositiveMap.gss.
+    + rewrite PositiveMap.gso by auto. apply H1.
+      rewrite PositiveMap.gso in H2 by auto. exact H2.
+Qed.
+
 (** ** Membership of a map union (expressed with M.In) *)
 Lemma Munion_in {A} : forall i (m1 m2 : M.t A),
     M.In i (Munion m1 m2) <-> M.In i m1 \/ M.In i m2.
