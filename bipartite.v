@@ -315,16 +315,37 @@ Proof.
   - intros [L [R H]].
     exists (bicolor L R 1 2).
     now apply bipartition_two_coloring_complete.
-  - intros [f Hcomp2].
-    (* Turn complete 2-coloring into a bipartition. *)
-    apply two_coloring_complete_to_bipartition in Hcomp2.
-    + destruct Hcomp2 as [c Hbip].
-      sfirstorder.
-    + (* extract 2-coloring info from palette [1;2] *)
-      unfold two_coloring, n_coloring. split; [hauto|].
-      intros v c' Hf. rewrite SP.of_list_1. rewrite InA_iff.
-      admit.
-Admitted.
+  - intros [f [Hdom Hok]].
+    exists (L_of g f 1), (R_of g f 1).
+    split; [apply L_R_disjoint|].
+    split; [apply L_R_cover|].
+    split.
+    + (* independence of L: both endpoints have color 1, contradicts coloring_ok *)
+      intros i j Hi Hj Hadj.
+      apply L_of_spec in Hi as [_ Hfi].
+      apply L_of_spec in Hj as [_ Hfj].
+      destruct (Hok j i Hadj) as [_ Hneq].
+      apply (Hneq _ _ Hfj Hfi). reflexivity.
+    + (* independence of R: both have color <> 1, so both = 2, contradicts coloring_ok *)
+      intros i j Hi Hj Hadj.
+      apply R_of_spec in Hi as [HiG Hni].
+      apply R_of_spec in Hj as [HjG Hnj].
+      assert (HMi : M.In i f) by (apply Hdom; now apply Sin_domain).
+      assert (HMj : M.In j f) by (apply Hdom; now apply Sin_domain).
+      destruct HMi as [ci Hci]. destruct HMj as [cj Hcj].
+      unfold M.MapsTo in Hci, Hcj.
+      destruct (Hok j i Hadj) as [Hpal_j Hneq].
+      assert (Hadj' : S.In j (adj g i)) by (apply Ug; exact Hadj).
+      destruct (Hok i j Hadj') as [Hpal_i _].
+      specialize (Hpal_j _ Hcj). specialize (Hpal_i _ Hci).
+      assert (ci <> 1) by congruence.
+      assert (cj <> 1) by congruence.
+      rewrite SP.of_list_1, InA_iff in Hpal_i, Hpal_j.
+      simpl in Hpal_i, Hpal_j.
+      assert (ci = 2) by (destruct Hpal_i as [|[|[]]]; congruence).
+      assert (cj = 2) by (destruct Hpal_j as [|[|[]]]; congruence).
+      subst. apply (Hneq _ _ Hcj Hci). reflexivity.
+Qed.
 
 (** * Stability under induced subgraphs *)
 Lemma bipartite_subgraph_of g s :
@@ -359,19 +380,9 @@ Proof.
     unfold coloring_complete in Hc.
     destruct (proj1 Hc v Hv) as [cv Hfv].
     unfold M.MapsTo in Hfv.
-    (* From our lemma we get a 2-coloring complete on the neighborhood *)
     destruct (nbd_2_colorable_3 g f p Hc H3 v cv ltac:(assumption)) as [H2col HcompN].
-    assert (undirected (neighborhood g v)) by now apply neighborhood_undirected.
-    (* Turn that complete 2-coloring into a bipartition *)
-    eapply (proj2 (bipartite_iff_exists_two_coloring (neighborhood g v) H)).
-    exists (restrict_on_nbd f g v).
-    (* almost there!
-        HcompN : coloring_complete (S.remove cv p) (neighborhood g v) (restrict_on_nbd f g v)
-        need to conclude
-        coloring_complete (SP.of_list [1; 2]) (neighborhood g v) (restrict_on_nbd f g v)
-     *)
-  (* exact HcompN. *)
-    admit.
+    destruct (two_coloring_complete_to_bipartition _ _ _ HcompN H2col) as [c Hbip].
+    sfirstorder.
   - (* v not in g ⇒ neighbors are empty ⇒ neighborhood empty ⇒ bipartite *)
     assert (neighbors g v = S.empty).
     { unfold neighbors. now rewrite adj_empty_if_notin by auto. }
@@ -381,4 +392,4 @@ Proof.
     unfold bipartite.
     exists S.empty, S.empty.
     hauto lq: on drew: off use: SP.Dec.F.empty_iff, nodes_neighborhood_spec, PositiveSet.choose_2 unfold: is_bipartition, PositiveSet.choose, PositiveSet.empty, PositiveSet.union, neighbors, PositiveSet.inter, neighborhood, PositiveSet.Equal, independent_set.
-Admitted.
+Qed.
