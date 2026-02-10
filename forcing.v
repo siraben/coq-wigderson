@@ -937,3 +937,146 @@ Proof.
       eapply subgraph_vert_m; [apply remove_nodes_subgraph | exact H].
   - rewrite WF.empty_o in Hfi. discriminate.
 Qed.
+
+(** * Decision procedure for 2-colorability *)
+
+(** ** force_all covers every vertex in g *)
+Lemma force_all_covers g c1 c2 :
+  undirected g ->
+  forall i, M.In i g -> M.In i (force_all g c1 c2).
+Proof.
+  remember (M.cardinal g) as n eqn:Hn.
+  revert g Hn.
+  induction n as [n IH] using lt_wf_ind.
+  intros g Hn Ug i Hi.
+  rewrite force_all_equation.
+  destruct (S.choose (nodes g)) as [seed|] eqn:Echoose.
+  - set (LR := force_component_sets g seed) in *.
+    set (L := fst LR) in *. set (R := snd LR) in *.
+    set (Sreach := S.union L R) in *.
+    assert (Hseed : S.In seed (nodes g)) by (apply S.choose_1; auto).
+    destruct (SP.In_dec i Sreach) as [HiS|HiS].
+    + (* i ∈ reached set → colored by bicolor *)
+      apply munion_in. left.
+      apply in_domain. rewrite domain_bicolor.
+      exact HiS.
+    + (* i ∉ reached set → colored by recursive call *)
+      apply munion_in. right.
+      assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
+      { subst n. eapply remove_nodes_lt with (i := seed).
+        - unfold Sreach, L, R, LR. apply seed_in_reached.
+        - apply in_nodes_iff. auto. }
+      apply (IH _ Hlt _ (Logic.eq_refl _)).
+      * apply remove_nodes_undirected; auto.
+      * apply in_nodes_iff. rewrite nodes_remove_nodes_spec.
+        split; [apply in_nodes_iff; auto | auto].
+  - exfalso. apply S.choose_2 in Echoose.
+    apply in_nodes_iff in Hi. exact (Echoose _ Hi).
+Qed.
+
+(** ** Boolean checker for coloring properness *)
+
+Definition check_edge (f : coloring) (i j : node) : bool :=
+  match M.find i f, M.find j f with
+  | Some ci, Some cj => negb (Pos.eqb ci cj)
+  | _, _ => true
+  end.
+
+Definition coloring_proper_b (g : graph) (f : coloring) : bool :=
+  forallb (fun p =>
+    let '(i, nbrs) := p in
+    forallb (fun j => check_edge f i j) (S.elements nbrs)
+  ) (M.elements g).
+
+(** ** Reflection lemma for check_edge *)
+Lemma check_edge_true_iff f i j :
+  check_edge f i j = true <->
+  (forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci <> cj).
+Proof.
+  unfold check_edge.
+  destruct (M.find i f) as [ci|] eqn:Ei, (M.find j f) as [cj|] eqn:Ej;
+    try (split; [intros _ ci0 cj0 H1 H2; discriminate | auto]).
+  rewrite Bool.negb_true_iff, Pos.eqb_neq.
+  split.
+  - intros Hneq ci0 cj0 H1 H2. congruence.
+  - intros H. apply H; auto.
+Qed.
+
+(** ** Reflection lemma for coloring_proper_b *)
+Lemma coloring_proper_b_true_iff g f :
+  coloring_proper_b g f = true <->
+  (forall i j, S.In j (adj g i) ->
+    forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci <> cj).
+Proof.
+  unfold coloring_proper_b.
+  rewrite forallb_forall.
+  split.
+  - (* true → prop *)
+    intros Hall i j Hadj ci cj Hci Hcj.
+    rewrite adj_in_iff_find in Hadj.
+    destruct Hadj as [nbrs [Hfind Hin]].
+    assert (HIn : In (i, nbrs) (M.elements g)).
+    { apply inA_in_iff. apply M.elements_1. exact Hfind. }
+    specialize (Hall _ HIn). simpl in Hall.
+    rewrite forallb_forall in Hall.
+    assert (HjIn : In j (S.elements nbrs)).
+    { apply inA_iff. apply S.elements_1. exact Hin. }
+    specialize (Hall _ HjIn).
+    rewrite check_edge_true_iff in Hall. eauto.
+  - (* prop → true *)
+    intros Hprop p Hp. destruct p as [i nbrs]. simpl.
+    rewrite forallb_forall.
+    intros j Hj.
+    apply check_edge_true_iff.
+    intros ci cj Hci Hcj.
+    apply (Hprop i j); auto.
+    rewrite adj_in_iff_find.
+    exists nbrs. split.
+    + apply M.elements_2. apply inA_in_iff. exact Hp.
+    + apply S.elements_2. apply inA_iff. exact Hj.
+Qed.
+
+(** ** Combining palette and properness into coloring_ok *)
+Lemma coloring_ok_of_proper_and_palette palette g f :
+  (forall i ci, M.find i f = Some ci -> S.In ci palette) ->
+  (forall i j, S.In j (adj g i) ->
+    forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci <> cj) ->
+  coloring_ok palette g f.
+Proof.
+  intros Hpal Hprop.
+  intros i j Hadj. split.
+  - intros ci Hci. eapply Hpal. exact Hci.
+  - intros ci cj Hci Hcj. eapply Hprop; eauto.
+Qed.
+
+(** ** Decision procedure for 2-colorability *)
+Definition decide_two_colorable (g : graph) :
+  undirected g -> no_selfloop g ->
+  { f : coloring | coloring_complete two_colors g f } + { ~ bipartite g }.
+Proof.
+  intros Ug Hns.
+  set (f := force_all g 1%positive 2%positive).
+  destruct (coloring_proper_b g f) eqn:Echeck.
+  - (* coloring is proper → exhibit it *)
+    left. exists f. split.
+    + (* completeness: every vertex is colored *)
+      intros i Hi. apply force_all_covers; auto.
+    + (* coloring_ok *)
+      apply coloring_ok_of_proper_and_palette.
+      * (* palette *)
+        intros i ci Hci.
+        apply force_all_palette in Hci.
+        destruct Hci as [->| ->];
+          apply SP.of_list_1; simpl; auto.
+      * (* properness *)
+        apply coloring_proper_b_true_iff. exact Echeck.
+  - (* coloring is not proper → graph is not bipartite *)
+    right. intro Hbip.
+    assert (Hok : coloring_ok (SP.of_list [1%positive;2%positive]) g f).
+    { apply force_all_ok; auto. lia. }
+    assert (Hprop : coloring_proper_b g f = true).
+    { apply coloring_proper_b_true_iff.
+      intros i j Hadj ci cj Hci Hcj.
+      destruct (Hok i j Hadj) as [_ Hdiff]. eauto. }
+    congruence.
+Defined.
