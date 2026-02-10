@@ -1322,6 +1322,28 @@ Proof.
     rewrite Pos2Nat.inj_add. lia.
 Qed.
 
+(** ** Asymptotic O(sqrt n) color bound *)
+
+Lemma sqrt_div_le : forall n,
+  (n / (Nat.sqrt n + 2) <= Nat.sqrt n)%nat.
+Proof.
+  intros n.
+  apply Nat.div_le_upper_bound; [lia |].
+  destruct n as [|n'].
+  - simpl. lia.
+  - pose proof (Nat.sqrt_spec (S n') ltac:(lia)) as [_ Hhi]. nia.
+Qed.
+
+Theorem wigderson_sqrt_bound : forall g i ci,
+  undirected g -> no_selfloop g ->
+  M.find i (wigderson (Nat.sqrt (M.cardinal g)) g) = Some ci ->
+  (Pos.to_nat ci <= 4 * Nat.sqrt (M.cardinal g) + 2)%nat.
+Proof.
+  intros g i ci Ug Hloop Hfi.
+  pose proof (wigderson_color_bound (Nat.sqrt (M.cardinal g)) g i ci Ug Hloop Hfi) as H.
+  pose proof (sqrt_div_le (M.cardinal g)). lia.
+Qed.
+
 (* Some notes about how the algorithm will be written:
 
 - we will not pass proofs that the graph is 3-colorable all the time,
