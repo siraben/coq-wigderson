@@ -51,7 +51,7 @@ The algorithm produces an $O(\!\sqrt{n})$-coloring of any 3-colorable graph on $
 Our development covers all the necessary infrastructure: an adjacency-list graph representation using positive maps and sets,
 a greedy coloring algorithm, induced subgraphs, neighborhoods, independent sets, bipartiteness,
 BFS-based 2-coloring of bipartite graphs, and both phases of Wigderson's algorithm.
-The main results are: (1)~the algorithm produces a proper coloring of any 3-colorable undirected graph, and (2)~every color assigned satisfies $c_i \le 3\lfloor n/(k{+}2)\rfloor + k + 2$, giving $O(\!\sqrt{n})$ colors when $k = \lfloor\!\sqrt{n}\rfloor$.
+The main results are: (1)~the algorithm produces a proper coloring of any 3-colorable undirected graph, (2)~every color assigned satisfies $c_i \le 3\lfloor n/(k{+}2)\rfloor + k + 2$, and (3)~setting $k = \lfloor\!\sqrt{n}\rfloor$ yields $c_i \le 4\sqrt{n} + 2$, formally establishing the $O(\!\sqrt{n})$ bound.
 The formalization is approximately 6{,}600 lines of Coq, with extensive use of the CoqHammer automated tactic for proof automation.
 No axioms beyond the standard Coq library are used, and no proofs are left admitted.
 \end{abstract}
@@ -931,11 +931,31 @@ irreflexivity as preconditions---notably, 3-colorability is not needed
 for the bound itself, only for correctness.
 \end{remark}
 
+\begin{corollary}[Asymptotic Bound --- \texttt{wigderson\_sqrt\_bound}]
+\label{cor:sqrt-bound}
+Let $g$ be an undirected irreflexive graph on $n$~vertices.
+Setting $k = \lfloor\!\sqrt{n}\rfloor$, every color~$c_i$ assigned by
+$\texttt{wigderson}(\lfloor\!\sqrt{n}\rfloor, g)$ satisfies
+\[
+  c_i \;\le\; 4\lfloor\!\sqrt{n}\rfloor + 2.
+\]
+\end{corollary}
+
+\begin{proof}
+By Theorem~\ref{thm:color-bound} with $k = \lfloor\!\sqrt{n}\rfloor$,
+it suffices to show $3\lfloor n/(\lfloor\!\sqrt{n}\rfloor + 2)\rfloor \le 3\lfloor\!\sqrt{n}\rfloor$,
+\ie, $\lfloor n/(\lfloor\!\sqrt{n}\rfloor + 2)\rfloor \le \lfloor\!\sqrt{n}\rfloor$.
+This holds because $n \le \lfloor\!\sqrt{n}\rfloor \cdot (\lfloor\!\sqrt{n}\rfloor + 2)$,
+which follows from $n < (\lfloor\!\sqrt{n}\rfloor + 1)^2 = \lfloor\!\sqrt{n}\rfloor^2 + 2\lfloor\!\sqrt{n}\rfloor + 1$
+(the defining property of the integer square root).
+In Coq, the key step uses \texttt{Nat.sqrt\_spec} and nonlinear arithmetic (\texttt{nia}).
+\end{proof}
+
 %% ====================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
-We have presented a complete formal verification of Wigderson's graph coloring algorithm in Coq. The main results are: (1)~the algorithm produces a proper coloring of any 3-colorable undirected graph (\texttt{wigderson\_ok}, Theorem~\ref{thm:wigderson-ok}), and (2)~every color assigned is bounded by $3\lfloor n/(k{+}2)\rfloor + k + 2$, giving $O(\!\sqrt{n})$ colors (\texttt{wigderson\_color\_bound}, Theorem~\ref{thm:color-bound}).
+We have presented a complete formal verification of Wigderson's graph coloring algorithm in Coq. The main results are: (1)~the algorithm produces a proper coloring of any 3-colorable undirected graph (\texttt{wigderson\_ok}, Theorem~\ref{thm:wigderson-ok}), (2)~every color assigned is bounded by $3\lfloor n/(k{+}2)\rfloor + k + 2$ (\texttt{wigderson\_color\_bound}, Theorem~\ref{thm:color-bound}), and (3)~setting $k = \lfloor\!\sqrt{n}\rfloor$ yields the concrete bound $c_i \le 4\lfloor\!\sqrt{n}\rfloor + 2$ (\texttt{wigderson\_sqrt\_bound}, Corollary~\ref{cor:sqrt-bound}), formally establishing the $O(\!\sqrt{n})$ guarantee.
 
 The formalization consists of approximately 6{,}600 lines of Coq across 9 source files:
 \begin{itemize}[nosep]
