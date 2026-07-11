@@ -40,6 +40,23 @@ Proof.
   hfcrush use: SP.union_sym, SP.equal_trans, SP.inter_sym unfold: PositiveSet.Equal, is_bipartition, PositiveSet.Empty.
 Qed.
 
+(** ** A vertex of a bipartite graph lies in one of the two sides *)
+Lemma in_bipartition_or g L R i :
+  is_bipartition g L R -> S.In i (nodes g) -> S.In i L \/ S.In i R.
+Proof.
+  intros (_ & Hcov & _ & _) Hi.
+  apply S.union_spec, Hcov, Hi.
+Qed.
+
+(** ** A graph with no vertices is bipartite *)
+Lemma bipartite_no_nodes g :
+  S.Empty (nodes g) -> bipartite g.
+Proof.
+  intro Hempty.
+  exists S.empty, S.empty.
+  repeat split; sauto lq: on use: SP.Dec.F.empty_iff unfold: PositiveSet.Empty, PositiveSet.Equal, independent_set.
+Qed.
+
 (** ** Basic consequences *)
 Lemma bipartite_no_selfloop g :
   bipartite g -> no_selfloop g.
@@ -93,10 +110,9 @@ Lemma bicolor_complete g L R c1 c2 :
   is_bipartition g L R ->
   (forall i, M.In i g -> M.In i (bicolor L R c1 c2)).
 Proof.
-  intros (Hdisj & Hcov & _ & _) i Hi.
-  apply in_domain in Hi.
-  assert (HiUR : S.In i (S.union L R)) by sfirstorder.
-  apply S.union_spec in HiUR as [HiL|HiR].
+  intros Hbip i Hi.
+  apply in_nodes_iff in Hi.
+  destruct (in_bipartition_or _ _ _ _ Hbip Hi) as [HiL|HiR].
   - apply munion_in. left. apply in_domain.
     strivial use: domain_constant_color unfold: PositiveMap.key, PositiveSet.elt, PositiveSet.Equal.
   - apply munion_in. right. apply in_domain.
@@ -344,6 +360,16 @@ Proof.
 Qed.
 
 (** * Stability under induced subgraphs *)
+
+(** ** An independent set stays independent (intersected with [t]) in the induced subgraph *)
+Lemma independent_set_inter_subgraph_of g s t :
+  independent_set g s -> independent_set (subgraph_of g t) (S.inter s t).
+Proof.
+  intros Hind i j Hi Hj.
+  rewrite adj_subgraph_of_spec.
+  hauto lq: on use: PositiveSet.inter_1 unfold: independent_set.
+Qed.
+
 Lemma bipartite_subgraph_of g s :
   bipartite g -> bipartite (subgraph_of g s).
 Proof.
@@ -356,8 +382,8 @@ Proof.
   - (* cover nodes of induced subgraph *)
     hcrush use: PositiveSet.union_3, PositiveSet.union_2, nodes_subgraph_of_spec, PositiveSet.union_1, PositiveSet.inter_spec unfold: PositiveSet.Equal.
   - hfcrush use: PositiveSet.union_2, PositiveSet.inter_3, nodes_subgraph_of_spec, PositiveSet.union_1, PositiveSet.union_3 unfold: PositiveSet.Equal.
-  - hauto depth: 2 lq: on exh: on use: adj_subgraph_of_spec, PositiveSet.inter_1 unfold: PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.elt.
-  - hauto depth: 2 lq: on exh: on use: adj_subgraph_of_spec, PositiveSet.inter_1 unfold: PositiveOrderedTypeBits.t, node, independent_set, PositiveSet.elt.
+  - apply independent_set_inter_subgraph_of; assumption.
+  - apply independent_set_inter_subgraph_of; assumption.
 Qed.
 
 (** * Neighborhood of a 3-colorable graph is bipartite *)
@@ -379,13 +405,9 @@ Proof.
     destruct (nbd_2_colorable_3 g f p Hc H3 v cv ltac:(assumption)) as [H2col HcompN].
     destruct (two_coloring_complete_to_bipartition _ _ _ HcompN H2col) as [c Hbip].
     sfirstorder.
-  - (* v not in g ⇒ neighbors are empty ⇒ neighborhood empty ⇒ bipartite *)
-    assert (neighbors g v = S.empty).
-    { unfold neighbors. now rewrite adj_empty_if_notin by auto. }
-    unfold neighborhood. rewrite H.
-    (* subgraph_of g S.empty is empty graph; removing v changes nothing *)
-    assert (M.Equal (subgraph_of g S.empty) (@M.empty _)) by hauto use: subgraph_of_empty.
-    unfold bipartite.
-    exists S.empty, S.empty.
-    hauto lq: on drew: off use: SP.Dec.F.empty_iff, nodes_neighborhood_spec, PositiveSet.choose_2 unfold: is_bipartition, PositiveSet.choose, PositiveSet.empty, PositiveSet.union, neighbors, PositiveSet.inter, neighborhood, PositiveSet.Equal, independent_set.
+  - (* v not in g ⇒ neighbors are empty ⇒ neighborhood has no nodes ⇒ bipartite *)
+    apply bipartite_no_nodes.
+    intros w Hw.
+    rewrite nodes_neighborhood_spec in Hw.
+    hauto lq: on use: adj_empty_if_notin, SP.Dec.F.empty_iff unfold: neighbors.
 Qed.

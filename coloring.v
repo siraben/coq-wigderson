@@ -65,8 +65,6 @@ Example ex_graph :=
 Definition two_colors: colors := SP.of_list [1; 2]%positive.
 Definition three_colors: colors := SP.of_list [1; 2; 3]%positive.
 
-Local Open Scope positive_scope.
-
 (* Example of 3-coloring the example graph and proof with ok_coloring *)
 Example ex_coloring :=
   fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(6,1);(3,1);(5,1);(4,2);(2,2);(1,3)].
