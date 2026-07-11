@@ -227,59 +227,6 @@ Proof.
 Qed.
   
 
-(** ** Removing a node results in a subgraph *)
-
-Lemma remove_node_subgraph : forall g v, is_subgraph (remove_node v g) g.
-Proof.
-  intros g v.
-  split.
-  - intros i Hi.
-    unfold nodes in *.
-    apply in_domain in Hi.
-    apply in_domain.
-    destruct (E.eq_dec i v).
-    * subst. unfold remove_node in Hi.
-      rewrite WF.map_in_iff in Hi.
-      apply M.remove_1 in Hi; sfirstorder.
-    * now apply remove_node_neq in Hi.
-  - intros j i Hi.
-    unfold adj in *.
-    destruct (M.find j (remove_node _ _)) eqn:E.
-    + epose proof (remove_node_neq2 g j v ltac:(sfirstorder)).
-      assert (M.In j g).
-      {
-        rewrite (remove_node_neq _ _ v); sfirstorder.
-      }
-      destruct H0 as [e He].
-      unfold M.MapsTo in He.
-      rewrite He.
-      assert (S.Subset n e).
-      {
-        intros z Hz.
-        unfold remove_node in E.
-        assert (M.find j (M.map (S.remove v) g) = Some (S.remove v e)).
-        {
-          rewrite WF.map_o in E.
-          rewrite WF.map_o.
-          unfold nodeset in *.
-          rewrite He.
-          scongruence.
-        }
-        unfold nodeset, node in *.
-        rewrite WF.map_o in H0, E.
-        rewrite M.gro in E by auto.
-        assert (n = S.remove v e).
-        {
-          scongruence.
-        }
-        subst n.
-        hauto l: on use: PositiveSet.remove_3 unfold: PositiveOrderedTypeBits.t, PositiveSet.elt.
-      }
-      sfirstorder.
-    + sauto.
-Qed.
-
-
 Lemma in_remove_nodes_iff g s w :
   M.In w (remove_nodes g s) <-> M.In w g /\ ~ S.In w s.
 Proof.
@@ -421,6 +368,19 @@ Proof.
   destruct H as [H1 H2].
   unfold adj.
   destruct (M.find i m1) eqn:E1, (M.find i m2) eqn:E2; unfold nodeset in *; sauto.
+Qed.
+
+(** ** Removing a node results in a subgraph *)
+(** Derived from the set version via the singleton bridges. *)
+Lemma remove_node_subgraph : forall g v, is_subgraph (remove_node v g) g.
+Proof.
+  intros g v.
+  pose proof (remove_nodes_subgraph g (S.singleton v)) as [Hn Ha].
+  split.
+  - intros i Hi.
+    apply Hn, remove_nodes_singleton_nodes, Hi.
+  - intros j i Hi.
+    apply Ha. now rewrite remove_node_nodes_adj.
 Qed.
 
 Lemma remove_nodes_monotone g s1 s2 :
@@ -675,6 +635,17 @@ Proof.
 Qed.
 
 
+(** [find] on a value-mapped restriction: gated by membership in the
+    restricting set, then apply the value function. *)
+Lemma find_map_restrict {A B} (f : A -> B) g s i :
+  M.find i (M.map f (restrict g s)) =
+  if S.mem i s then option_map f (M.find i g) else None.
+Proof.
+  rewrite WF.map_o, restrict_find.
+  destruct (S.mem i s); reflexivity.
+Qed.
+
+(** Explicit [find] on an induced subgraph. *)
 Lemma find_subgraph_of_spec g s i :
   M.find i (subgraph_of g s) =
   match S.mem i s with
@@ -686,10 +657,11 @@ Lemma find_subgraph_of_spec g s i :
   | false => None
   end.
 Proof.
-  unfold subgraph_of. rewrite WF.map_o, restrict_find.
+  unfold subgraph_of. rewrite find_map_restrict.
   hauto lq: on rew: off.
 Qed.
 
+(** Explicit [find] after removing a set of nodes. *)
 Lemma find_remove_nodes_spec g s i :
   M.find i (remove_nodes g s) =
   match S.mem i (S.diff (nodes g) s) with
@@ -701,8 +673,7 @@ Lemma find_remove_nodes_spec g s i :
   | false => None
   end.
 Proof.
-  unfold remove_nodes.
-  rewrite WF.map_o, restrict_find.
+  unfold remove_nodes. rewrite find_map_restrict.
   sauto lq: on.
 Qed.
 
