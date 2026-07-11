@@ -55,6 +55,7 @@ Proof.
     sfirstorder.
 Qed.
 
+(** ** Membership in a restricted map: key is in the set and in the original map *)
 Lemma restrict_in_iff {A} (m : M.t A) s k :
   M.In k (restrict m s) <-> S.In k s /\ M.In k m.
 Proof.
@@ -155,14 +156,6 @@ Proof.
 Qed.
 
 
-(** ** Specification of restriction *)
-Lemma restrict_spec : forall {A} (m : M.t A) s k,
-    M.In k (restrict m s) <-> M.In k m /\ S.In k s.
-Proof.
-  intros A m s k.
-  strivial use: @restrict_agree_2, @restrict_in_iff, SP.Dec.FSetDecideTestCases.test_iff_conj unfold: PositiveSet.elt, PositiveMap.key.
-Qed.
-
 (** ** Restriction and map commute *)
 Lemma restrict_map_comm {A B} : forall (m : M.t A) (f : A -> B) s,
     M.Equal (M.map f (restrict m s)) (restrict (M.map f m) s).
@@ -198,11 +191,11 @@ Proof.
   intros g s i j.
   split.
   - intros H.
-    apply in_adj_exists in H.
+    apply in_adj_iff in H.
     destruct H as [v [F I]].
     hauto use: @restrict_find_some_iff, @restrict_agree, find_in_adj, I unfold: PositiveMap.key, PositiveOrderedTypeBits.t, node.
   - intros [I J].
-    apply in_adj_exists in I.
+    apply in_adj_iff in I.
     destruct I as [v [F I]].
     eapply find_in_adj.
     rewrite <- restrict_agree_2 by auto.
@@ -220,7 +213,7 @@ Qed.
 Lemma restrict_find {A} (m : M.t A) s i :
   M.find i (restrict m s) = if S.mem i s then M.find i m else None.
 Proof.
-  pose proof (@restrict_spec A m s i).
+  pose proof (@restrict_in_iff A m s i).
   hauto use: SP.Dec.F.not_mem_iff, @restrict_agree_2, WF.not_find_mapsto_iff unfold: PositiveSet.In, PositiveSet.elt, PositiveMap.key inv: bool.
 Qed.
 
