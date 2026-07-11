@@ -240,6 +240,7 @@ Lemma force_component_bipartition_on_reached g seed :
   is_bipartition (subgraph_of g (S.union L R)) L R.
 Proof.
   intros Ug [BL [BR Hbip]] HseedG.
+  pose proof Hbip as Hbip_packed.
   destruct Hbip as [Hdisj [Hcov [HindL HindR]]].
   unfold force_component_sets.
   set (LR := force_layers g (S.singleton seed) S.empty
@@ -247,9 +248,8 @@ Proof.
   destruct LR as [L R] eqn:E.
 
   (* The seed lies on one of the two true sides *)
-  assert (HseedSide : S.In seed BL \/ S.In seed BR).
-  { apply (proj2 (Hcov seed)) in HseedG.
-    rewrite S.union_spec in HseedG; tauto. }
+  assert (HseedSide : S.In seed BL \/ S.In seed BR)
+    by (apply (in_bipartition_or g BL BR seed Hbip_packed HseedG)).
 
   (* Each true side is a subset of nodes g *)
   assert (BL_in_nodes : S.Subset BL (nodes g)).
