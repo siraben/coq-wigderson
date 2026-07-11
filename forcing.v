@@ -359,7 +359,7 @@ Proof.
   repeat split.
   - (* disjoint *)
     hauto lq: on use: disjoint_by_subsets, SP.diff_subset unfold: nodeset.
-  - (* cover: nodes(remove_nodes g s) = nodes g \ s *)
+  - (* cover, forward direction: nodes(remove_nodes g s) = nodes g \ s *)
     rewrite nodes_remove_nodes_eq.
     intros H.
     rewrite S.diff_spec.
@@ -367,11 +367,15 @@ Proof.
     destruct H.
     + sfirstorder use: PositiveSet.diff_1, PositiveSet.union_2, PositiveSet.diff_2 unfold: PositiveSet.Equal, nodeset.
     + sfirstorder use: PositiveSet.diff_2, PositiveSet.diff_1, PositiveSet.union_3 unfold: nodeset, PositiveSet.Equal.
-  - (* L independent after removal *)
+  - (* cover, reverse direction *)
     hfcrush use: PositiveSet.union_3, nodes_remove_nodes_spec, PositiveSet.union_2, PositiveSet.diff_3, PositiveSet.union_1 unfold: PositiveSet.Equal, nodeset.
-  - (* R independent after removal *)
-    qauto depth: 4 l: on use: adj_remove_nodes_spec, PositiveSet.diff_1 unfold: PositiveOrderedTypeBits.t, node, nodeset, independent_set, PositiveSet.elt.
-  - qauto depth: 4 l: on use: adj_remove_nodes_spec, PositiveSet.diff_1 unfold: PositiveOrderedTypeBits.t, node, nodeset, independent_set, PositiveSet.elt.
+  - (* L independent after removal: [diff L s] is a subset of the independent
+       [L], and [remove_nodes g s] is a subgraph of [g] *)
+    eapply independent_set_subgraph; [apply remove_nodes_subgraph|].
+    eapply independent_subset; [exact HindL | apply SP.diff_subset].
+  - (* R independent after removal, symmetric *)
+    eapply independent_set_subgraph; [apply remove_nodes_subgraph|].
+    eapply independent_subset; [exact HindR | apply SP.diff_subset].
 Qed.
 
 
