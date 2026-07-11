@@ -52,7 +52,7 @@ Our development covers all the necessary infrastructure: an adjacency-list graph
 a greedy coloring algorithm, induced subgraphs, neighborhoods, independent sets, bipartiteness,
 BFS-based 2-coloring of bipartite graphs, and both phases of Wigderson's algorithm.
 The main results are: (1)~the algorithm produces a proper coloring of any 3-colorable undirected graph, (2)~every color assigned satisfies $c_i \le 3\lfloor n/(k{+}2)\rfloor + k + 2$, and (3)~setting $k = \lfloor\!\sqrt{n}\rfloor$ yields $c_i \le 4\sqrt{n} + 2$, formally establishing the $O(\!\sqrt{n})$ bound.
-The formalization is approximately 6{,}600 lines of Coq, with extensive use of the CoqHammer automated tactic for proof automation.
+The formalization is approximately 6{,}100 lines of Coq, with extensive use of the CoqHammer automated tactic for proof automation.
 No axioms beyond the standard Coq library are used, and no proofs are left admitted.
 \end{abstract}
 
@@ -957,7 +957,7 @@ In Coq, the key step uses \texttt{Nat.sqrt\_spec} and nonlinear arithmetic (\tex
 
 We have presented a complete formal verification of Wigderson's graph coloring algorithm in Coq. The main results are: (1)~the algorithm produces a proper coloring of any 3-colorable undirected graph (\texttt{wigderson\_ok}, Theorem~\ref{thm:wigderson-ok}), (2)~every color assigned is bounded by $3\lfloor n/(k{+}2)\rfloor + k + 2$ (\texttt{wigderson\_color\_bound}, Theorem~\ref{thm:color-bound}), and (3)~setting $k = \lfloor\!\sqrt{n}\rfloor$ yields the concrete bound $c_i \le 4\lfloor\!\sqrt{n}\rfloor + 2$ (\texttt{wigderson\_sqrt\_bound}, Corollary~\ref{cor:sqrt-bound}), formally establishing the $O(\!\sqrt{n})$ guarantee.
 
-The formalization consists of approximately 6{,}600 lines of Coq across 9 source files:
+The formalization consists of approximately 6{,}100 lines of Coq across 9 source files:
 \begin{itemize}[nosep]
   \item \texttt{graph.v}: Core graph definitions, domain lemmas, and greedy coloring.
   \item \texttt{restrict.v}: Map restriction by key sets.
