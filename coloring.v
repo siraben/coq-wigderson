@@ -332,19 +332,20 @@ Proof.
 Qed.
 
 
-Lemma constant_color_find_iff (s : S.t) (c : node) i :
-  M.find i (constant_color s c) = Some c <-> S.In i s.
-Proof.
-  sauto lq: on use: @constant_color_inv, @constant_color_colors unfold: PositiveSet.elt, nodeset, PositiveMap.key.
-Qed.
-#[global] Hint Rewrite constant_color_find_iff : coloring_spec.
-
-
+(** ** Constant coloring find characterization *)
 Lemma constant_color_find_some_iff (s : S.t) (c d : node) i :
   M.find i (constant_color s c) = Some d <-> S.In i s /\ d = c.
 Proof.
-  hauto use: constant_color_find_iff, @constant_color_inv unfold: nodeset.
+  sauto lq: on use: @constant_color_inv, @constant_color_inv2, @constant_color_colors unfold: nodeset.
 Qed.
+
+(** ** Constant coloring find characterization, specialized to [d = c] *)
+Lemma constant_color_find_iff (s : S.t) (c : node) i :
+  M.find i (constant_color s c) = Some c <-> S.In i s.
+Proof.
+  hauto use: constant_color_find_some_iff.
+Qed.
+#[global] Hint Rewrite constant_color_find_iff : coloring_spec.
 
 Lemma domain_constant_color (s : S.t) (c : node) :
   S.Equal (Mdomain (constant_color s c)) s.
@@ -384,11 +385,15 @@ Qed.
 Lemma two_color_step_domain_spec g v c1 c2 f :
   S.Equal (Mdomain (two_color_step g v c1 c2 f)) (S.add v (adj g v)).
 Proof.
-  intro j; split; intro Hj.
-  - hauto use: PositiveSet.add_spec, PositiveSet.add_2, in_domain, two_color_step_find_iff unfold: node, coloring, PositiveMap.In, PositiveMap.MapsTo, nodeset, adj, PositiveSet.elt, PositiveMap.key, PositiveOrderedTypeBits.t.
-  - apply in_domain; destruct (E.eq_dec j v).
-    + sfirstorder use: PositiveMap.gss unfold: PositiveMap.MapsTo, adj, PositiveSet.elt, PositiveMap.In, PositiveMap.key, two_color_step, nodeset.
-    + hauto lq: on use: PositiveSet.add_3, two_color_step_find_iff unfold: PositiveOrderedTypeBits.t, adj, PositiveSet.elt, nodeset, node, PositiveMap.MapsTo, PositiveMap.In, PositiveMap.key.
+  intro j; rewrite in_domain, S.add_spec.
+  split.
+  - intros [d Hd]; unfold M.MapsTo in Hd.
+    rewrite two_color_step_find_iff in Hd; hauto lq: on.
+  - intros [->|Hj].
+    + exists c1. hauto lq: on use: two_color_step_find_iff.
+    + destruct (E.eq_dec j v) as [->|Hne].
+      * exists c1. hauto lq: on use: two_color_step_find_iff.
+      * exists c2. hauto lq: on use: two_color_step_find_iff.
 Qed.
 
 (** ** Vertex is colored $c_1$ *)
@@ -579,12 +584,9 @@ Proof.
   unfold coloring_ok.
   split.
   - intros ci H0.
-    apply munion_case in H0.
-    sfirstorder use: PositiveSet.union_3, PositiveSet.union_2.
+    munion_cases H0; sfirstorder use: PositiveSet.union_3, PositiveSet.union_2.
   - intros ci cj H0 H1.
-    apply munion_case in H0.
-    apply munion_case in H1.
-    destruct H0, H1.
+    munion_cases2 H0 H1.
     + sfirstorder unfold: coloring_ok.
     + assert (S.In ci p1) by sfirstorder.
       assert (S.In cj p2) by hauto unfold: undirected, coloring_ok.
@@ -641,15 +643,13 @@ Proof.
     apply (ok_coloring_set_eq _ _ _ _ H1).
     split.
     + intros ci H5.
-      apply munion_case in H5.
       enough (ci = c1 \/ ci = c2).
       {
         sfirstorder use: PositiveSet.singleton_2, PositiveSet.union_2, PositiveSet.union_3 unfold: PositiveSet.singleton.
       }
-      hauto q: on use: constant_color_inv2.
+      munion_cases H5; hauto q: on use: constant_color_inv2.
     + intros ci cj H5 H6.
-      apply munion_case in H5, H6.
-      destruct H5, H6.
+      munion_cases2 H5 H6.
       * hauto lq: on rew: off use: subgraph_edges, constant_color_inv unfold: independent_set, PositiveSet.Subset.
       * hauto lq: on rew: off use: constant_color_inv2.
       * hauto q: on use: constant_color_inv2.
