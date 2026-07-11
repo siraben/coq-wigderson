@@ -679,6 +679,15 @@ Proof.
       hauto lq: on use: in_nodes_iff, in_domain, subgraph_vert_m, extract_vertices_degs_subgraph unfold: PositiveSet.Subset, coloring, PositiveMap.key, PositiveSet.elt.
 Qed.
 
+(** Any vertex colored by phase 2 is a vertex of the input graph. *)
+Lemma phase2_find_in : forall g f g' i c,
+    phase2 g = (f, g') -> M.find i f = Some c -> M.In i g.
+Proof.
+  intros g f g' i c Hph Hfi.
+  apply in_nodes_iff. eapply phase2_domain_subset; eauto.
+  apply in_domain. exists c. auto.
+Qed.
+
 Lemma phase2_colors_distinct :
   forall (g g' : graph) (i j ci cj : node) (f : coloring),
     undirected g ->
@@ -739,16 +748,8 @@ Proof.
       congruence.
     + (* both later → use IH; first show the edge persists in g' *)
       (* If both are colored by f', they are in dom f' hence nodes g' *)
-      assert (Di : M.In i g').
-      { apply phase2_domain_subset with (g' := g''') in e1.
-        clear -e1 Hi_later.
-        hecrush use: in_domain.
-      }
-      assert (Dj : M.In j g').
-      { apply phase2_domain_subset with (g' := g''') in e1.
-        clear -e1 Hj_later.
-        hecrush use: in_domain.
-      }      
+      assert (Di : M.In i g') by (eapply phase2_find_in; eauto).
+      assert (Dj : M.In j g') by (eapply phase2_find_in; eauto).
       (* adjacency is preserved among surviving vertices *)
       assert (Hadj' : S.In j (adj g' i)).
       { rewrite adj_preserved_after_extract with (g := g).
@@ -894,12 +895,8 @@ Proof.
     simpl in Hfi, Hfj.
     injection Hfi as Hci_eq. injection Hfj as Hcj_eq.
     (* Show ci_orig ≠ cj_orig via phase2_colors_distinct *)
-    assert (Hi_g' : M.In i g').
-    { apply in_nodes_iff. eapply phase2_domain_subset; eauto.
-      apply in_domain. exists ci_orig. auto. }
-    assert (Hj_g' : M.In j g').
-    { apply in_nodes_iff. eapply phase2_domain_subset; eauto.
-      apply in_domain. exists cj_orig. auto. }
+    assert (Hi_g' : M.In i g') by (eapply phase2_find_in; eauto).
+    assert (Hj_g' : M.In j g') by (eapply phase2_find_in; eauto).
     assert (Hg'_eq : g' = snd (phase1 k 1 g)) by (rewrite Eph; auto).
     assert (Hadj' : S.In j (adj g' i)).
     { rewrite Hg'_eq.
