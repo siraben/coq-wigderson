@@ -10,7 +10,12 @@ Import ListNotations.
 
 Local Open Scope positive_scope.
 
-(* ===== Test Graphs ===== *)
+(** * Tests for the Wigderson coloring algorithm
+
+    Runs [wigderson] on a battery of named graphs and checks by
+    computation that every edge is properly colored. *)
+
+(** ** Test graphs *)
 
 (* Graph 1: Triangle (K3) - simplest 3-colorable graph
    1 -- 2 -- 3 -- 1 *)
@@ -41,7 +46,7 @@ Definition g_k23 :=
 Definition g_star_plus :=
   mk_graph [(1,2); (1,3); (1,4); (1,5); (2,3); (4,5)].
 
-(* ===== Complex Test Graphs ===== *)
+(** ** Complex test graphs *)
 
 (* Graph 7: Cycle C7 (odd cycle, 3-chromatic) *)
 Definition g_c7 :=
@@ -123,11 +128,11 @@ Definition g_octahedron :=
 Definition g_path10 :=
   mk_graph [(1,2);(2,3);(3,4);(4,5);(5,6);(6,7);(7,8);(8,9);(9,10)].
 
-(* ===== Helper: extract coloring as list of (node, color) pairs ===== *)
+(** ** Helper: extract a coloring as a list of (node, color) pairs *)
 Definition coloring_to_list (f : coloring) : list (positive * positive) :=
   M.elements f.
 
-(* ===== Compute Wigderson on each graph ===== *)
+(** ** Compute wigderson on each graph *)
 (* Using k=1 means any vertex with degree > 1 is "high degree" *)
 
 Eval compute in (coloring_to_list (wigderson 1 g_triangle)).
@@ -143,7 +148,7 @@ Eval compute in (coloring_to_list (wigderson 2 g_c5)).
 Eval compute in (coloring_to_list (wigderson 2 g_example)).
 Eval compute in (coloring_to_list (wigderson 2 g_star_plus)).
 
-(* ===== Complex graphs with k=1 ===== *)
+(** ** Complex graphs with k = 1 *)
 Eval compute in (coloring_to_list (wigderson 1 g_c7)).
 Eval compute in (coloring_to_list (wigderson 1 g_petersen)).
 Eval compute in (coloring_to_list (wigderson 1 g_cube)).
@@ -156,7 +161,7 @@ Eval compute in (coloring_to_list (wigderson 1 g_octahedron)).
 Eval compute in (coloring_to_list (wigderson 1 g_path10)).
 Eval compute in (coloring_to_list (wigderson 1 g_dodecahedron)).
 
-(* ===== Complex graphs with k=2 ===== *)
+(** ** Complex graphs with k = 2 *)
 Eval compute in (coloring_to_list (wigderson 2 g_c7)).
 Eval compute in (coloring_to_list (wigderson 2 g_petersen)).
 Eval compute in (coloring_to_list (wigderson 2 g_cube)).
@@ -169,7 +174,7 @@ Eval compute in (coloring_to_list (wigderson 2 g_octahedron)).
 Eval compute in (coloring_to_list (wigderson 2 g_path10)).
 Eval compute in (coloring_to_list (wigderson 2 g_dodecahedron)).
 
-(* ===== Verify each coloring is valid by computation ===== *)
+(** ** Verify each coloring is valid by computation *)
 
 (* Helper: check all edges have different colors *)
 Definition check_edge (f : coloring) (i j : positive) : bool :=
@@ -194,7 +199,7 @@ Eval compute in (check_edges (wigderson 1 g_k23) [(1,3);(1,4);(1,5);(2,3);(2,4);
 (* Star plus *)
 Eval compute in (check_edges (wigderson 1 g_star_plus) [(1,2);(1,3);(1,4);(1,5);(2,3);(4,5)]).
 
-(* ===== Complex graph edge checks (k=1) ===== *)
+(** ** Complex graph edge checks *)
 
 Definition c7_edges := [(1,2);(2,3);(3,4);(4,5);(5,6);(6,7);(7,1)].
 Definition petersen_edges := [(1,2);(2,3);(3,4);(4,5);(5,1);
