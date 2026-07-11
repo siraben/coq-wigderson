@@ -593,18 +593,6 @@ Proof.
   hauto lq: on use: remove_nodes_remove, neighborhood_nodes_equal_adj unfold: PositiveSet.elt, PositiveMap.key, PositiveSet.Equal.
 Qed.
 
-(* Flip between the two target colors *)
-Definition flip (c1 c2 c : positive) : positive :=
-  if Pos.eqb c c1 then c2 else c1.
-
-
-(** When is an edge in the induced subgraph?
-- if [i], [j] in [S] and [(i,j)] in [G] then [(i,j)] in $G|_S$
-- if [(i,j)] in $G|_S$ then [(i,j)] in [G]
-- if [v] in $G|_S$ then [v] in [S]
-- if [v] in [S] and [v] in [G] then [v] in $G|_S$
- *)
-
 (** * Degrees and maximum degrees *)
 (** Note that this is a partial function because if the vertex is not
     in the graph and we return 0, we can't tell whether it's actually
@@ -923,7 +911,6 @@ Qed.
 Definition extract_deg_vert (g : graph) (d : nat) :=
   find (fun p => Nat.eqb (S.cardinal (snd p)) d) (M.elements g).
 
-(* Annoying lemma *)
 (** ** InA to In conversion for pairs *)
 Lemma inA_in_iff {A} : forall p (l : list (M.key * A)), (InA (@M.eq_key_elt A) p l) <-> In p l.
 Proof. induction l; sauto q: on. Qed.
@@ -1222,11 +1209,8 @@ Proof.
   hauto use: remove_max_deg_adj, degree_remove.
 Qed.
 
-(* If n is not adjacent to p in the graph g-m, then n is not adjacent
-   to p in g.  *)
-(* Need this to transport the information about non-adjacency back up
-   the list.*)
 (** ** Non-adjacency is preserved after removing a node *)
+(** Used to transport non-adjacency information back up the extraction list. *)
 Lemma not_adj_remove : forall (g : graph) (n m p : node),
     n <> m -> m <> p ->
     ~ (S.In n (adj (remove_node m g) p)) ->
@@ -1252,9 +1236,6 @@ Qed.
 Definition independent_set (g : graph) (s : nodeset) :=
   forall i j, S.In i s -> S.In j s -> ~ S.In i (adj g j).
 
-(* If we have an independent set and a new vertex that is not adjacent
-   to anything in the independent set, then adding it results in a new
-   independent set. *)
 (** ** Adding a non-adjacent vertex to an independent set *)
 Lemma independent_set_add g s i :
   no_selfloop g -> undirected g ->
@@ -1267,13 +1248,12 @@ Proof.
   destruct (E.eq_dec a i), (E.eq_dec b i); hauto l: on use: PositiveSet.add_3.
 Qed.
 
-(* An independent set can be restricted to a subgraph *)
 (** ** Independent sets are preserved in subgraphs *)
 Lemma independent_set_subgraph : forall (g g' : graph) (s : nodeset),
     is_subgraph g' g -> independent_set g s -> independent_set g' s.
 Proof. sfirstorder. Qed.
 
-(* Extracting vertices with a given degree into a set *)
+(** ** Extracting vertices of a given degree into a set (and the leftover graph) *)
 Function extract_vertices_degs (g : graph) (d : nat) {measure M.cardinal g} : nodeset * graph :=
   match extract_deg_vert_dec g d with
   | inl v =>
@@ -1328,9 +1308,9 @@ Proof.
   - fcrush.
 Qed.
 
-(* we would like to have if and only if in the conclusion but
-   unfortunately it's not true while the function is iterating *)
 (** ** Extracting all the max degree vertices results in an independent set. *)
+(** The conclusion is an implication rather than an [<->]: the reverse
+    direction fails to hold while the extraction is still iterating. *)
 Lemma max_degree_extraction_independent_set0 : forall (g : graph) d,
     no_selfloop g ->
     d = max_deg g ->
