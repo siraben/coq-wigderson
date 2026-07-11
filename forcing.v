@@ -233,6 +233,33 @@ Proof.
     + assumption.
 Qed.
 
+(** If [L,R] land inside the true sides [BL,BR] of a bipartition, then the
+    subgraph induced on [L ∪ R] is itself bipartitioned by [L] and [R]. *)
+Lemma bipartition_induced_of_subsets g BL BR L R :
+  is_bipartition g BL BR ->
+  S.Subset L BL -> S.Subset R BR ->
+  is_bipartition (subgraph_of g (S.union L R)) L R.
+Proof.
+  intros (Hdisj & Hcov & HindL & HindR) HLsub HRsub.
+  (* the true sides lie inside [nodes g], hence so do [L] and [R] *)
+  assert (HBLg : S.Subset BL (nodes g))
+    by (intros x Hx; apply Hcov, S.union_spec; left; exact Hx).
+  assert (HBRg : S.Subset BR (nodes g))
+    by (intros x Hx; apply Hcov, S.union_spec; right; exact Hx).
+  assert (HLg : S.Subset L (nodes g)) by (eapply SP.subset_trans; eauto).
+  assert (HRg : S.Subset R (nodes g)) by (eapply SP.subset_trans; eauto).
+  split; [|split; [|split]].
+  - (* disjointness inherited from [BL ∩ BR = ∅] *)
+    eapply disjoint_by_subsets; [exact Hdisj | exact HLsub | exact HRsub].
+  - (* cover: nodes of the induced subgraph are exactly [L ∪ R] *)
+    symmetry. apply nodes_subgraph_of_union_eq; assumption.
+  - (* independence carries down to the induced subgraph and subset *)
+    eapply independent_set_subgraph; [apply subgraph_of_is_subgraph|].
+    eapply independent_subset; [exact HindL | exact HLsub].
+  - eapply independent_set_subgraph; [apply subgraph_of_is_subgraph|].
+    eapply independent_subset; [exact HindR | exact HRsub].
+Qed.
+
 Lemma force_component_bipartition_on_reached g seed :
   undirected g -> bipartite g -> S.In seed (nodes g) ->
   let LR := force_component_sets g seed in
@@ -240,85 +267,25 @@ Lemma force_component_bipartition_on_reached g seed :
   is_bipartition (subgraph_of g (S.union L R)) L R.
 Proof.
   intros Ug [BL [BR Hbip]] HseedG.
-  pose proof Hbip as Hbip_packed.
-  destruct Hbip as [Hdisj [Hcov [HindL HindR]]].
   unfold force_component_sets.
   set (LR := force_layers g (S.singleton seed) S.empty
                           (S.singleton seed) S.empty (S.cardinal (nodes g))).
   destruct LR as [L R] eqn:E.
+  cbn [fst snd].
 
-  (* The seed lies on one of the two true sides *)
-  assert (HseedSide : S.In seed BL \/ S.In seed BR)
-    by (apply (in_bipartition_or g BL BR seed Hbip_packed HseedG)).
-
-  (* Each true side is a subset of nodes g *)
-  assert (BL_in_nodes : S.Subset BL (nodes g)).
-  { sfirstorder use: PositiveSet.union_2 unfold: PositiveSet.Equal, PositiveSet.Subset. }
-  assert (BR_in_nodes : S.Subset BR (nodes g)).
-  { hfcrush use: SP.Dec.F.union_iff unfold: PositiveSet.Subset, PositiveSet.Equal. }
-
-  (* We now branch on the side of the seed and harvest the forcing invariant *)
-  unfold is_bipartition.
-  repeat split.
-  - (* Disjointness L ∩ R = ∅ *)
-    destruct HseedSide as [HseedBL|HseedBR].
-    + pose proof (conj (conj Hdisj Hcov) (conj HindL HindR)).
-      pose proof (force_layers_subset_true_partition
-                    g BL BR seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      hauto use: disjoint_by_subsets unfold: is_bipartition, fst, snd inv: prod.
-    + pose proof (bipartition_sym g BL BR) as Hbip'.
-      pose proof (force_layers_subset_true_partition
-                    g BR BL seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      hauto use: disjoint_by_subsets unfold: is_bipartition, fst, snd inv: prod.
-  - (* Cover on the induced subgraph: nodes(subgraph_of g (L ∪ R)) = L ∪ R *)
-    destruct HseedSide as [HseedBL|HseedBR].
-    + pose proof (force_layers_subset_true_partition
-                    g BL BR seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      hfcrush use: PositiveSet.union_spec, nodes_subgraph_of_spec unfold: snd, is_bipartition, fst, PositiveSet.Subset inv: prod.
-    + pose proof (bipartition_sym g BL BR) as Hbip'.
-      pose proof (force_layers_subset_true_partition
-                    g BR BL seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      hfcrush use: nodes_subgraph_of_spec, PositiveSet.union_1 unfold: fst, snd, is_bipartition, PositiveSet.Subset inv: prod.
-  - (* Independence of L in the induced subgraph *)
-    destruct HseedSide as [HseedBL|HseedBR].
-    + pose proof (force_layers_subset_true_partition
-                    g BL BR seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      strivial use: nodes_subgraph_of_spec unfold: fst, snd.
-    + pose proof (bipartition_sym g BL BR) as Hbip'.
-      pose proof (force_layers_subset_true_partition
-                    g BR BL seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      strivial use: nodes_subgraph_of_spec unfold: snd, fst.
-  - (* Independence of R in the induced subgraph *)
-    destruct HseedSide as [HseedBL|HseedBR].
-    + pose proof (force_layers_subset_true_partition
-                    g BL BR seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      eapply independent_set_subgraph; [apply subgraph_of_is_subgraph|].
-      hauto use: independent_subset unfold: is_bipartition, nodeset inv: prod.
-    + pose proof (bipartition_sym g BL BR) as Hbip'.
-      pose proof (force_layers_subset_true_partition
-                    g BR BL seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      eapply independent_set_subgraph; [apply subgraph_of_is_subgraph|].
-      hauto use: independent_subset unfold: nodeset, is_bipartition, fst inv: prod.
-  - destruct HseedSide as [HseedBL|HseedBR].
-    + pose proof (force_layers_subset_true_partition
-                    g BL BR seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      eapply independent_set_subgraph; [apply subgraph_of_is_subgraph|].
-      hauto use: independent_subset unfold: is_bipartition, nodeset inv: prod.
-    + pose proof (bipartition_sym g BL BR) as Hbip'.
-      pose proof (force_layers_subset_true_partition
-                    g BR BL seed (S.cardinal (nodes g))
-                    Ug) as Hsub.
-      eapply independent_set_subgraph; [apply subgraph_of_is_subgraph|].
-      hauto use: independent_subset unfold: nodeset, is_bipartition, fst inv: prod.
+  (* The seed lies on one of the two true sides; in each case the forcing
+     invariant confines [L] and [R] to opposite true sides, and
+     [bipartition_induced_of_subsets] finishes. *)
+  destruct (in_bipartition_or g BL BR seed Hbip HseedG) as [HseedBL|HseedBR].
+  - pose proof (force_layers_subset_true_partition
+                  g BL BR seed (S.cardinal (nodes g)) Ug Hbip HseedBL) as Hsub.
+    fold LR in Hsub. rewrite E in Hsub. destruct Hsub as [HL HR].
+    eapply bipartition_induced_of_subsets; eauto.
+  - pose proof (bipartition_sym g BL BR Hbip) as Hbip'.
+    pose proof (force_layers_subset_true_partition
+                  g BR BL seed (S.cardinal (nodes g)) Ug Hbip' HseedBR) as Hsub.
+    fold LR in Hsub. rewrite E in Hsub. destruct Hsub as [HL HR].
+    eapply bipartition_induced_of_subsets; eauto.
 Qed.
 
 (* --- finishing step: the forcing component is a complete 2-coloring on the reached subgraph --- *)
