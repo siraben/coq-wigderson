@@ -13,25 +13,23 @@ Import Nat.
 
 Local Open Scope positive_scope.
 
-(* union of maps (left-heavy) *)
+(** Left-heavy union of two maps: entries of [f] take priority over [g]. *)
 Definition Munion {A} (f g : M.t A) := M.fold (fun k v => M.add k v) f g.
-(* Two maps are disjoint if their keys have no intersection. *)
-(* Mkeys is just Mdomain *)
+
+(** Two maps are disjoint when their domains do not intersect. *)
 Definition Mdisjoint {A} (f g : M.t A) := S.Equal (S.inter (Mdomain f) (Mdomain g)) S.empty.
 
-(* Test case for disjointness *)
+(** A concrete example of two disjoint maps. *)
 Example Mdisjoint_test1 :
   Mdisjoint (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(1,1);(2,2)])
             (fold_right (fun p m => M.add (fst p) (snd p) m) (@M.empty _) [(3,1);(4,2)]).
 Proof. hauto l: on. Qed.
 
-(* Note: since we're using equality on finite sets can we get for free
-   that map disjointness is decidable *)
 (** ** Decidability of map disjointness *)
 Lemma mdisjoint_dec {A} (f g : M.t A) : {Mdisjoint f g} + {~ Mdisjoint f g}.
 Proof. apply S.eq_dec. Qed.
 
-(** ** Membership of a map union *)
+(** ** A lookup in a union comes from one of the two maps *)
 Lemma munion_case {A} : forall (c d : M.t A) i v,
     M.find i (Munion c d) = Some v -> M.find i c = Some v \/ M.find i d = Some v.
 Proof.
@@ -45,6 +43,13 @@ Proof.
     + sfirstorder use: PositiveMap.gss.
     + hauto use: PositiveMapAdditionalFacts.gsident, WF.add_neq_o, PositiveMap.gss.
 Qed.
+
+(** [munion_cases H] splits a hypothesis [M.find i (Munion c d) = Some v] into
+    the two cases [M.find i c = Some v] and [M.find i d = Some v].
+    [munion_cases2 Hi Hj] does the same for two such hypotheses at once,
+    yielding the four combined cases. *)
+Ltac munion_cases H := apply munion_case in H as [H|H].
+Ltac munion_cases2 Hi Hj := munion_cases Hi; munion_cases Hj.
 
 (** ** Left-priority lookup in a map union *)
 Lemma munion_find_l {A} : forall (c d : M.t A) i v,
