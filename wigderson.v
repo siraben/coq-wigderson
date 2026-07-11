@@ -20,21 +20,22 @@ Import ListNotations.
 Import Nat.
 
 
-(* Predicate that takes a vertex with high degree (> K) *)
+(** [high_deg K n adj] holds when vertex [n] with adjacency set [adj]
+    has degree strictly greater than [K]. *)
 Definition high_deg (K: nat) (n: node) (adj: nodeset) : bool := K <? S.cardinal adj.
-
-Definition injective {A B} (f : A -> B) := forall x y, f x = f y -> x = y.
 
 Local Open Scope positive_scope.
 
+(** Wigderson's algorithm on a graph [G] with [|V(G)| = k]. A vertex is
+    high-degree when its degree exceeds [sqrt k].
 
-(** Wigderson's algorithm definition
+    - Phase 1 selects the high-degree vertices and 2-colors their
+      neighborhoods.
+    - Phase 2 colors the remaining (low-degree) graph with at most
+      [sqrt k] colors.
 
-    Let G be a graph, |G.v| = k.
-    A vertex v is high-degree if deg(v) > sqrt(k).
-    Phase 1 is selecting the high-degree vertices and coloring their neighborhoods.
-    Phase 2 is coloring the remaining nodes with at most sqrt(k) colors.
- *)
+    The two phases use disjoint color palettes, so their union is a
+    valid coloring using [O(sqrt k)] colors. *)
 
 (** * Phase 1: color the neighborhoods of high-degree vertices
 
@@ -412,6 +413,7 @@ Qed.
 Definition max_color (f : coloring) : positive :=
   M.fold (fun _ v acc => Pos.max v acc) f 1.
 
+(** [Pos.max] is monotone in its right argument. *)
 Lemma Pos_max_le_compat_r : forall v a b,
   (a <= b)%positive -> (Pos.max v a <= Pos.max v b)%positive.
 Proof.
@@ -420,6 +422,7 @@ Proof.
   destruct (Pos.compare_spec v a); destruct (Pos.compare_spec v b); lia.
 Qed.
 
+(** The accumulator is a lower bound of the [Pos.max] fold. *)
 Lemma fold_left_max_le_acc : forall l (acc : positive),
   (acc <= fold_left (fun (a : positive) (p : M.key * positive) => Pos.max (snd p) a) l acc)%positive.
 Proof.
@@ -428,6 +431,7 @@ Proof.
   - etransitivity; [apply Pos.le_max_r | apply IH].
 Qed.
 
+(** Every value in the list bounds the [Pos.max] fold from below. *)
 Lemma fold_left_max_in : forall l i ci acc,
   In (i, ci) l ->
   (ci <= fold_left (fun (a : positive) (p : M.key * positive) => Pos.max (snd p) a) l acc)%positive.
@@ -441,6 +445,7 @@ Proof.
     + simpl. eapply IH. exact H.
 Qed.
 
+(** [max_color] is an upper bound on every color in the coloring. *)
 Lemma max_color_spec : forall f i ci,
   M.find i f = Some ci -> (ci <= max_color f)%positive.
 Proof.
@@ -450,24 +455,17 @@ Proof.
   apply M.elements_correct. auto.
 Qed.
 
-(* things we want to prove:
- - let d be the number of iterations
- - prove that the resulting color uses 2d+1 colors
-   - induction on size of graph
-   - two new colors each time
-   - base case: no more high degree vertices, color with phase2
- - there are no more high-degree nodes (this is the hypothesis for phase2)
- - need to identify the terminal properties for phase1 to supply to phase2
- *)
-(* induction on M.cardinal g *)
-Check phase1.
-(* Lemmas:
-- you can color any graph with max degree + 1 colors
-- can prove 3*(sqrt n) + 1
- *)
+(** * Phase 2: color the low-degree residual graph
 
+    After phase 1 the residual graph has maximum degree at most [k].
+    Phase 2 repeatedly extracts a maximal independent set of the
+    current-maximum-degree vertices, colors them all with a fresh
+    color, and recurses on the rest. A graph of maximum degree [d] is
+    colored with at most [d + 1] colors. *)
 
-(** * Phase 2 of Wigderson *)
+(** The recursive body of phase 2: colors each independent layer of
+    maximum-degree vertices with a fresh color. Returns the coloring
+    and the (empty) residual graph. *)
 Function phase2 (g : graph) {measure M.cardinal g} : coloring * graph :=
   match (max_deg g)%nat with
   | 0%nat => (constant_color (nodes g) 1, (@M.empty _))
@@ -532,6 +530,7 @@ Functional Scheme phase2_ind := Induction for phase2 Sort Prop.
 (** The palette [{1, ..., p+1}] as a node set, used to bound the colors
     produced by phase 2. *)
 Definition siota p := SP.of_list (map Pos.of_nat (seq 1 (p + 1))).
+(** The palette used by phase 2: colors [1 .. max_deg g + 1]. *)
 Definition phase2_colors g := siota (max_deg g).
 
 (** ** Specification of siota construction *)
@@ -574,9 +573,7 @@ Proof.
   lia.
 Qed.
 
-(* if we have an independent set, we can augment any valid coloring
-   with it to obtain another valid coloring *)
-(** ** Augmenting a coloring with an independent set  *)
+(** ** Augmenting a coloring with an independent set *)
 Lemma indep_set_union : forall (g : graph) (f : coloring) (s : nodeset) (p : colors) c,
     undirected g ->
     independent_set g s ->
@@ -611,6 +608,7 @@ Proof.
     + strivial unfold: coloring_ok.
 Qed.
 
+(** ** Phase2 colors are bounded by max_deg g + 1 *)
 Lemma phase2_color_bound :
   forall (g : graph) (f : coloring) (g' : graph) (i : node) n,
     phase2 g = (f, g') ->
@@ -642,6 +640,7 @@ Proof.
       hauto l: on.
 Qed.
 
+(** ** Phase2 only colors vertices of the input graph *)
 Lemma phase2_domain_subset :
   forall g f g',
     phase2 g = (f, g') ->
@@ -688,6 +687,7 @@ Proof.
   apply in_domain. exists c. auto.
 Qed.
 
+(** ** Phase2 assigns distinct colors to adjacent vertices *)
 Lemma phase2_colors_distinct :
   forall (g g' : graph) (i j ci cj : node) (f : coloring),
     undirected g ->
@@ -1154,6 +1154,7 @@ Proof.
   - pose proof (Nat.sqrt_spec (S n') ltac:(lia)) as [_ Hhi]. nia.
 Qed.
 
+(** With [k = sqrt |V|], wigderson colors [g] with [O(sqrt |V|)] colors. *)
 Theorem wigderson_sqrt_bound : forall g i ci,
   undirected g -> no_selfloop g ->
   M.find i (wigderson (Nat.sqrt (M.cardinal g)) g) = Some ci ->
