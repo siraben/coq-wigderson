@@ -512,19 +512,19 @@ Proof.
       exists vi. exact E. }
     split.
     + intros ci Hci.
-      apply munion_case in Hci as [Hci|Hci].
+      munion_cases Hci.
       * congruence.
       * assert (Hadj' : S.In j (adj (remove_nodes g S) i)).
         { apply adj_remove_nodes_spec. auto. }
         destruct (OK2 i j Hadj') as [Hpal _].
         exact (Hpal ci Hci).
     + intros ci cj Hci Hcj Heq.
-      apply munion_case in Hci as [Hci|Hci]; [congruence|].
+      munion_cases Hci; [congruence|].
       assert (Hfj1 : M.find j f1 = None).
       { destruct (M.find j f1) as [vj|] eqn:E; [|reflexivity].
         exfalso. apply HjS. rewrite <- Hdom. apply in_domain.
         exists vj. exact E. }
-      apply munion_case in Hcj as [Hcj|Hcj]; [congruence|].
+      munion_cases Hcj; [congruence|].
       assert (Hadj' : S.In j (adj (remove_nodes g S) i)).
       { apply adj_remove_nodes_spec. auto. }
       destruct (OK2 i j Hadj') as [_ Hneq].
@@ -869,9 +869,9 @@ Proof.
   - set (LR := force_component_sets g seed) in *.
     set (L := fst LR) in *. set (R := snd LR) in *.
     set (Sreach := S.union L R) in *.
-    apply munion_case in Hfi as [Hfi|Hfi].
+    munion_cases Hfi.
     + (* ci from bicolor L R c1 c2 *)
-      unfold bicolor in Hfi. apply munion_case in Hfi as [Hfi|Hfi].
+      unfold bicolor in Hfi. munion_cases Hfi.
       * left. symmetry. eapply constant_color_inv2. eauto.
       * right. symmetry. eapply constant_color_inv2. eauto.
     + (* ci from force_all (remove_nodes g Sreach) c1 c2 *)
@@ -916,13 +916,13 @@ Proof.
     set (L := fst LR) in *. set (R := snd LR) in *.
     set (Sreach := S.union L R) in *.
     assert (Hseed : S.In seed (nodes g)) by (apply S.choose_1; auto).
-    apply munion_case in Hfi as [Hfi|Hfi].
+    munion_cases Hfi.
     + (* i from bicolor L R c1 c2 — in reached g seed ⊆ nodes g *)
       apply in_nodes_iff.
       apply (reached_subset_nodes g seed Ug Hseed).
       unfold reached, force_component_sets.
       fold LR L R.
-      unfold bicolor in Hfi. apply munion_case in Hfi as [Hfi|Hfi];
+      unfold bicolor in Hfi. munion_cases Hfi;
       apply constant_color_inv in Hfi;
       apply S.union_spec; [left | right]; auto.
     + (* i from recursive call *)
