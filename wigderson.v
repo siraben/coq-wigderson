@@ -79,6 +79,16 @@ Proof.
   - unfold s. hauto l: on use: S.diff_spec, S.add_spec.
 Defined.
 
+(** A vertex chosen by [S.choose] on the high-degree subset is a
+    vertex of the graph. Used throughout the phase-1 induction. *)
+Lemma chosen_high_deg_in : forall k g v,
+    S.choose (subset_nodes (high_deg k) g) = Some v -> M.In v g.
+Proof.
+  intros k g v Echoose.
+  apply in_nodes_iff. apply S.choose_1 in Echoose.
+  apply subset_nodes_sub in Echoose. auto.
+Qed.
+
 (** ** Colors used by phase1 are bounded below by c *)
 Lemma phase1_color_lower_bound :
   forall k c g i ci,
@@ -104,8 +114,7 @@ Proof.
       { subst n. unfold g'.
         eapply remove_nodes_lt with (i := v).
         - apply S.add_spec. left. reflexivity.
-        - apply in_nodes_iff. apply S.choose_1 in Echoose.
-          apply subset_nodes_sub in Echoose. auto. }
+        - eapply chosen_high_deg_in; eauto. }
       assert (Hge : (c + 3 <= ci)%positive).
       { eapply (IH _ Hlt k (c+3) g' (Logic.eq_refl _)).
         rewrite Eph. simpl. exact Hfi. }
@@ -132,7 +141,7 @@ Proof.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in Hfi.
     munion_cases Hfi.
     + destruct (E.eq_dec i v) as [->|Hne].
-      * apply in_nodes_iff. apply S.choose_1 in Echoose. apply subset_nodes_sub in Echoose. auto.
+      * eapply chosen_high_deg_in; eauto.
       * rewrite M.gso in Hfi by auto.
         unfold m', two_color_nbd in Hfi.
         eapply subgraph_vert_m; [apply nbd_subgraph |].
@@ -141,7 +150,7 @@ Proof.
     + assert (Hlt : (M.cardinal g' < n)%nat).
       { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
         - apply S.add_spec. left. reflexivity.
-        - apply in_nodes_iff. apply S.choose_1 in Echoose. apply subset_nodes_sub in Echoose. auto. }
+        - eapply chosen_high_deg_in; eauto. }
       eapply subgraph_vert_m; [apply remove_nodes_subgraph |].
       eapply (IH _ Hlt k (c+3) g' (Logic.eq_refl _) i ci); auto.
       * apply remove_nodes_undirected. auto.
@@ -230,8 +239,7 @@ Proof.
       { subst n. unfold g'.
         eapply remove_nodes_lt with (i := v).
         - apply S.add_spec. left. reflexivity.
-        - apply in_nodes_iff. apply S.choose_1 in Echoose.
-          apply subset_nodes_sub in Echoose. auto. }
+        - eapply chosen_high_deg_in; eauto. }
       (* The edge (i,j) must exist in g' *)
       (* Both i,j are colored by phase1 on g', so they're in nodes g' *)
       (* Since i,j ∉ {v} ∪ nodes(nbhd) and (i,j) is edge in g, it's edge in g' *)
@@ -247,12 +255,8 @@ Proof.
       assert (Hj_g' : M.In j g') by (eapply phase1_domain; eauto).
       assert (Hadj' : S.In j (adj g' i)).
       { unfold g'. apply adj_remove_nodes_spec. split; [|split]; auto.
-        - intro contra. apply in_nodes_iff in Hj_g'. unfold g' in Hj_g'.
-          rewrite nodes_remove_nodes_eq in Hj_g'.
-          apply S.diff_spec in Hj_g'. tauto.
-        - intro contra. apply in_nodes_iff in Hi_g'. unfold g' in Hi_g'.
-          rewrite nodes_remove_nodes_eq in Hi_g'.
-          apply S.diff_spec in Hi_g'. tauto. }
+        - apply (proj1 (in_remove_nodes_iff _ _ _) Hj_g').
+        - apply (proj1 (in_remove_nodes_iff _ _ _) Hi_g'). }
       eapply (IH _ Hlt k (c+3) g' f p Ug' Hloop' Hcol' H3 (Logic.eq_refl _)); eauto.
   - (* Base case: empty coloring *)
     simpl in Hfi. rewrite WF.empty_o in Hfi. discriminate.
@@ -277,8 +281,7 @@ Proof.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
       - apply S.add_spec. left. reflexivity.
-      - apply in_nodes_iff. apply S.choose_1 in Echoose.
-        apply subset_nodes_sub in Echoose. auto. }
+      - eapply chosen_high_deg_in; eauto. }
     specialize (IH _ Hlt k (c+3) g' (Logic.eq_refl _)). rewrite Eph in IH. simpl in IH.
     eapply subgraph_trans; eauto. apply remove_nodes_subgraph.
   - simpl. apply subgraph_refl.
@@ -302,8 +305,7 @@ Proof.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
       - apply S.add_spec. left. reflexivity.
-      - apply in_nodes_iff. apply S.choose_1 in Echoose.
-        apply subset_nodes_sub in Echoose. auto. }
+      - eapply chosen_high_deg_in; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     specialize (IH _ Hlt k (c+3) g' Ug' (Logic.eq_refl _)).
     rewrite Eph in IH. simpl in IH. exact IH.
@@ -328,8 +330,7 @@ Proof.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
       - apply S.add_spec. left. reflexivity.
-      - apply in_nodes_iff. apply S.choose_1 in Echoose.
-        apply subset_nodes_sub in Echoose. auto. }
+      - eapply chosen_high_deg_in; eauto. }
     assert (Hloop' : no_selfloop g') by
       (unfold g'; eapply subgraph_no_selfloop; [apply remove_nodes_subgraph | auto]).
     specialize (IH _ Hlt k (c+3) g' Hloop' (Logic.eq_refl _)).
@@ -356,8 +357,7 @@ Proof.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
       - apply S.add_spec. left. reflexivity.
-      - apply in_nodes_iff. apply S.choose_1 in Echoose.
-        apply subset_nodes_sub in Echoose. auto. }
+      - eapply chosen_high_deg_in; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     specialize (IH _ Hlt k (c+3) g' Ug' (Logic.eq_refl _)).
     rewrite Eph in IH. simpl in IH. exact IH.
@@ -386,8 +386,7 @@ Proof.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
       - apply S.add_spec. left. reflexivity.
-      - apply in_nodes_iff. apply S.choose_1 in Echoose.
-        apply subset_nodes_sub in Echoose. auto. }
+      - eapply chosen_high_deg_in; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     (* g2 is a subgraph of g' *)
     assert (Hsub : is_subgraph g2 g').
@@ -396,12 +395,10 @@ Proof.
     assert (Hi' : M.In i g') by (eapply subgraph_vert_m; eauto).
     assert (Hj' : M.In j g') by (eapply subgraph_vert_m; eauto).
     (* i,j not in the removed set *)
-    assert (Hni : ~ S.In i (S.add v (nodes nbhd))).
-    { intro contra. apply in_nodes_iff in Hi'. unfold g' in Hi'.
-      rewrite nodes_remove_nodes_eq in Hi'. apply S.diff_spec in Hi'. tauto. }
-    assert (Hnj : ~ S.In j (S.add v (nodes nbhd))).
-    { intro contra. apply in_nodes_iff in Hj'. unfold g' in Hj'.
-      rewrite nodes_remove_nodes_eq in Hj'. apply S.diff_spec in Hj'. tauto. }
+    assert (Hni : ~ S.In i (S.add v (nodes nbhd)))
+      by (apply (proj1 (in_remove_nodes_iff _ _ _) Hi')).
+    assert (Hnj : ~ S.In j (S.add v (nodes nbhd)))
+      by (apply (proj1 (in_remove_nodes_iff _ _ _) Hj')).
     (* edge persists in g' *)
     assert (Hadj' : S.In j (adj g' i)).
     { apply adj_preserved_if_not_removed; auto. }
@@ -1069,8 +1066,7 @@ Proof.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
       - apply S.add_spec. left. reflexivity.
-      - apply in_nodes_iff. apply S.choose_1 in Echoose.
-        apply subset_nodes_sub in Echoose. auto. }
+      - eapply chosen_high_deg_in; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     assert (Hloop' : no_selfloop g') by
       (unfold g'; eapply subgraph_no_selfloop; [apply remove_nodes_subgraph | auto]).
