@@ -51,14 +51,19 @@ Proof.
   - intros s' Hs'.
     sfirstorder.
   - sauto.
-  - intros x a s' Hx Hrec.
+  - intros x a s' _ _ Hrec.
+    (* i is in [union (adj g x) a] iff it is a neighbor of the new element [x]
+       or (by [Hrec]) of some element already in [s'] *)
     split; intro Hin.
-    + qauto use: PositiveSet.union_1, SP.Dec.FSetDecideTestCases.test_iff_conj, PositiveSet.add_spec unfold: PositiveSet.empty, PositiveOrderedTypeBits.t, nodeset, PositiveSet.elt, node, PositiveSet.t, adj.
-    + destruct Hin as (v & Hv & Hv2).
-      rewrite S.add_spec in Hv.
-      destruct Hv.
-      * sfirstorder use: PositiveSet.union_2, PositiveSet.mem_Leaf unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.In, node, adj, PositiveSet.empty, nodeset.
-      * sfirstorder use: PositiveSet.union_3 unfold: node, PositiveSet.elt, adj, PositiveOrderedTypeBits.t, nodeset.
+    + apply S.union_spec in Hin as [Hix | Hia].
+      * exists x. rewrite S.add_spec. auto.
+      * apply Hrec in Hia as (v & Hv & Hiv).
+        exists v. rewrite S.add_spec. auto.
+    + destruct Hin as (v & Hv & Hiv).
+      rewrite S.add_spec in Hv. apply S.union_spec.
+      destruct Hv as [<- | Hv].
+      * left; exact Hiv.
+      * right; apply Hrec; exists v; auto.
 Qed.
 
 Lemma nbs_subset_nodes g s :
