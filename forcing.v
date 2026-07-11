@@ -32,8 +32,12 @@ Add Hammer Filter Coq.micromega.EnvRing.
 Add Hammer Filter Coq.funind.Recdef.
 Set Hammer ReconstrLimit 10.
 
-(* ---------- Neighborhood of a set (union of adjacency sets) ---------- *)
+(** * Neighborhoods of a set
 
+    The forcing algorithm repeatedly expands a frontier by taking the union of
+    the adjacency sets of its vertices. *)
+
+(** [nbs g s] is the union of the adjacency sets of all vertices in [s]. *)
 Definition nbs (g : graph) (s : S.t) : S.t :=
   S.fold (fun v acc => S.union (adj g v) acc) s S.empty.
 
@@ -75,12 +79,19 @@ Proof.
   sauto lq: on use: in_adj_neighbor_in_nodes unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
 Qed.
 
-(* Convenience: next frontier additions, excluding already "visited" *)
+(** * BFS layering
+
+    One BFS step forces the neighbors of the current L-frontier into R and the
+    neighbors of the current R-frontier into L, skipping vertices already
+    visited. *)
+
+(** Next R-additions: neighbors of the L-frontier not yet visited. *)
 Definition add_to_R g FL Vis := S.diff (nbs g FL) Vis.
+(** Next L-additions: neighbors of the R-frontier not yet visited. *)
 Definition add_to_L g FR Vis := S.diff (nbs g FR) Vis.
 
-(* ---------- One-component forcing (layered BFS) ---------- *)
-
+(** [force_layers] runs [fuel] rounds of alternating BFS, accumulating the two
+    color classes [L] and [R] from the current frontiers [FL] and [FR]. *)
 Fixpoint force_layers (g : graph)
          (L R FL FR : S.t) (fuel : nat) {struct fuel} : S.t * S.t :=
   match fuel with
@@ -93,24 +104,26 @@ Fixpoint force_layers (g : graph)
                       Ladd Radd k
   end.
 
+(** * Component forcing
+
+    Starting the BFS from a single [seed] explores its connected component and
+    yields the two color classes reached from it. *)
+
+(** The two color classes reached by BFS from [seed]. *)
 Definition force_component_sets (g : graph) (seed : node) : S.t * S.t :=
   force_layers g (S.singleton seed) S.empty (S.singleton seed) S.empty
                (S.cardinal (nodes g)).
 
+(** The 2-coloring of the component reached from [seed], using colors [c1,c2]. *)
 Definition force_component (g : graph) (seed c1 c2 : node) : coloring :=
   let LR := force_component_sets g seed in
   let L := fst LR in
   let R := snd LR in
   bicolor L R c1 c2.
 
-(* ---------- Basic invariants for layers ---------- *)
+(** ** Basic invariants for layers *)
 
-Lemma frontiers_alternate g L R FL FR k :
-  FR = S.empty \/ FL = S.empty ->
-  let '(L',R') := force_layers g L R FL FR k in
-  True. (* we won't need the boolean form; alternation follows since one frontier starts empty *)
-Proof. sauto. Qed.
-
+(** BFS layering keeps both color classes inside the vertex set of [g]. *)
 Lemma force_layers_subsets_nodes g L R FL FR k :
   undirected g ->
   S.Subset L (nodes g) -> S.Subset R (nodes g) ->
@@ -136,7 +149,7 @@ Proof.
     apply IHk; sauto use: SP.union_subset_3.
 Qed.
 
-(* In a bipartition (BL,BR), neighbors of BL lie in BR and conversely. *)
+(** In a bipartition [(BL,BR)], neighbors of [BL] lie in [BR] and conversely. *)
 Lemma nbs_subset_bip_side g BL BR :
   undirected g ->
   is_bipartition g BL BR ->
@@ -288,7 +301,8 @@ Proof.
     eapply bipartition_induced_of_subsets; eauto.
 Qed.
 
-(* --- finishing step: the forcing component is a complete 2-coloring on the reached subgraph --- *)
+(** The forced component coloring is a complete 2-coloring of the reached
+    subgraph. *)
 Lemma force_component_ok g seed c1 c2 :
   undirected g -> bipartite g -> c1 <> c2 -> S.In seed (nodes g) ->
   let LR := force_component_sets g seed in
@@ -318,6 +332,8 @@ Proof.
     eapply bicolor_ok; eauto using subgraph_of_undirected.  (* needs undirectedness of the induced subgraph *)
 Qed.
 
+(** Removing a set of vertices preserves a bipartition, restricted to the
+    surviving vertices. *)
 Lemma bipartition_remove_nodes g L R s :
   is_bipartition g L R ->
   is_bipartition (remove_nodes g s) (S.diff L s) (S.diff R s).
@@ -346,6 +362,7 @@ Proof.
 Qed.
 
 
+(** Removing vertices preserves bipartiteness. *)
 Corollary bipartite_remove_nodes g s :
   bipartite g -> bipartite (remove_nodes g s).
 Proof.
@@ -353,6 +370,7 @@ Proof.
 Qed.
 
 
+(** The set of all vertices reached by BFS from [seed] (both color classes). *)
 Definition reached g seed :=
   let LR := force_component_sets g seed in S.union (fst LR) (snd LR).
 
@@ -409,6 +427,12 @@ Proof.
   apply force_layers_seed_in_L.
 Qed.
 
+(** * Whole-graph forcing
+
+    [force_all] colors the whole graph by repeatedly picking a seed, 2-coloring
+    its component with [force_component], and recursing on the remaining
+    vertices. *)
+
 (** Colors a graph by repeatedly finding a connected component,
     2-coloring it, and recursing on the rest of the graph. *)
 Function force_all (g : graph) (c1 c2 : node)
@@ -436,6 +460,9 @@ Defined.
 
 Functional Scheme force_all_ind := Induction for force_all Sort Prop.
 
+(** Combining a coloring [f1] of a closed vertex set [S] (no edges leave [S])
+    with a coloring [f2] of the complement yields a coloring of the whole
+    graph. *)
 Lemma coloring_union_no_cross g p S f1 f2 :
   undirected g ->
   (* f1 colors the induced subgraph on S *)
@@ -507,7 +534,10 @@ Proof.
       exact (Hneq ci cj Hci Hcj Heq).
 Qed.
 
-(* ---------- Helper lemmas for BFS closure ---------- *)
+(** ** Helper lemmas for BFS closure
+
+    These lemmas establish that the reached set is closed under adjacency, i.e.
+    the BFS explores a full connected component. *)
 
 Lemma nbs_union g A B :
   S.Subset (nbs g (S.union A B)) (S.union (nbs g A) (nbs g B)).
@@ -584,7 +614,7 @@ Proof.
     + rewrite IHR, (union_empty_equal_l R _ HRadd). reflexivity.
 Qed.
 
-(* Helper: nbs of a set split into frontier + rest *)
+(** Neighbors of a set split into neighbors of a frontier subset and the rest. *)
 Lemma nbs_split_frontier g L FL :
   S.Subset FL L ->
   S.Subset (nbs g L) (S.union (nbs g FL) (nbs g (S.diff L FL))).
@@ -750,6 +780,7 @@ Proof.
         apply S.union_spec; [left; apply HLf_eq|right; apply HRf_eq]; auto.
 Qed.
 
+(** The reached set is closed under adjacency in [g]. *)
 Lemma reached_adj_closed g seed :
   undirected g -> S.In seed (nodes g) ->
   S.Subset (nbs g (reached g seed)) (reached g seed).
@@ -774,6 +805,7 @@ Proof.
   - apply SP.subset_cardinal. intros x Hx. apply S.diff_spec in Hx as [Hx _]. auto.
 Qed.
 
+(** The domain of [bicolor L R c1 c2] is exactly [L ∪ R]. *)
 Lemma domain_bicolor L R c1 c2 :
   S.Equal (Mdomain (bicolor L R c1 c2)) (S.union L R).
 Proof.
@@ -787,6 +819,7 @@ Proof.
     rewrite domain_constant_color; exact Hi.
 Qed.
 
+(** [force_all] properly 2-colors every bipartite undirected graph. *)
 Lemma force_all_ok g c1 c2 :
   undirected g -> bipartite g -> c1 <> c2 ->
   coloring_ok (SP.of_list [c1;c2]) g (force_all g c1 c2).
@@ -833,6 +866,7 @@ Proof.
     exact (Echoose _ HiG).
 Qed.
 
+(** Every color assigned by [force_all] is one of the two chosen colors. *)
 Lemma force_all_palette g c1 c2 i ci :
   M.find i (force_all g c1 c2) = Some ci -> ci = c1 \/ ci = c2.
 Proof.
@@ -859,6 +893,7 @@ Proof.
   - rewrite WF.empty_o in Hfi. discriminate.
 Qed.
 
+(** The reached set is a subset of the vertices of [g]. *)
 Lemma reached_subset_nodes g seed :
   undirected g -> S.In seed (nodes g) ->
   S.Subset (reached g seed) (nodes g).
@@ -878,6 +913,7 @@ Proof.
   - intros x Hx. apply S.union_spec in Hx as [Hx|Hx]; auto.
 Qed.
 
+(** Anything colored by [force_all] is a vertex of [g]. *)
 Lemma force_all_domain g c1 c2 i ci :
   undirected g ->
   M.find i (force_all g c1 c2) = Some ci -> M.In i g.
@@ -952,12 +988,14 @@ Qed.
 
 (** ** Boolean checker for coloring properness *)
 
+(** [check_edge f i j] holds when [i] and [j] are not assigned the same color. *)
 Definition check_edge (f : coloring) (i j : node) : bool :=
   match M.find i f, M.find j f with
   | Some ci, Some cj => negb (Pos.eqb ci cj)
   | _, _ => true
   end.
 
+(** [coloring_proper_b g f] checks that [f] is a proper coloring of [g]. *)
 Definition coloring_proper_b (g : graph) (f : coloring) : bool :=
   forallb (fun p =>
     let '(i, nbrs) := p in
