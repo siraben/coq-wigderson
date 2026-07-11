@@ -104,6 +104,7 @@ Proof.
   reflexivity.
 Qed.
 
+(** Membership in the node set of an induced subgraph. *)
 Lemma nodes_subgraph_of_spec g s i :
   S.In i (nodes (subgraph_of g s)) <-> S.In i (nodes g) /\ S.In i s.
 Proof.
@@ -140,6 +141,7 @@ Proof.
   split; [apply subgraph_vertices|apply subgraph_edges].
 Qed.
 
+(** Induced subgraphs preserve well-formedness. *)
 Lemma subgraph_of_well_formed : forall g s, well_formed g -> well_formed (subgraph_of g s).
 Proof.
   intros g s Hwf i j Hij.
@@ -149,11 +151,13 @@ Proof.
   qauto l: on use: restrict_in_iff.
 Qed.
 
+(** Induced subgraphs preserve undirectedness. *)
 Lemma subgraph_of_undirected : forall g s, undirected g -> undirected (subgraph_of g s).
 Proof.
   hfcrush use: adj_subgraph_of_spec unfold: undirected, node, PositiveSet.elt, PositiveOrderedTypeBits.t.
 Qed.
 
+(** Inducing on the empty set yields the empty graph. *)
 Lemma subgraph_of_empty g : M.Equal (subgraph_of g S.empty) (M.empty _).
 Proof.
   unfold subgraph_of.
@@ -203,6 +207,7 @@ Qed.
 Definition remove_nodes (g : graph) (s : nodeset) :=
   M.map (fun ve => S.diff ve s) (restrict g (S.diff (nodes g) s)).
 
+(** Node set after removing a set: nodes of [g] not in [s]. *)
 Lemma nodes_remove_nodes_spec g s i :
   S.In i (nodes (remove_nodes g s)) <-> S.In i (nodes g) /\ ~ S.In i s.
 Proof.
@@ -210,6 +215,7 @@ Proof.
   now rewrite nodes_map_eq, nodes_restrict_eq, S.inter_spec, S.diff_spec.
 Qed.
 
+(** Node set after removing a set equals the set difference. *)
 Lemma nodes_remove_nodes_eq g s :
   S.Equal (nodes (remove_nodes g s)) (S.diff (nodes g) s).
 Proof.
@@ -217,6 +223,7 @@ Proof.
 Qed.
   
 
+(** Membership after removing a set: in [g] and not in [s]. *)
 Lemma in_remove_nodes_iff g s w :
   M.In w (remove_nodes g s) <-> M.In w g /\ ~ S.In w s.
 Proof.
@@ -366,6 +373,7 @@ Proof.
     apply Ha. now rewrite remove_node_nodes_adj.
 Qed.
 
+(** Removing a larger set yields a subgraph of removing a smaller set. *)
 Lemma remove_nodes_monotone g s1 s2 :
   S.Subset s1 s2 -> is_subgraph (remove_nodes g s2) (remove_nodes g s1).
 Proof.
@@ -425,6 +433,7 @@ Proof.
   sfirstorder.
 Qed.
 
+(** Removing a set of nodes preserves well-formedness. *)
 Lemma remove_nodes_well_formed : forall g s, well_formed g -> well_formed (remove_nodes g s).
 Proof.
   intros g s Hwf i j Hij.
@@ -438,6 +447,7 @@ Proof.
 Qed.
 
 
+(** Removing a node preserves undirectedness. *)
 Lemma remove_node_undirected : forall g i, undirected g -> undirected (remove_node i g).
 Proof.
   hauto use: adj_remove_node_spec unfold: undirected.
@@ -463,6 +473,7 @@ Definition neighbors (g : graph) v := adj g v.
 Definition neighborhood (g : graph) v := remove_node v (subgraph_of g (neighbors g v)).
 
 
+(** Membership in the neighborhood: an adjacent vertex distinct from [v]. *)
 Lemma nodes_neighborhood_spec g v w :
   S.In w (nodes (neighborhood g v))
   <-> w <> v /\ S.In w (adj g v) /\ M.In w g.
@@ -473,6 +484,7 @@ Proof.
   hfcrush use: nodes_subgraph_of_spec, PositiveSet.mem_Leaf, PositiveSet.singleton_1, SP.Dec.F.singleton_iff unfold: negb, PositiveSet.empty, PositiveSet.t, PositiveSet.In, adj.
 Qed.
 
+(** Neighborhood membership for undirected graphs (drops the [M.In] side condition). *)
 Lemma nodes_neighborhood_spec_undir g v w :
   undirected g ->
   S.In w (nodes (neighborhood g v))
@@ -481,6 +493,7 @@ Proof.
   hfcrush use: in_adj_neighbor_in_nodes, nodes_neighborhood_spec, in_nodes_iff.
 Qed.
 
+(** The neighborhood of an undirected graph is undirected. *)
 Lemma neighborhood_undirected g v :
   undirected g -> undirected (neighborhood g v).
 Proof.
@@ -515,6 +528,7 @@ Proof.
   strivial use: nodes_neighborhood_spec unfold: PositiveSet.Subset.
 Qed.
 
+(** Membership in an induced subgraph: in [g] and in the inducing set. *)
 Lemma subgraph_of_in_iff :
   forall g s v, M.In v (subgraph_of g s) <-> (M.In v g /\ S.In v s).
 Proof.
@@ -522,6 +536,7 @@ Proof.
   sauto lq: on use: WP.F.map_in_iff, restrict_in_iff unfold: subgraph_of.
 Qed.
 
+(** Inducing on a smaller set yields a subgraph of inducing on a larger set. *)
 Lemma subgraph_of_monotone g s1 s2 :
   S.Subset s1 s2 -> is_subgraph (subgraph_of g s1) (subgraph_of g s2).
 Proof.
@@ -531,6 +546,7 @@ Proof.
   - hfcrush use: SP.in_subset, adj_subgraph_of_spec unfold: PositiveSet.Subset.
 Qed.
 
+(** The adjacency set of a vertex not in the graph is empty. *)
 Lemma adj_empty_if_notin :
   forall g w, ~ M.In w g -> adj g w = S.empty.
 Proof.
@@ -539,6 +555,7 @@ Proof.
   hauto l: on.
 Qed.
 
+(** In an undirected loopless graph, every neighbor is a node of the neighborhood. *)
 Lemma neighborhood_nodes_eq_adj :
   forall g v,
     no_selfloop g ->
@@ -549,11 +566,13 @@ Proof.
   sfirstorder use: nodes_neighborhood_spec_undir unfold: no_selfloop, neighbors.
 Qed.
 
+(** In an undirected loopless graph, the neighborhood's node set equals [adj g v]. *)
 Lemma neighborhood_nodes_equal_adj :
   forall g v, no_selfloop g -> undirected g ->
   S.Equal (nodes (neighborhood g v)) (adj g v).
 Proof. split; [apply nbd_adj|apply neighborhood_nodes_eq_adj]; auto. Qed.
 
+(** Adjacency inside a neighborhood: both endpoints are neighbors of [v] and distinct from it. *)
 Lemma adj_neighborhood_spec :
   forall g v i j, no_selfloop g -> undirected g ->
   S.In i (adj (neighborhood g v) j)
@@ -565,6 +584,7 @@ Proof.
 Qed.
 
 
+(** After removing the whole neighborhood of [v], nothing left is adjacent to [v]. *)
 Lemma no_edge_from_center_after_removal :
   forall g v,
     no_selfloop g ->
@@ -590,6 +610,7 @@ Definition degree (v : node) (g : graph) :=
 (** ** Maximum degree of a graph *)
 Definition max_deg (g : graph) := list_max (map (fun p => S.cardinal (snd p)) (M.elements g)).
 
+(** [degree i g = Some d] iff [i] is a node and [d] is the size of its adjacency set. *)
 Lemma degree_spec g i d :
   degree i g = Some d
   <-> S.In i (nodes g) /\ d = S.cardinal (adj g i).
@@ -648,6 +669,7 @@ Proof.
   sauto lq: on.
 Qed.
 
+(** Degree of a vertex in an induced subgraph. *)
 Lemma degree_subgraph_of_spec g s i d :
   degree i (subgraph_of g s) = Some d
   <-> S.In i (nodes g) /\ S.In i s /\ d = S.cardinal (S.inter s (adj g i)).
@@ -657,6 +679,7 @@ Proof.
   hauto drew: off use: degree_spec, in_domain, find_subgraph_of_spec unfold: nodeset, negb, PositiveSet.inter, PositiveSet.In, degree, adj, PositiveSet.empty inv: option, bool.
 Qed.
 
+(** Degree of a vertex after removing a set of nodes. *)
 Lemma degree_remove_nodes_spec g s i d :
   degree i (remove_nodes g s) = Some d
   <-> S.In i (nodes g) /\ ~ S.In i s /\ d = S.cardinal (S.diff (adj g i) s).
@@ -957,7 +980,9 @@ Defined.
 
 Functional Scheme extract_vertices_deg_ind := Induction for extract_vertices_deg Sort Prop.
 
+(** The graph left after iteratively extracting all degree-[n] vertices. *)
 Definition remove_deg_n_graph g n := snd (extract_vertices_deg g n).
+(** The trace (list of extracted vertices with intermediate graphs). *)
 Definition remove_deg_n_trace g n := fst (extract_vertices_deg g n).
 
 (** ** Iterative extraction exhausts vertices of that (non-zero) degree *)
@@ -1481,6 +1506,7 @@ Proof.
     inversion Hext; subst; tauto.
 Qed.
 
+(** ** Adjacency between two non-removed vertices is unchanged by removing a set *)
 Lemma adj_preserved_if_not_removed g s i j :
   ~S.In i s -> ~S.In j s ->
   (S.In j (adj (remove_nodes g s) i) <-> S.In j (adj g i)).
@@ -1521,6 +1547,7 @@ Proof.
   contradiction.
 Qed.
 
+(** ** Adding back a removed element to a doubly-differenced set *)
 Lemma add_back_diff_singleton :
   forall (A B : S.t) (x : node),
     S.In x A -> ~ S.In x B ->
@@ -1545,6 +1572,8 @@ Proof.
         sfirstorder use: PositiveSet.singleton_1 unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
       * exact HyB.
 Qed.
+
+(** ** The extracted vertex set is exactly the nodes removed from the graph *)
 Lemma extract_vertices_degs_nodes_eq :
   forall g d s g',
     extract_vertices_degs g d = (s, g') ->
