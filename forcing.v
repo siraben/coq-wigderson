@@ -1013,7 +1013,7 @@ Proof.
   split.
   - (* true → prop *)
     intros Hall i j Hadj ci cj Hci Hcj.
-    rewrite adj_in_iff_find in Hadj.
+    rewrite in_adj_iff in Hadj.
     destruct Hadj as [nbrs [Hfind Hin]].
     assert (HIn : In (i, nbrs) (M.elements g)).
     { apply inA_in_iff. apply M.elements_1. exact Hfind. }
@@ -1030,7 +1030,7 @@ Proof.
     apply check_edge_true_iff.
     intros ci cj Hci Hcj.
     apply (Hprop i j); auto.
-    rewrite adj_in_iff_find.
+    rewrite in_adj_iff.
     exists nbrs. split.
     + apply M.elements_2. apply inA_in_iff. exact Hp.
     + apply S.elements_2. apply inA_iff. exact Hj.

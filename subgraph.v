@@ -156,7 +156,7 @@ Proof.
   apply adj_subgraph_of_spec in Hij as [Hi [Hj Hij]].
   unfold subgraph_of.
   rewrite WF.map_in_iff.
-  qauto l: on use: restrict_spec.
+  qauto l: on use: restrict_in_iff.
 Qed.
 
 Lemma subgraph_of_undirected : forall g s, undirected g -> undirected (subgraph_of g s).
@@ -337,7 +337,7 @@ Proof.
   rewrite adj_restrict.
   rewrite S.diff_spec.
   firstorder.
-  eauto using in_adj_in_nodes.
+  eauto using in_adj_center_in_nodes.
 Qed.
 
 (** ** Equivalence of removing a single node and a singleton set of nodes*)
@@ -349,16 +349,16 @@ Proof.
     unfold remove_node, remove_nodes.
     rewrite !WF.map_in_iff.
     unfold nodes.
-    rewrite restrict_spec, S.diff_spec.
+    rewrite restrict_in_iff, S.diff_spec.
     split; intros H.
     + assert (k <> v) by sfirstorder use: PositiveSet.singleton_2.
       sauto lq: on use: WF.remove_neq_in_iff.
     + assert (k <> v) by hauto lq: on use: WF.remove_in_iff.
       split.
-      * sauto lq: on use: WF.remove_neq_in_iff.
       * split.
         ** hauto l: on use: in_domain, WF.remove_neq_in_iff.
         ** sfirstorder use: SP.Dec.F.singleton_iff unfold: PositiveSet.elt, PositiveMap.key.
+      * sauto lq: on use: WF.remove_neq_in_iff.
   - intros k e e' H H0.
     unfold remove_node, remove_nodes, M.MapsTo in *.
     rewrite WF.map_o in *.
@@ -429,7 +429,7 @@ Proof.
     apply in_domain.
     apply in_domain in Hi.
     rewrite WP.F.map_in_iff in *.
-    rewrite restrict_spec in *.
+    rewrite restrict_in_iff in *.
     hfcrush use: PositiveSet.diff_1, PositiveSet.diff_2, PositiveSet.diff_3 unfold: PositiveSet.Subset.
   - intros v e He.
     apply adj_remove_nodes_spec.
@@ -484,10 +484,10 @@ Proof.
   apply adj_remove_nodes_spec in Hij as [Hi Hij].
   unfold remove_nodes.
   rewrite WF.map_in_iff.
-  rewrite restrict_spec.
+  rewrite restrict_in_iff.
   split.
-  - sfirstorder.
   - sfirstorder use: in_adj_neighbor_in_nodes_wf, PositiveSet.diff_3 unfold: nodeset.
+  - sfirstorder.
 Qed.
 
 
@@ -572,7 +572,7 @@ Lemma subgraph_of_in_iff :
   forall g s v, M.In v (subgraph_of g s) <-> (M.In v g /\ S.In v s).
 Proof.
   intros g s v.
-  sauto lq: on use: WP.F.map_in_iff, restrict_spec unfold: subgraph_of.
+  sauto lq: on use: WP.F.map_in_iff, restrict_in_iff unfold: subgraph_of.
 Qed.
 
 Lemma subgraph_of_monotone g s1 s2 :

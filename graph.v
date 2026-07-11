@@ -71,10 +71,8 @@ Proof.
   intros.
   apply eqlistA_Eeq_eq.
   apply SortE_equivlistE_eqlistE.
-  * (* To prove this one, [SearchAbout S.elements] *)
-    apply PositiveSet.elements_3.
-  * (* Use [filter_sortE] to prove this one *)
-    apply filter_sortE. apply PositiveSet.elements_3.
+  * apply PositiveSet.elements_3.
+  * apply filter_sortE. apply PositiveSet.elements_3.
   *
     intro j.
     rewrite filter_InA; [ | apply proper_eq_eq].
@@ -104,60 +102,26 @@ Qed.
 Lemma cardinal_map:  forall A B (f: A -> B) g,
     M.cardinal (M.map f g) = M.cardinal g.
 Proof.
-  (** Hint:  To prove this theorem, I used these lemmas.
-     You might find a different way. *)
-  pose proof M.elements_1.
-  pose proof M.elements_2.
-  pose proof M.elements_3.
-  pose proof map_length.
-  pose proof eqlistA_length.
-  pose proof SortE_equivlistE_eqlistE.
-  pose proof inA_map_fst_key.
-  pose proof WF.map_mapsto_iff.
-  pose proof sorted_lt_key.
   intros A B f g.
   rewrite !M.cardinal_1.
-  pose proof (SortE_equivlistE_eqlistE (map fst (M.elements g)) (map fst (M.elements (M.map f g))) ltac:(hauto l:on) ltac:(hauto l:on)).
-  assert (equivlistA E.eq (map fst (M.elements g)) (map fst (M.elements (M.map f g)))).
-  {
-    unfold equivlistA.
-    intros x.
-    split; intros HH.
-    - hauto lq: on rew: off.
-    - fcrush.
-  }
-  hauto l: on.
+  (* The key domains agree up to [E.eq], hence the sorted key lists are equal. *)
+  assert (Hequiv: equivlistA E.eq (map fst (M.elements g))
+                    (map fst (M.elements (M.map f g)))).
+  { intro x. rewrite !inA_map_fst_key.
+    split; intros [e He];
+      hauto use: M.elements_1, M.elements_2, WF.map_mapsto_iff unfold: M.MapsTo. }
+  pose proof (SortE_equivlistE_eqlistE
+                (map fst (M.elements g)) (map fst (M.elements (M.map f g)))
+                ltac:(apply sorted_lt_key, M.elements_3)
+                ltac:(apply sorted_lt_key, M.elements_3)
+                Hequiv) as Heq.
+  hauto use: eqlistA_length, length_map.
 Qed.
 
 Lemma s_remove_cardinal_less: forall i s,
     S.In i s -> S.cardinal (S.remove i s) < S.cardinal s.
 Proof.
   sfirstorder use: SP.remove_cardinal_1, le_n unfold: lt.
-Qed.
-
-Lemma specialize_SortA_equivlistA_eqlistA:
-  forall A al bl,
-    Sorted (@M.lt_key A) al ->
-    Sorted (@M.lt_key A) bl ->
-    equivlistA (@M.eq_key_elt A) al bl ->
-    eqlistA (@M.eq_key_elt A) al bl.
-Proof.
-  intros.
-  apply SortA_equivlistA_eqlistA with (@M.lt_key A); auto.
-  apply M.eqke_equiv.
-  apply M.ltk_strorder.
-  clear.
-  repeat intro.
-  unfold M.lt_key, M.eq_key_elt in *.
-  destruct H, H0. rewrite H,H0. split; auto.
-Qed.
-
-Lemma proper_eq_key_elt:
-  forall A,
-    Proper (@M.eq_key_elt A ==> @M.eq_key_elt A ==> iff)
-      (fun x y : E.t * A => E.lt (fst x) (fst y)).
-Proof.
-  repeat intro. destruct H,H0. rewrite H,H0. split; auto.
 Qed.
 
 Lemma m_remove_cardinal_less: forall A i (s: M.t A), M.In i s ->
@@ -190,8 +154,6 @@ Qed.
 
 Lemma in_domain: forall A n (g: M.t A), S.In n (Mdomain g) <-> M.In n g.
 Proof.
-  (** To reason about [M.fold], used in the definition of [Mdomain],
-    a useful theorem is [WP.fold_rec_bis]. *)
   intros A n g.
   unfold Mdomain.
   split.
@@ -260,7 +222,6 @@ Proof.
   hauto lq: on.
 Qed.
 
-(* ================================================================= *)
 (** * Graph Theory Core Definitions *)
 
 Definition node := E.t.
@@ -300,7 +261,6 @@ Definition low_deg (K: nat) (n: node) (adj: nodeset) : bool := S.cardinal adj <?
 Definition remove_node (n: node) (g: graph) : graph :=
   M.map (S.remove n) (M.remove n g).
 
-(* ================================================================= *)
 (** * Termination lemmas *)
 
 Lemma subset_nodes_sub:  forall P g, S.Subset (subset_nodes P g) (nodes g).
@@ -327,7 +287,6 @@ Proof.
   hfcrush use: in_domain, PositiveSet.choose_1 unfold: graph, nodemap, PositiveSet.Subset, nodes.
 Qed.
 
-(* ================================================================= *)
 (** * Graph coloring algorithm *)
 Require Import Recdef.
 
@@ -353,7 +312,6 @@ Definition color1 (palette: S.t) (g: graph) (n: node) (f: coloring) : coloring :
 Definition color (palette: S.t) (g: graph) : coloring :=
   fold_right (color1 palette g)  (M.empty _) (select (S.cardinal palette) g).
 
-(* ================================================================= *)
 (** * Correctness specification *)
 
 Definition coloring_ok (palette: S.t) (g: graph) (f: coloring) :=
@@ -366,16 +324,7 @@ Proof.
   sauto.
 Qed.
 
-Lemma in_adj_exists : forall g i j,
-    S.In i (adj g j) -> exists v, M.find j g = Some v /\ S.In i v.
-Proof.
-  intros g i j H.
-  unfold adj in *.
-  destruct M.find eqn:E in *.
-  + eauto.
-  + rewrite SP.FM.empty_iff in H. contradiction.
-Qed.
-
+(** Recover a witnessing neighbor set from adjacency membership. *)
 Lemma find_in_adj : forall g i v j,
     M.find(A := nodeset) j g = Some v ->
     S.In i v ->
@@ -385,19 +334,6 @@ Proof.
   unfold adj.
   rewrite F.
   auto.
-Qed.
-
-Lemma in_adj_in_nodes : forall g i j,
-    S.In i (adj g j) ->
-    S.In j (nodes g).
-Proof.
-  intros g i j.
-  unfold adj.
-  destruct M.find eqn:E; intros H.
-  - unfold nodes.
-    rewrite in_domain.
-    sfirstorder.
-  - rewrite SP.FM.empty_iff in H. contradiction.
 Qed.
 
 Lemma adj_map : forall (f : nodeset -> nodeset) g i,
@@ -512,7 +448,6 @@ Proof.
   strivial use: fold_color_preserves_ok unfold: color, select.
 Qed.
 
-(* ================================================================= *)
 (** * Graph construction utilities *)
 
 Local Open Scope positive.
@@ -532,7 +467,6 @@ Definition empty_graph : graph := (@M.empty _).
 Lemma inA_iff {A} : forall p (l : list A), (InA Logic.eq p l) <-> In p l.
 Proof. induction l; sauto q: on. Qed.
 
-(* ================================================================= *)
 (** * Extended map/set/domain lemmas *)
 
 Local Open Scope positive_scope.
@@ -547,16 +481,19 @@ Proof. sfirstorder. Qed.
 Lemma in_dec_nodes g v : {S.In v (nodes g)} + {~ S.In v (nodes g)}.
 Proof. destruct (WF.In_dec g v); firstorder using in_nodes_iff. Qed.
 
-Lemma adj_in_iff_find g j i :
+(** Membership in an adjacency set is equivalent to finding a witnessing
+    neighbor set in the graph. *)
+Lemma in_adj_iff g j i :
   S.In i (adj g j) <-> exists e, M.find j g = Some e /\ S.In i e.
 Proof.
   qauto use: PositiveSet.mem_Leaf unfold: negb, PositiveSet.empty, PositiveSet.In, adj.
 Qed.
 
+(** The center of an adjacency set is a node of the graph. *)
 Lemma in_adj_center_in_nodes g i j :
   S.In i (adj g j) -> S.In j (nodes g).
 Proof.
-  rewrite adj_in_iff_find; firstorder using in_nodes_iff.
+  rewrite in_adj_iff; firstorder using in_nodes_iff.
 Qed.
 
 Lemma in_adj_neighbor_in_nodes_wf g i j :
@@ -594,13 +531,16 @@ Proof.
   hfcrush use: in_domain, WF.map_in_iff unfold: PositiveMap.key, PositiveSet.Equal, nodes, PositiveSet.elt.
 Qed.
 
-Lemma well_formed_adj_in : forall (g : graph) (v : node) i , well_formed g -> S.In i (adj g v) -> M.In i g.
+(** In a well-formed graph, a neighbor is a key of the graph. *)
+Lemma well_formed_adj_in : forall (g : graph) (v : node) i, well_formed g -> S.In i (adj g v) -> M.In i g.
 Proof.
   intros g v i Hwf Hi.
-  exact (Hwf v i Hi).
+  rewrite <- in_nodes_iff. eapply in_adj_neighbor_in_nodes_wf; eauto.
 Qed.
 
-Lemma undirected_adj_in : forall (g : graph) (v : node) i , undirected g -> S.In i (adj g v) -> M.In i g.
+(** In an undirected graph, a neighbor is a key of the graph. *)
+Lemma undirected_adj_in : forall (g : graph) (v : node) i, undirected g -> S.In i (adj g v) -> M.In i g.
 Proof.
-  hauto use: SP.Dec.F.empty_iff unfold: undirected, adj.
+  intros g v i U Hi.
+  rewrite <- in_nodes_iff. eapply in_adj_neighbor_in_nodes; eauto.
 Qed.
