@@ -65,10 +65,8 @@ Proof.
   split.
   - hecrush.
   - intros v i Hi.
-    unfold adj in Hi.
-    unfold empty_graph in Hi.
-    ssimpl.
-    scongruence use: PositiveMap.gempty unfold: PositiveOrderedTypeBits.t, node, PositiveMap.key.
+    apply in_adj_iff in Hi as (e & Hfind & _).
+    scongruence use: PositiveMap.gempty unfold: empty_graph.
 Qed.
 
 (** * Induced subgraphs *)
@@ -720,15 +718,8 @@ Qed.
 Lemma max_deg_0_adj (g : graph) i j : max_deg g = 0 -> ~ S.In i (adj g j).
 Proof.
   intros H contra.
-  assert (M.In j g).
-  {
-    hauto use: SP.Dec.F.empty_iff unfold: PositiveMap.In, PositiveMap.MapsTo, adj.
-  }
-  destruct H0 as [e He].
-  unfold adj in contra.
-  unfold M.MapsTo in He.
-  rewrite He in contra.
-  pose proof (max_deg_max g j e ltac:(sfirstorder)).
+  apply in_adj_iff in contra as (e & He & Hi).
+  pose proof (max_deg_max g j e He).
   hauto use: SP.remove_cardinal_1 unfold: nodeset inv: Peano.le.
 Qed.
 
