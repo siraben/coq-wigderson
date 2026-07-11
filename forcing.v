@@ -548,32 +548,6 @@ Proof.
   apply S.union_spec; [left|right]; apply nbs_spec; eauto.
 Qed.
 
-Lemma nbs_union_eq g A B :
-  S.Equal (nbs g (S.union A B)) (S.union (nbs g A) (nbs g B)).
-Proof.
-  intro i; split; intro Hi.
-  - now apply nbs_union.
-  - apply S.union_spec in Hi as [Hi|Hi];
-    apply nbs_spec in Hi as (v & Hv & Hiv);
-    apply nbs_spec; exists v; split; auto;
-    apply S.union_spec; [left|right]; auto.
-Qed.
-
-Lemma union_empty_r (s : S.t) : S.union s S.empty = s.
-Proof. destruct s; reflexivity. Qed.
-
-Lemma diff_empty_l (s : S.t) : S.diff S.empty s = S.empty.
-Proof. reflexivity. Qed.
-
-Lemma force_layers_empty_frontiers g L R k :
-  force_layers g L R S.empty S.empty k = (L, R).
-Proof.
-  induction k; simpl; auto.
-  unfold add_to_R, add_to_L.
-  rewrite nbs_empty, !diff_empty_l, !union_empty_r.
-  exact IHk.
-Qed.
-
 Lemma nbs_empty_set g s : S.Empty s -> S.Empty (nbs g s).
 Proof.
   intros Hs x Hx. apply nbs_spec in Hx as (v & Hv & _). exact (Hs _ Hv).
@@ -626,22 +600,15 @@ Proof.
     apply S.diff_spec; auto.
 Qed.
 
-Lemma nbs_FL_subset_vis_radd g FL Vis :
-  S.Subset (nbs g FL) (S.union Vis (add_to_R g FL Vis)).
+(** Every neighbor of a frontier is either already visited or a fresh addition
+    ([S.diff (nbs g F) Vis], i.e. [add_to_R]/[add_to_L]). *)
+Lemma nbs_subset_vis_diff g F Vis :
+  S.Subset (nbs g F) (S.union Vis (S.diff (nbs g F) Vis)).
 Proof.
   intros x Hx.
   destruct (SP.In_dec x Vis).
   - apply S.union_spec; left; auto.
-  - apply S.union_spec; right. unfold add_to_R. apply S.diff_spec; auto.
-Qed.
-
-Lemma nbs_FR_subset_vis_ladd g FR Vis :
-  S.Subset (nbs g FR) (S.union Vis (add_to_L g FR Vis)).
-Proof.
-  intros x Hx.
-  destruct (SP.In_dec x Vis).
-  - apply S.union_spec; left; auto.
-  - apply S.union_spec; right. unfold add_to_L. apply S.diff_spec; auto.
+  - apply S.union_spec; right. apply S.diff_spec; auto.
 Qed.
 
 Lemma force_layers_closure g L R FL FR k :
@@ -687,7 +654,7 @@ Proof.
         intros i Hi. apply (nbs_mono _ _ _ Hdiff_sub) in Hi.
         apply (nbs_split_frontier _ _ FL HFL) in Hi.
         apply S.union_spec in Hi as [Hi|Hi].
-        - apply (nbs_FL_subset_vis_radd g FL Vis) in Hi.
+        - apply (nbs_subset_vis_diff g FL Vis) in Hi.
           apply S.union_spec in Hi as [Hi|Hi].
           * unfold Vis in Hi. apply S.union_spec in Hi as [Hi|Hi];
             apply S.union_spec; [left; unfold L'|right; unfold R'];
@@ -704,7 +671,7 @@ Proof.
         intros i Hi. apply (nbs_mono _ _ _ Hdiff_sub) in Hi.
         apply (nbs_split_frontier _ _ FR HFR) in Hi.
         apply S.union_spec in Hi as [Hi|Hi].
-        - apply (nbs_FR_subset_vis_ladd g FR Vis) in Hi.
+        - apply (nbs_subset_vis_diff g FR Vis) in Hi.
           apply S.union_spec in Hi as [Hi|Hi].
           * unfold Vis in Hi. apply S.union_spec in Hi as [Hi|Hi];
             apply S.union_spec; [left; unfold L'|right; unfold R'];
