@@ -57,14 +57,6 @@ Proof. sfirstorder. Qed.
 Lemma subgraph_vert_m : forall g' g v, is_subgraph g' g -> M.In v g' -> M.In v g.
 Proof. qauto l: on use: in_domain. Qed.
 
-Lemma is_subgraph_nodes_subset g' g :
-  is_subgraph g' g -> S.Subset (nodes g') (nodes g).
-Proof. firstorder. Qed.
-
-Lemma is_subgraph_edge_mono g' g :
-  is_subgraph g' g -> forall v, S.Subset (adj g' v) (adj g v).
-Proof. firstorder. Qed.
-
 (** ** Empty graph is a subgraph *)
 
 Lemma empty_subgraph_is_subgraph (g : graph) : is_subgraph empty_graph g.
@@ -253,13 +245,6 @@ Proof.
   - intros v i Hi.
     rewrite adj_map in Hi; [|sfirstorder].
     now rewrite S.diff_spec, adj_restrict in Hi.
-Qed.
-
-(** ** Every vertex in the removing set is not in the resulting graph *)
-
-Lemma remove_nodes_sub : forall g s i, S.In i s -> M.In i g -> ~ M.In i (remove_nodes g s).
-Proof.
-  hauto l: on use: in_remove_nodes_iff.
 Qed.
 
 (** ** Removing a non-empty set of vertices decreases the size of the graph *)
@@ -1218,16 +1203,6 @@ Lemma not_adj_remove : forall (g : graph) (n m p : node),
 Proof.
   intros g n m p H H0 H1 contra.
   hfcrush use: adj_remove_node_spec unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
-Qed.
-
-(** ** Non-adjacency is preserved after removing nodes *)
-Lemma not_adj_removes : forall (g : graph) (n p : node) s,
-    ~ S.In n s -> ~ S.In p s ->
-    ~ (S.In n (adj (remove_nodes g s) p)) ->
-    ~ (S.In n (adj g p)).
-Proof.
-  intros g n p s H H0 H1.
-  hfcrush use: adj_remove_nodes_spec unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, node, nodeset.
 Qed.
 
 (** * Independent sets *)
