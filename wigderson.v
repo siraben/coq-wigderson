@@ -95,7 +95,7 @@ Proof.
     set (m' := two_color_nbd g v (c+1) (c+2)) in *.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in Hfi.
-    apply munion_case in Hfi as [Hfi|Hfi].
+    munion_cases Hfi.
     + destruct (E.eq_dec i v) as [->|Hne].
       * rewrite M.gss in Hfi. injection Hfi as <-. lia.
       * rewrite M.gso in Hfi by auto.
@@ -130,7 +130,7 @@ Proof.
     set (m' := two_color_nbd g v (c+1) (c+2)) in *.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in Hfi.
-    apply munion_case in Hfi as [Hfi|Hfi].
+    munion_cases Hfi.
     + destruct (E.eq_dec i v) as [->|Hne].
       * apply in_nodes_iff. apply S.choose_1 in Echoose. apply subset_nodes_sub in Echoose. auto.
       * rewrite M.gso in Hfi by auto.
@@ -173,8 +173,7 @@ Proof.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph.
     simpl in Hfi, Hfj.
     (* Both colored by Munion (M.add v c m') f2 *)
-    apply munion_case in Hfi as [Hfi|Hfi];
-    apply munion_case in Hfj as [Hfj|Hfj].
+    munion_cases2 Hfi Hfj.
     + (* Both in current step: M.add v c m' *)
       destruct (E.eq_dec i v) as [->|Hine]; destruct (E.eq_dec j v) as [->|Hjne].
       * (* i = v, j = v: self-loop, contradiction *)
@@ -592,27 +591,25 @@ Proof.
   split.
   - intros ci H5.
     apply S.add_spec.
-    apply munion_case in H5.
-    destruct H5.
+    munion_cases H5.
     + left.
-      apply constant_color_inv2 in H4.
+      apply constant_color_inv2 in H5.
       assumption.
     + right.
       sfirstorder.
   - intros ci cj H5 H6.
-    apply munion_case in H5, H6.
-    destruct H5, H6.
+    munion_cases2 H5 H6.
     + intros contra.
-      apply constant_color_inv in H4, H5.
+      apply constant_color_inv in H5, H6.
       sfirstorder.
     + assert (cj <> c).
       {
         hauto lq: on rew: off unfold: coloring_ok, undirected.
       }
-      apply constant_color_inv2 in H4.
+      apply constant_color_inv2 in H5.
       scongruence.
     + assert (ci <> c) by sfirstorder.
-      apply constant_color_inv2 in H5.
+      apply constant_color_inv2 in H6.
       scongruence.
     + strivial unfold: coloring_ok.
 Qed.
@@ -639,8 +636,7 @@ Proof.
     inversion H.
     subst g''.
     rewrite <- H2 in H0.
-    apply munion_case in H0.
-    destruct H0.
+    munion_cases H0.
     + apply constant_color_inv2 in H0.
       hauto l: on.
     + pose proof (IHp _ H0 g'0 e1).
@@ -873,8 +869,7 @@ Proof.
   { assert (H := phase1_undirected k 1 g Ug). rewrite Eph in H. simpl in H. exact H. }
   assert (Hloop' : no_selfloop g').
   { assert (H := phase1_no_selfloop k 1 g Hloop). rewrite Eph in H. simpl in H. exact H. }
-  apply munion_case in Hfi as [Hfi|Hfi];
-  apply munion_case in Hfj as [Hfj|Hfj].
+  munion_cases2 Hfi Hfj.
   - (* Both from f1: use phase1_coloring_ok *)
     assert (Hfi' : M.find i (fst (phase1 k 1 g)) = Some ci) by (rewrite Eph; simpl; auto).
     assert (Hfj' : M.find j (fst (phase1 k 1 g)) = Some cj) by (rewrite Eph; simpl; auto).
@@ -1083,7 +1078,7 @@ Proof.
     { apply S.choose_1 in Echoose. auto. }
     assert (Hremoves : (M.cardinal g' + k + 2 <= n)%nat).
     { subst n. unfold g'. apply phase1_removes_many; auto. }
-    apply munion_case in Hfi as [Hfi|Hfi].
+    munion_cases Hfi.
     + (* Current step: ci is c, c+1, or c+2 *)
       destruct (E.eq_dec i v) as [->|Hne].
       * rewrite M.gss in Hfi. injection Hfi as <-.
@@ -1124,7 +1119,7 @@ Proof.
   set (offset := max_color f1) in *.
   set (f2 := fst (phase2 g')) in *.
   set (f2' := M.map (Pos.add offset) f2) in *.
-  apply munion_case in Hfi as [Hfi|Hfi].
+  munion_cases Hfi.
   - (* Phase1 color *)
     assert (Hfi' : M.find i (fst (phase1 k 1 g)) = Some ci) by (rewrite Eph; simpl; auto).
     assert (Hbound := phase1_color_upper_bound k 1 g i ci Ug Hloop Hfi').
