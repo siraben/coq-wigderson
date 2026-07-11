@@ -287,6 +287,7 @@ Proof.
   hauto l: on use: nodes_remove_nodes_spec.
 Qed.
 
+(** Membership in [remove_node v g]: everything in [g] except [v]. *)
 Lemma in_remove_node_iff g v w :
   M.In w (remove_node v g) <-> M.In w g /\ w <> v.
 Proof.
@@ -390,20 +391,23 @@ Proof.
       * inversion H0.
 Qed.
 
+(** Node set of [remove_node v g] equals [nodes g] minus [v]. *)
+(** Removing the singleton [{v}] and removing the node [v] agree on node sets. *)
+Lemma remove_nodes_singleton_nodes g v w :
+  S.In w (nodes (remove_nodes g (S.singleton v))) <-> S.In w (nodes (remove_node v g)).
+Proof.
+  rewrite !in_nodes_iff.
+  pose proof (remove_nodes_singleton g v) as [Hin _].
+  sfirstorder.
+Qed.
+
+(** Node set of [remove_node v g] equals [nodes g] minus [v]. *)
 Lemma nodes_remove_node_eq g v :
   S.Equal (nodes (remove_node v g)) (S.diff (nodes g) (S.singleton v)).
 Proof.
-  unfold remove_node.
-  rewrite <- SP.remove_diff_singleton.
-  rewrite nodes_map_eq.
-  unfold nodes.
-  unfold S.Equal.
   intros a.
-  rewrite in_domain.
-  rewrite WF.remove_in_iff.
-  rewrite S.remove_spec.
-  rewrite in_domain.
-  tauto.
+  rewrite <- (remove_nodes_singleton_nodes g v), nodes_remove_nodes_spec, S.diff_spec.
+  hauto lq: on use: PositiveSet.singleton_1, SP.Dec.F.singleton_iff.
 Qed.
 
 (** ** Adjacency after removing a single node or a singleton set of nodes *)
