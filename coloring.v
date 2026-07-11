@@ -182,7 +182,7 @@ Qed.
 Definition restrict_on_nbd (f : coloring) (g : graph) (v : node) :=
   restrict f (nodes (neighborhood g v)).
 
-(* Core find-spec for the neighborhood restriction *)
+(** ** Core find-spec for the neighborhood restriction *)
 Lemma restrict_on_nbd_find_iff f g v i c :
   M.find i (restrict_on_nbd f g v) = Some c
   <-> S.In i (nodes (neighborhood g v)) /\ M.find i f = Some c.
@@ -190,7 +190,7 @@ Proof.
   hauto l: on use: @restrict_find_some_iff unfold: coloring, restrict_on_nbd.
 Qed.
 
-(* Domain of the restriction *)
+(** ** Domain of the restriction *)
 Lemma restrict_on_nbd_domain_spec f g v :
   S.Equal (Mdomain (restrict_on_nbd f g v))
           (S.inter (nodes (neighborhood g v)) (Mdomain f)).
@@ -329,7 +329,6 @@ Proof.
     + hauto use: PositiveMap.gso.
 Qed.
 
-
 (** ** Constant coloring find characterization *)
 Lemma constant_color_find_some_iff (s : S.t) (c d : node) i :
   M.find i (constant_color s c) = Some d <-> S.In i s /\ d = c.
@@ -356,17 +355,13 @@ Proof.
     exists c. now apply constant_color_colors.
 Qed.
 
-
 (** * 2-color step *)
-(** Let [g] be a graph, [v] be a vertex, $c_1$ and $c_2$ the colors we
-have that this function colors [v] with $c_1$ and colors its neighbors
-with $c_2$. *)
-
+(** For a graph [g], vertex [v] and colors $c_1$, $c_2$, this colors [v]
+    with $c_1$ and each of its neighbors with $c_2$. *)
 Definition two_color_step (g : graph) (v : node) c1 c2 (f : coloring) : coloring :=
   M.add v c1 (constant_color (adj g v) c2).
 
-
-(* One-shot lookup characterization *)
+(** ** One-shot lookup characterization *)
 Lemma two_color_step_find_iff g v c1 c2 f j ci :
   M.find j (two_color_step g v c1 c2 f) = Some ci
   <-> (j = v /\ ci = c1) \/ (j <> v /\ S.In j (adj g v) /\ ci = c2).
@@ -379,7 +374,7 @@ Proof.
     firstorder congruence.
 Qed.
 
-
+(** ** Domain of the 2-color step is [v] together with its neighbors *)
 Lemma two_color_step_domain_spec g v c1 c2 f :
   S.Equal (Mdomain (two_color_step g v c1 c2 f)) (S.add v (adj g v)).
 Proof.
@@ -407,8 +402,6 @@ Proof.
   hfcrush use: two_color_step_find_iff.
 Qed.
 
-
-
 (** ** Vertex colored by 2-color step is either [v] or a neighbor *)
 Lemma two_color_step_inv : forall g v c1 c2 f ci j,
     M.find j (two_color_step g v c1 c2 f) = Some ci ->
@@ -432,7 +425,7 @@ Lemma two_color_step_correct : forall (g : graph) (v : node) c1 c2,
     (exists m, two_coloring m (SP.of_list [c1;c2]) /\ coloring_complete (SP.of_list [c1;c2]) g m) ->
     coloring_ok (SP.of_list [c1;c2]) g (two_color_step g v c1 c2 (@M.empty _)).
 Proof.
-  intros g v c1 c2 Hc H Hu magic H0.
+  intros g v c1 c2 Hc H Hu HvG H0.
   split.
   - intros ci H2.
     apply two_color_step_find_iff in H2.
@@ -482,9 +475,8 @@ Proof.
       {
         sauto lq: on rew: off use: in_two_set_inv unfold: two_coloring, n_coloring.
       }
-      (* So i and j have colors given by the magic coloring function,
-         but no matter what colors we give them something is going to go
-         wrong *)
+      (* i, j, v all get colors from the assumed 2-coloring [m], but no
+         assignment of {c1,c2} to three mutually adjacent vertices works. *)
       destruct H0, H7, H8; strivial unfold: coloring_ok.
 Qed.
 
