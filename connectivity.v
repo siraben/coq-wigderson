@@ -30,32 +30,41 @@ Add Hammer Filter Coq.funind.Recdef.
 Set Hammer ReconstrLimit 10.
 
 
+(** * Walks and reachability *)
+
+(** ** A single step follows an edge [x -> y] *)
 Definition step (g : graph) (x y : node) : Prop := S.In y (adj g x).
 
-
+(** ** A walk is a sequence of steps recording its intermediate vertices *)
 Inductive walk (g : graph) : node -> list node -> node -> Prop :=
 | walk_nil  : forall x, M.In x g -> walk g x [] x
 | walk_cons : forall x y l z, step g x y -> walk g y l z -> walk g x (y :: l) z.
 
+(** ** A simple walk has no repeated vertices *)
 Definition simple (g : graph) (x : node) (l : list node) (z : node) :=
   walk g x l z /\ NoDup (x :: l ++ [z]).
 
-
+(** ** [u] reaches [v] if some walk connects them *)
 Definition reachable (g : graph) (u v : node) : Prop :=
   exists l, walk g u l v.
 
+(** ** A cycle is a non-empty walk returning to its start *)
 Definition cycle (g : graph) (x : node) (l : list node) :=
   l <> [] /\ walk g x l x.
 
+(** ** A simple cycle forbids repeated internal vertices *)
 Definition simple_cycle (g : graph) (x : node) (l : list node) :=
-  cycle g x l /\ NoDup (x :: l).  (* typical: forbid repeated internal vertices *)
+  cycle g x l /\ NoDup (x :: l).
 
+(** ** Walk of even/odd length (counted by number of steps) *)
 Definition even_walk {A} (l : list A) := Nat.even (length l) = true.
 Definition odd_walk {A} (l : list A) := Nat.odd  (length l) = true.
 
+(** ** Inversion for a walk starting with a step *)
 Lemma walk_cons_iff g x y l z : walk g x (y::l) z <-> step g x y /\ walk g y l z.
 Proof. sauto lq: on rew: off. Qed.
 
+(** ** A single edge to a vertex in [g] is a walk *)
 Lemma walk_singleton g x y :
   step g x y -> M.In y g -> walk g x [y] y.
 Proof.
@@ -64,6 +73,7 @@ Proof.
 Qed.
 
 
+(** ** The start of a walk is a vertex of the graph *)
 Lemma walk_start_in : forall g x l z, walk g x l z -> M.In x g.
 Proof.
   intros g x l z H.
@@ -72,12 +82,14 @@ Proof.
   - hauto lq: on use: in_nodes_iff, in_adj_center_in_nodes unfold: node, PositiveSet.elt, PositiveOrderedTypeBits.t, step.
 Qed.
 
+(** ** The end of a walk is a vertex of the graph *)
 Lemma walk_end_in   : forall g x l z, undirected g -> walk g x l z -> M.In z g.
 Proof.
   intros g x l z H H0.
   induction H0; assumption.
 Qed.
 
+(** ** Every vertex on a walk is a node of the graph *)
 Lemma walk_all_in_nodes :
   forall g x l z, undirected g -> walk g x l z ->
              Forall (fun v => S.In v (nodes g)) (x :: l ++ [z]).
@@ -94,6 +106,7 @@ Proof.
     + assumption.
 Qed.
 
+(** ** Walks compose by concatenation *)
 Lemma walk_app :
   forall g x l1 y l2 z, walk g x l1 y -> walk g y l2 z -> walk g x (l1 ++ l2) z.
 Proof.
@@ -106,7 +119,7 @@ Proof.
   - sauto.
 Qed.
 
-(* Subgraph monotonicity *)
+(** ** A walk in a subgraph is a walk in the supergraph *)
 Lemma walk_subgraph_mono :
   forall g' g x l z, is_subgraph g' g -> walk g' x l z -> walk g x l z.
 Proof.
@@ -116,7 +129,7 @@ Proof.
   - sfirstorder use: walk_cons unfold: node, step, is_subgraph, PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.Subset.
 Qed.
 
-(* Induced subgraph: if all vertices lie in s, walk is preserved *)
+(** ** Induced subgraph: a walk whose vertices all lie in [s] is preserved *)
 Lemma walk_in_subgraph_of_iff :
   forall g s x l z,
     Forall (fun v => S.In v s) (x :: l ++ [z]) ->
@@ -136,7 +149,7 @@ Proof.
       * apply IHW. eapply Forall_inv_tail. exact Hall.
 Qed.
 
-(* Removing vertices: if the walk touches none of them, it persists *)
+(** ** Removing vertices: a walk touching none of them persists *)
 Lemma walk_preserved_remove_nodes g s x l z :
   Forall (fun v => ~ S.In v s) (x :: l ++ [z]) ->
   (walk (remove_nodes g s) x l z <-> walk g x l z).
@@ -152,7 +165,9 @@ Proof.
       * apply IHW. eapply Forall_inv_tail. exact Hall.
 Qed.
 
-(* note: should replace g with closed property rather than undirected *)
+(** * Bipartition and walk parity *)
+
+(** ** A step from [L] lands in [R] *)
 Lemma step_L_R g L R x y :
   undirected g ->
   is_bipartition g L R ->
@@ -162,6 +177,7 @@ Proof.
   qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
 Qed.
 
+(** ** A step from [R] lands in [L] *)
 Lemma step_R_L g L R x y :
   undirected g ->
   is_bipartition g L R ->
@@ -171,6 +187,7 @@ Proof.
   qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
 Qed.
 
+(** ** Side of a walk's endpoint is determined by its start side and length parity *)
 Lemma bipartition_walk_parity_even g L R :
   undirected g ->
   is_bipartition g L R ->
@@ -205,6 +222,7 @@ Proof.
       hauto lq: on use: even_1, even_succ, odd_1, even_0 unfold: Init.Nat.odd inv: nat.
 Qed.
 
+(** ** Parity of a walk starting in [L]: even ends in [L], odd ends in [R] *)
 Lemma bipartition_walk_parity_L g L R x l z :
   undirected g ->
   is_bipartition g L R ->
