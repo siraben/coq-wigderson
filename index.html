@@ -3,115 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wigderson's Algorithm Interactive Demo</title>
+    <meta name="description" content="Instrument-style interactive visualization that steps through Wigderson's O(sqrt n)-coloring algorithm on 3-colorable graphs.">
+    <title>Wigderson's Algorithm — Coloring Instrument</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230c0f13'/%3E%3Ccircle cx='9' cy='11' r='3' fill='%23ffb020'/%3E%3Ccircle cx='23' cy='9' r='3' fill='%233ec7c4'/%3E%3Ccircle cx='16' cy='23' r='3' fill='%23ffb020'/%3E%3Cpath d='M9 11 23 9 16 23Z' fill='none' stroke='%238b95a1' stroke-width='1.5'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Wigderson's Algorithm for Graph Coloring</h1>
-            <p class="subtitle">Interactive step-by-step visualization of 3-colorable graph coloring</p>
-        </header>
+<div class="app">
 
-        <div class="controls-panel">
-            <div class="control-group">
-                <label for="vertices">Number of Vertices:</label>
-                <input type="range" id="vertices" min="5" max="100" value="10">
-                <input type="number" id="verticesInput" min="5" max="100" value="10" style="width: 60px; margin-left: 10px;">
-            </div>
-
-            <div class="control-group">
-                <label for="edgeProbability">Edge Probability:</label>
-                <input type="range" id="edgeProbability" min="0.1" max="0.9" step="0.1" value="0.4">
-                <span id="edgeProbabilityValue" style="margin-left: 10px;">0.4</span>
-            </div>
-
-            <div class="control-group">
-                <button id="generateGraph">Generate New Graph</button>
-                <button id="reset">Reset Coloring</button>
-                <button id="toggleDegree">Toggle Degrees</button>
-                <button id="debugLog">Show Debug Log</button>
-            </div>
-
-            <div class="control-group">
-                <button id="stepBack">Step Back</button>
-                <button id="stepForward">Step Forward</button>
-                <button id="runAll">Run All Steps</button>
-            </div>
-
-            <div class="speed-control">
-                <label for="speed">Animation Speed:</label>
-                <input type="range" id="speed" min="100" max="2000" value="500">
-                <span id="speedValue">500ms</span>
+    <!-- ============================ Top bar ============================ -->
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand__mark" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <circle cx="4.5" cy="6" r="2.4" fill="currentColor"/>
+                    <circle cx="15.5" cy="4.5" r="2.4" fill="currentColor" opacity="0.55"/>
+                    <circle cx="10" cy="15.5" r="2.4" fill="currentColor"/>
+                    <path d="M4.5 6 15.5 4.5 10 15.5Z" stroke="currentColor" stroke-width="1.1" fill="none" opacity="0.6"/>
+                </svg>
+            </span>
+            <div class="brand__text">
+                <h1>Wigderson's Algorithm for Graph Coloring</h1>
+                <p class="subtitle">Step through coloring a 3-colorable graph with O(&radic;n) colors.</p>
             </div>
         </div>
+        <div class="topbar__spec" aria-hidden="true">
+            <span class="led"></span>
+            <span>D3 &middot; MathJax &middot; force layout</span>
+        </div>
+    </header>
 
-        <div class="main-content">
-            <div class="graph-container">
-                <svg id="graph" width="800" height="600"></svg>
+    <!-- ============================ Workbench ============================ -->
+    <main class="workbench">
+
+        <!-- ---------------- Left rail: controls + pseudocode ---------------- -->
+        <aside class="rail rail--controls" aria-label="Controls">
+
+            <!-- Control deck -->
+            <section class="module" aria-labelledby="deck-title">
+                <div class="module__head">
+                    <h2 id="deck-title">Control Deck</h2>
+                </div>
+                <div class="module__body deck__body">
+
+                    <!-- Generation controls -->
+                    <div class="control-group">
+                        <p class="control-group__label" id="gen-label">Generation</p>
+
+                        <div class="field">
+                            <div class="field__row">
+                                <label for="verticesInput">Vertices (n)</label>
+                                <input type="number" id="verticesInput" name="verticesInput"
+                                       min="5" max="100" value="10"
+                                       aria-label="Number of vertices">
+                            </div>
+                            <input type="range" id="vertices" name="vertices"
+                                   min="5" max="100" value="10"
+                                   aria-label="Number of vertices (slider)">
+                        </div>
+
+                        <div class="field">
+                            <div class="field__row">
+                                <label for="edgeProbability">Edge probability</label>
+                                <span class="readout" id="edgeProbabilityValue">0.4</span>
+                            </div>
+                            <input type="range" id="edgeProbability" name="edgeProbability"
+                                   min="0.1" max="0.9" step="0.1" value="0.4">
+                        </div>
+
+                        <div class="btn-row">
+                            <button type="button" id="generateGraph" class="btn--signal">Generate New Graph</button>
+                            <button type="button" id="reset">Reset Coloring</button>
+                        </div>
+                        <div class="btn-row">
+                            <button type="button" id="toggleDegree">Toggle Degrees</button>
+                            <button type="button" id="debugLog">Show Debug Log</button>
+                        </div>
+                    </div>
+
+                    <!-- Transport / stepping controls -->
+                    <div class="control-group">
+                        <p class="control-group__label" id="transport-label">Transport</p>
+
+                        <div class="field">
+                            <div class="field__row">
+                                <label for="speed">Animation speed</label>
+                                <span class="readout" id="speedValue">500ms</span>
+                            </div>
+                            <input type="range" id="speed" name="speed"
+                                   min="100" max="2000" value="500"
+                                   aria-label="Animation speed in milliseconds">
+                        </div>
+
+                        <div class="transport" role="group" aria-labelledby="transport-label">
+                            <button type="button" id="stepBack">Step Back</button>
+                            <button type="button" id="stepForward">Step Forward</button>
+                            <button type="button" id="runAll" class="btn--signal">Run All Steps</button>
+                        </div>
+
+                        <p class="keyhint">
+                            <span class="visually-hidden">Keyboard shortcuts: </span>
+                            &larr;/&rarr; step &nbsp;&middot;&nbsp; Space run/stop &nbsp;&middot;&nbsp; Esc close log
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pseudocode -->
+            <section class="module module--flex" aria-labelledby="algo-title">
+                <div class="module__head">
+                    <h2 id="algo-title">Wigderson's Algorithm</h2>
+                    <span class="tag">pseudocode</span>
+                </div>
+                <div class="module__body module__body--flex">
+                    <div id="algorithmText" tabindex="0" role="region"
+                         aria-label="Algorithm pseudocode; the active line is highlighted"></div>
+                </div>
+            </section>
+        </aside>
+
+        <!-- ---------------- Center: graph scope ---------------- -->
+        <section class="instrument module scope" aria-labelledby="scope-title">
+            <div class="module__head">
+                <h2 id="scope-title">Graph Scope</h2>
+                <span class="tag">viewBox 800&times;600</span>
             </div>
-
-            <div class="info-panel">
-                <div class="algorithm-display">
-                    <h3>Wigderson's Algorithm</h3>
-                    <div id="algorithmText"></div>
+            <div class="scope__stage">
+                <div class="scope__screen">
+                    <svg id="graph" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet"
+                         role="img"
+                         aria-label="Force-directed graph. Vertices are draggable; colors and highlights update as the algorithm steps."></svg>
                 </div>
+            </div>
+        </section>
 
-                <div class="algorithm-phase">
-                    <h3>Current Phase: <span id="currentPhase">Not Started</span></h3>
-                    <div id="phaseDescription"></div>
+        <!-- ---------------- Right rail: telemetry ---------------- -->
+        <aside class="rail rail--telemetry" aria-label="Telemetry">
+
+            <!-- Phase -->
+            <section class="module" aria-labelledby="phase-title">
+                <div class="module__head">
+                    <h2 id="phase-title">Current Phase</h2>
                 </div>
-
-                <div class="statistics">
-                    <h3>Statistics</h3>
-                    <ul>
-                        <li>Total Vertices (n): <span id="totalVertices">0</span></li>
-                        <li>√n: <span id="sqrtN">0</span></li>
-                        <li>High-Degree Threshold (>√n): <span id="threshold">0</span></li>
-                        <li>High-Degree Vertices: <span id="highDegreeCount">0</span></li>
-                        <li>Colors Used: <span id="colorsUsed">0</span></li>
-                        <li>Theoretical Bound (3√n): <span id="theoreticalBound">0</span></li>
-                        <li>Vertices Colored: <span id="verticesColored">0</span></li>
-                    </ul>
+                <div class="module__body phase__body">
+                    <p id="currentPhase">Not Started</p>
+                    <p id="phaseDescription"></p>
                 </div>
+            </section>
 
-                <div class="step-log">
-                    <h3>Step Log</h3>
-                    <ul id="stepLog"></ul>
+            <!-- Statistics -->
+            <section class="module" aria-labelledby="stats-title">
+                <div class="module__head">
+                    <h2 id="stats-title">Statistics</h2>
                 </div>
+                <div class="module__body">
+                    <dl class="stats">
+                        <div class="stat">
+                            <dt>Total Vertices <span class="math">(n)</span></dt>
+                            <dd><span id="totalVertices">0</span></dd>
+                        </div>
+                        <div class="stat">
+                            <dt><span class="math">&radic;n</span></dt>
+                            <dd><span id="sqrtN">0</span></dd>
+                        </div>
+                        <div class="stat">
+                            <dt>High-Degree Threshold <span class="math">(&gt;&radic;n)</span></dt>
+                            <dd><span id="threshold">0</span></dd>
+                        </div>
+                        <div class="stat">
+                            <dt>High-Degree Vertices</dt>
+                            <dd><span id="highDegreeCount">0</span></dd>
+                        </div>
+                        <div class="stat">
+                            <dt>Colors Used</dt>
+                            <dd><span id="colorsUsed">0</span></dd>
+                        </div>
+                        <div class="stat stat--accent">
+                            <dt>Theoretical Bound <span class="math">(3&radic;n)</span></dt>
+                            <dd><span id="theoreticalBound">0</span></dd>
+                        </div>
+                        <div class="stat">
+                            <dt>Vertices Colored</dt>
+                            <dd><span id="verticesColored">0</span></dd>
+                        </div>
+                    </dl>
+                </div>
+            </section>
 
-                <div class="legend">
-                    <h3>Color Legend</h3>
+            <!-- Color legend -->
+            <section class="module" aria-labelledby="legend-title">
+                <div class="module__head">
+                    <h2 id="legend-title">Color Legend</h2>
+                </div>
+                <div class="module__body">
                     <div id="colorLegend"></div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Debug Modal -->
-        <div id="debugModal" class="modal">
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>Debug Information</h2>
-                <pre id="debugContent"></pre>
-                <div class="modal-buttons">
-                    <button id="copyDebug">Copy to Clipboard</button>
-                    <button id="downloadDebug">Download as Text</button>
+            </section>
+
+            <!-- Step log -->
+            <section class="module module--flex" aria-labelledby="log-title">
+                <div class="module__head">
+                    <h2 id="log-title">Step Log</h2>
                 </div>
-            </div>
+                <div class="module__body module__body--flex">
+                    <ul id="stepLog" aria-live="polite" aria-label="Step-by-step execution log"></ul>
+                </div>
+            </section>
+        </aside>
+    </main>
+</div>
+
+<!-- ============================ Debug modal ============================ -->
+<div id="debugModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="debugTitle">
+    <div class="modal__card">
+        <div class="modal__head">
+            <h2 id="debugTitle">Debug Information</h2>
+            <button type="button" class="close" aria-label="Close debug log">&times;</button>
+        </div>
+        <pre id="debugContent"></pre>
+        <div class="modal__actions">
+            <button type="button" id="copyDebug" class="btn--signal">Copy to Clipboard</button>
+            <button type="button" id="downloadDebug">Download as Text</button>
         </div>
     </div>
+</div>
 
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']]
-            }
-        };
-    </script>
-    <script src="wigderson.js"></script>
+<!-- ============================ Scripts ============================ -->
+<script>
+    // MathJax reads this config when it loads, so it must be defined first.
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha384-Wuix6BuhrWbjDBs24bXrjf4ZQ5aFeFWBuKkFekO2t8xFU0iNaLQfp2K6/1Nxveei" crossorigin="anonymous"></script>
+<script src="wigderson.js"></script>
 </body>
 </html>

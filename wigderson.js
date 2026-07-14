@@ -671,8 +671,9 @@ class Visualization {
         if (!graph) return;
         
         // Update links
+        // forceLink replaces source/target ids with node objects, so key on the id either way
         const links = this.linkGroup.selectAll('line')
-            .data(graph.edges, d => `${d.source}-${d.target}`);
+            .data(graph.edges, d => `${d.source.id ?? d.source}-${d.target.id ?? d.target}`);
         
         links.enter().append('line')
             .attr('stroke', '#999')
@@ -900,10 +901,10 @@ class App {
     initAlgorithmDisplay() {
         const algorithmHTML = `
             <div class="algorithm-line" data-line="0"><strong>Algorithm 1</strong> Wigderson's 3-coloring algorithm</div>
-            <div class="algorithm-line" data-line="0"><strong>Input:</strong> A 3-colorable graph $G(V,E)$</div>
+            <div class="algorithm-line"><strong>Input:</strong> A 3-colorable graph $G(V,E)$</div>
             <div class="algorithm-line" data-line="1">1: $n \\leftarrow |V|$, $k \\leftarrow \\lfloor\\sqrt{n}\\rfloor$</div>
             <div class="algorithm-line" data-line="2">2: $i \\leftarrow 0$</div>
-            <div class="algorithm-line" data-line="3">3: <strong>while</strong> $\\text{max\_degree}(G) > k$ <strong>do</strong></div>
+            <div class="algorithm-line" data-line="3">3: <strong>while</strong> $\\text{max-degree}(G) > k$ <strong>do</strong></div>
             <div class="algorithm-line" data-line="4" style="margin-left: 20px;">4: $v \\leftarrow$ highest-degree vertex in $G$</div>
             <div class="algorithm-line" data-line="5" style="margin-left: 20px;">5: $H \\leftarrow$ subgraph of $G$ induced by neighborhood $N_G(v)$</div>
             <div class="algorithm-line" data-line="6" style="margin-left: 20px;">6: 2-color $H$ with colors $i, i+1$</div>
@@ -916,8 +917,10 @@ class App {
         
         document.getElementById('algorithmText').innerHTML = algorithmHTML;
         
-        // Trigger MathJax to render
-        if (window.MathJax) {
+        // Trigger MathJax to render. Before the async MathJax script loads,
+        // window.MathJax is just the config object, so check for typesetPromise;
+        // MathJax typesets the whole document itself once it finishes loading.
+        if (window.MathJax && window.MathJax.typesetPromise) {
             window.MathJax.typesetPromise();
         }
     }
@@ -992,12 +995,20 @@ class App {
         });
         verticesSlider.addEventListener('change', () => this.generateNewGraph());
         
+        // Only mirror valid values while typing; clamp on change so we don't
+        // rewrite the field mid-keystroke
         verticesInput.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            if (!isNaN(value)) {
+                verticesSlider.value = Math.max(5, Math.min(100, value));
+            }
+        });
+        verticesInput.addEventListener('change', (e) => {
             const value = Math.max(5, Math.min(100, parseInt(e.target.value) || 10));
             verticesInput.value = value;
             verticesSlider.value = value;
+            this.generateNewGraph();
         });
-        verticesInput.addEventListener('change', () => this.generateNewGraph());
         
         const speedSlider = document.getElementById('speed');
         speedSlider.addEventListener('input', (e) => {
@@ -1009,6 +1020,7 @@ class App {
         edgeProbabilitySlider.addEventListener('input', (e) => {
             document.getElementById('edgeProbabilityValue').textContent = e.target.value;
         });
+        edgeProbabilitySlider.addEventListener('change', () => this.generateNewGraph());
         
         // Modal event listeners
         const modal = document.getElementById('debugModal');
@@ -1032,9 +1044,14 @@ class App {
             // Don't trigger if user is typing in an input field
             if (e.target.tagName === 'INPUT') return;
             
-            // Don't trigger if modal is open
+            // Escape closes the modal; other shortcuts are disabled while it's open
             const modal = document.getElementById('debugModal');
-            if (modal && modal.style.display === 'block') return;
+            if (modal && modal.style.display === 'block') {
+                if (e.key === 'Escape') {
+                    modal.style.display = 'none';
+                }
+                return;
+            }
             
             if (e.key === 'ArrowLeft') {
                 e.preventDefault();
@@ -1277,20 +1294,15 @@ class App {
         // Generate and display debug information
         debugContent.textContent = this.algorithm.getDebugInfo();
         modal.style.display = 'block';
+        modal.querySelector('.close').focus();
     }
-    
-    copyDebugToClipboard() {
+
+    async copyDebugToClipboard() {
         const debugContent = document.getElementById('debugContent').textContent;
-        
-        // Create a temporary textarea to copy from
-        const textarea = document.createElement('textarea');
-        textarea.value = debugContent;
-        document.body.appendChild(textarea);
-        textarea.select();
-        
+
         try {
-            document.execCommand('copy');
-            
+            await navigator.clipboard.writeText(debugContent);
+
             // Show feedback
             const copyBtn = document.getElementById('copyDebug');
             const originalText = copyBtn.textContent;
@@ -1301,8 +1313,6 @@ class App {
         } catch (err) {
             console.error('Failed to copy:', err);
         }
-        
-        document.body.removeChild(textarea);
     }
     
     downloadDebugLog() {
