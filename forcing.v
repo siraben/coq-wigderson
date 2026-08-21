@@ -70,14 +70,20 @@ Proof.
       * right; apply Hrec; exists v; auto.
 Qed.
 
-Lemma nbs_subset_nodes g s :
-  undirected g ->
+(** Neighbors of a set in a well-formed graph are graph vertices. *)
+Lemma nbs_subset_nodes_wf g s :
+  well_formed g ->
   S.Subset (nbs g s) (nodes g).
 Proof.
-  intros Ug i Hi.
-  apply nbs_spec in Hi as (v&Hv&Hiv).
-  sauto lq: on use: in_adj_neighbor_in_nodes unfold: PositiveOrderedTypeBits.t, node, PositiveSet.elt.
+  intros Hwf i Hi; apply nbs_spec in Hi as (v & Hv & Hiv).
+  eauto using in_adj_neighbor_in_nodes_wf.
 Qed.
+
+(** Neighbors of a set in an undirected graph are graph vertices. *)
+Corollary nbs_subset_nodes g s :
+  undirected g ->
+  S.Subset (nbs g s) (nodes g).
+Proof. eauto using nbs_subset_nodes_wf, undirected_well_formed. Qed.
 
 (** * BFS layering
 
@@ -427,6 +433,17 @@ Proof.
   apply force_layers_seed_in_L.
 Qed.
 
+(** Removing the component reached from a graph vertex strictly decreases the
+    graph cardinality. *)
+Lemma remove_reached_lt g seed :
+  S.In seed (nodes g) ->
+  M.cardinal (remove_nodes g (reached g seed)) < M.cardinal g.
+Proof.
+  intros Hseed; eapply remove_nodes_lt.
+  - apply seed_in_reached.
+  - now apply in_nodes_iff.
+Qed.
+
 (** * Whole-graph forcing
 
     [force_all] colors the whole graph by repeatedly picking a seed, 2-coloring
@@ -435,6 +452,8 @@ Qed.
 
 (** Colors a graph by repeatedly finding a connected component,
     2-coloring it, and recursing on the rest of the graph. *)
+Local Set Warnings "-funind-cannot-define-principle".
+
 Function force_all (g : graph) (c1 c2 : node)
   {measure M.cardinal g} : coloring :=
   match S.choose (nodes g) with
@@ -449,16 +468,12 @@ Function force_all (g : graph) (c1 c2 : node)
   end.
 Proof.
   intros g c1 c2 seed Hchoose.
-  (* seed ∈ nodes g *)
-  assert (HinG : M.In seed g).
-  { sfirstorder use: in_nodes_iff, PositiveSet.choose_1 unfold: nodes. }
-  (* seed ∈ reached set *)
-  assert (HinS : S.In seed (reached g seed)) by apply seed_in_reached.
-  (* strict decrease of cardinality *)
-  eapply remove_nodes_lt; eauto.
+  apply remove_reached_lt, S.choose_1, Hchoose.
 Defined.
 
 Functional Scheme force_all_ind := Induction for force_all Sort Prop.
+
+Local Set Warnings "+funind-cannot-define-principle".
 
 (** Combining a coloring [f1] of a closed vertex set [S] (no edges leave [S])
     with a coloring [f2] of the complement yields a coloring of the whole
@@ -812,10 +827,7 @@ Proof.
     destruct Hcomp as [Hcomp_complete Hcomp_ok].
     (* IH for remove_nodes *)
     assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
-    { subst n.
-      eapply remove_nodes_lt with (i := seed).
-      - unfold Sreach, L, R, LR. apply seed_in_reached.
-      - apply in_nodes_iff. auto. }
+    { subst n; unfold Sreach, L, R, LR; now apply remove_reached_lt. }
     assert (Hok_rem : coloring_ok (SP.of_list [c1;c2]) (remove_nodes g Sreach) (force_all (remove_nodes g Sreach) c1 c2)).
     { apply (IH _ Hlt _ (Logic.eq_refl _)); auto.
       - apply remove_nodes_undirected; auto.
@@ -853,9 +865,8 @@ Proof.
       * right. symmetry. eapply constant_color_inv2. eauto.
     + (* ci from force_all (remove_nodes g Sreach) c1 c2 *)
       assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
-      { subst n. eapply remove_nodes_lt with (i := seed).
-        - unfold Sreach, L, R, LR. apply seed_in_reached.
-        - apply in_nodes_iff. apply S.choose_1 in Echoose. auto. }
+      { subst n; unfold Sreach, L, R, LR.
+        now apply remove_reached_lt, S.choose_1. }
       eapply IH; eauto.
   - rewrite WF.empty_o in Hfi. discriminate.
 Qed.
@@ -906,14 +917,12 @@ Proof.
       apply S.union_spec; [left | right]; auto.
     + (* i from recursive call *)
       assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
-      { subst n. eapply remove_nodes_lt with (i := seed).
-        - unfold Sreach, L, R, LR. apply seed_in_reached.
-        - apply in_nodes_iff. auto. }
+      { subst n; unfold Sreach, L, R, LR; now apply remove_reached_lt. }
       assert (Ug' : undirected (remove_nodes g Sreach)).
       { apply remove_nodes_undirected. auto. }
       assert (M.In i (remove_nodes g Sreach)).
       { eapply IH; eauto. }
-      eapply subgraph_vert_m; [apply remove_nodes_subgraph | exact H].
+      eapply subgraph_vertex_in; [apply remove_nodes_subgraph | exact H].
   - rewrite WF.empty_o in Hfi. discriminate.
 Qed.
 
@@ -942,9 +951,7 @@ Proof.
     + (* i ∉ reached set → colored by recursive call *)
       apply munion_in. right.
       assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
-      { subst n. eapply remove_nodes_lt with (i := seed).
-        - unfold Sreach, L, R, LR. apply seed_in_reached.
-        - apply in_nodes_iff. auto. }
+      { subst n; unfold Sreach, L, R, LR; now apply remove_reached_lt. }
       apply (IH _ Hlt _ (Logic.eq_refl _)).
       * apply remove_nodes_undirected; auto.
       * apply in_nodes_iff. rewrite nodes_remove_nodes_spec.

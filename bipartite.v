@@ -74,36 +74,19 @@ Definition bicolor (L R : S.t) (c1 c2 : node) : coloring :=
   Munion (constant_color L c1) (constant_color R c2).
 
 Lemma bicolor_ok g L R c1 c2 :
-  undirected g ->
   c1 <> c2 ->
   is_bipartition g L R ->
   coloring_ok (SP.of_list [c1; c2]) g (bicolor L R c1 c2).
 Proof.
-  intros Ug Hneq (Hdisj & Hcov & HindL & HindR).
-  (* Use our general union-of-colorings lemma with disjoint palettes {c1} and {c2} *)
-  assert (HokL : coloring_ok (S.singleton c1) g (constant_color L c1)).
-  { split.
-    - hauto l: on use: constant_color_inv2, PositiveSet.singleton_2.
-    - intros ci cj H0 H1.
-      hauto lq: on rew: off use: constant_color_inv unfold: independent_set.
-  }
-  assert (HokR : coloring_ok (S.singleton c2) g (constant_color R c2)).
-  { split.
-    - hauto l: on use: constant_color_inv2, PositiveSet.singleton_2.
-    - intros ci cj H0 H1.
-      hauto lq: on rew: off use: constant_color_inv unfold: independent_set.
-  }
-  (* Palettes disjoint *)
-  assert (S.Empty (S.inter (S.singleton c1) (S.singleton c2))).
-  { hfcrush use: PositiveSet.singleton_1, PositiveSet.inter_spec unfold: PositiveSet.Empty. }
-  (* Convert (singleton ∪ singleton) to of_list [c1;c2] *)
-  assert (SE :
-    S.Equal (SP.of_list [c1;c2]) (S.union (S.singleton c1) (S.singleton c2))).
-  { hauto l: on use: SP.add_union_singleton, PositiveSet.cardinal_1
-          unfold: SP.of_list, fold_right, PositiveSet.singleton, PositiveSet.empty. }
-  (* Union of ok colorings with disjoint palettes is ok; then rewrite palette *)
-  eapply ok_coloring_set_eq; [symmetry; exact SE|].
-  eapply coloring_union; eauto.
+  intros Hneq (_ & _ & HindL & HindR) i j Hij.
+  unfold bicolor.
+  split.
+  - intros ci Hci; munion_cases Hci;
+      hauto l: on use: constant_color_inv2, SP.of_list_1, inA_iff.
+  - intros ci cj Hci Hcj.
+    munion_cases2 Hci Hcj.
+    all: try solve [hauto lq: on use: constant_color_inv unfold: independent_set].
+    all: apply constant_color_inv2 in Hci, Hcj; congruence.
 Qed.
 
 Lemma bicolor_complete g L R c1 c2 :
@@ -120,7 +103,6 @@ Proof.
 Qed.
 
 Lemma bipartition_two_coloring_complete g L R :
-  undirected g ->
   is_bipartition g L R ->
   coloring_complete (SP.of_list [1;2]) g (bicolor L R 1 2).
 Proof.
@@ -236,7 +218,7 @@ Proof.
   { destruct (S.elements p) eqn:E.
     - hfcrush use: SP.elements_Empty, SP.cardinal_Empty unfold: colors.
     - exists e.
-      qauto use: set_elemeum, PositiveSet.add_spec unfold: PositiveSet.empty, fold_right, colors, SP.of_list, PositiveSet.Equal inv: list.
+      qauto use: set_elements_fold, PositiveSet.add_spec unfold: PositiveSet.empty, fold_right, colors, SP.of_list, PositiveSet.Equal inv: list.
   }
   destruct Hex as [c Hc].
   exists c.
@@ -396,13 +378,14 @@ Lemma neighborhood_bipartite_of_three_coloring :
     bipartite (neighborhood g v).
 Proof.
   intros g f p v Ug Hc H3.
-  (* If v is in G, we can use our nbd_2_colorable_3.  If not, the neighborhood is empty and bipartite. *)
+  (* If [v] is in [g], its neighborhood is 2-colorable. Otherwise the
+     neighborhood is empty and therefore bipartite. *)
   destruct (WF.In_dec g v) as [Hv|Hnv].
   - (* v is colored *)
     unfold coloring_complete in Hc.
     destruct (proj1 Hc v Hv) as [cv Hfv].
     unfold M.MapsTo in Hfv.
-    destruct (nbd_2_colorable_3 g f p Hc H3 v cv ltac:(assumption)) as [H2col HcompN].
+    destruct (neighborhood_two_colorable_of_three g f p Hc H3 v cv ltac:(assumption)) as [H2col HcompN].
     destruct (two_coloring_complete_to_bipartition _ _ _ HcompN H2col) as [c Hbip].
     sfirstorder.
   - (* v not in g ⇒ neighbors are empty ⇒ neighborhood has no nodes ⇒ bipartite *)

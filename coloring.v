@@ -49,7 +49,7 @@ Definition coloring_complete (palette: colors) (g: graph) (f: coloring) :=
   (forall i, M.In i g -> M.In i f) /\ coloring_ok palette g f.
 
 (** ** Complete coloring implies graph is irreflexive *)
-Lemma complete_col_no_selfloop : forall (g : graph) (c : coloring) p,
+Lemma coloring_complete_no_selfloop : forall (g : graph) (c : coloring) p,
     coloring_complete p g c -> no_selfloop g.
 Proof.
   intros g c p H.
@@ -84,7 +84,8 @@ Proof.
 Qed.
 
 (** ** A set is extensionally equal to folding over its elements *)
-Lemma set_elemeum s : S.Equal s (fold_right S.add S.empty (S.elements s)).
+Lemma set_elements_fold s :
+  S.Equal s (fold_right S.add S.empty (S.elements s)).
 Proof.
   strivial use: SP.of_list_3 unfold: SP.of_list, SP.to_list, PositiveSet.Equal.
 Qed.
@@ -103,7 +104,7 @@ Proof.
   - scongruence.
   - assert (d = []) by sauto.
     exists ((a,b),c).
-    hauto lq: on use: set_elemeum.
+    hauto lq: on use: set_elements_fold.
 Defined.
 
 (** ** Valid coloring carries to subgraphs *)
@@ -123,7 +124,7 @@ Lemma subgraph_coloring_complete : forall (g g' : graph) f p,
     coloring_complete p g' f.
 Proof.
   intros g g' f p H H0.
-  hauto lq: on use: subgraph_coloring_ok, subgraph_vert_m.
+  hauto lq: on use: subgraph_coloring_ok, subgraph_vertex_in.
 Qed.
 
 (** ** Definition of $n$-coloring *)
@@ -174,7 +175,7 @@ Proof. apply n_coloring_missed. Qed.
 Lemma restrict_coloring_ok : forall (g : graph) (f : coloring) p (s : nodeset),
     coloring_ok p g f -> coloring_ok p g (restrict f s).
 Proof.
-  hauto lq: on rew: off use: @restrict_agree unfold: coloring_ok.
+  hauto lq: on rew: off use: @restrict_find_original unfold: coloring_ok.
 Qed.
 
 (** ** Restricting a coloring on the neighborhood of a node *)
@@ -198,8 +199,9 @@ Proof.
   hfcrush use: @domain_restrict_eq, SP.inter_sym unfold: PositiveSet.Equal, coloring, restrict_on_nbd.
 Qed.
 
-(** ** Neighborhood of vertex in $(n+1)$-colorable graph is $n$-colorable *)
-Lemma nbd_Sn_colorable_n : forall (g : graph) (f : coloring) (p : colors) (n : nat),
+(** ** A neighborhood in a successor-colorable graph uses one fewer color *)
+Lemma neighborhood_succ_colorable :
+  forall (g : graph) (f : coloring) (p : colors) (n : nat),
     coloring_complete p g f ->
     n_coloring f p (S n) ->
     forall v ci, M.find v f = Some ci ->
@@ -209,15 +211,15 @@ Proof.
   intros g f p k H H0 v ci H1.
   split.
   - apply n_coloring_missed.
-    + hauto use: @restrict_agree unfold: coloring, n_coloring, three_coloring.
+    + hauto use: @restrict_find_original unfold: coloring, n_coloring, three_coloring.
     + sfirstorder.
     + (* let x be a neighbor of v *)
       intros x contra.
       assert (S.In x (adj g v)).
       {
-        hauto q: on use: nbd_adj, @restrict_in_set, WF.in_find_iff.
+        hauto q: on use: neighborhood_nodes_subset_adj, @restrict_in_set, WF.in_find_iff.
       }
-      qauto use: WF.in_find_iff, @restrict_agree unfold: coloring_ok.
+      qauto use: WF.in_find_iff, @restrict_find_original unfold: coloring_ok.
   - split.
     + intros i Hi.
       (* use contradiction *)
@@ -228,61 +230,61 @@ Proof.
       intros contra.
       assert (M.In i g).
       {
-        strivial use: subgraph_vert_m, nbd_subgraph.
+        strivial use: subgraph_vertex_in, neighborhood_subgraph.
       }
       (* contra states that i doesn't have a color in the restriction *)
       (* but that would mean that f was not complete *)
       assert (~ S.In i (nodes (neighborhood g v))).
       {
-        qauto l: on use: @restrict_restricts.
+        qauto l: on use: @restrict_in_intro.
       }
       apply H3.
       apply in_domain.
       assumption.
-    + pose proof (nbd_subgraph g v).
+    + pose proof (neighborhood_subgraph g v).
       pose proof (subgraph_coloring_ok _ _ f p H2 ltac:(sauto)).
       split.
       * intros ci0 H5.
         hauto l: on use: S.remove_spec, restrict_on_nbd_find_iff, nodes_neighborhood_spec unfold: coloring_ok, coloring_complete.
 
       * intros ci0 cj H5 H6.
-        qauto use: @restrict_agree unfold: coloring_ok.
+        qauto use: @restrict_find_original unfold: coloring_ok.
 Qed.
 
-(** ** Neighborhood of vertex in 3-colorable graph is 2-colorable *)
-Lemma nbd_2_colorable_3 : forall (g : graph) (f : coloring) p,
+(** ** A neighborhood in a 3-colorable graph is 2-colorable *)
+Lemma neighborhood_two_colorable_of_three :
+  forall (g : graph) (f : coloring) p,
     coloring_complete p g f ->
     three_coloring f p ->
     forall v ci, M.find v f = Some ci ->
             two_coloring (restrict_on_nbd f g v) (S.remove ci p) /\
               coloring_complete (S.remove ci p) (neighborhood g v) (restrict_on_nbd f g v).
 Proof.
-  hauto l: on use: SP.remove_cardinal_1, nbd_Sn_colorable_n.
+  hauto l: on use: SP.remove_cardinal_1, neighborhood_succ_colorable.
 Qed.
 
-(** ** If some neighborhood cannot be $n$-colored then the coloring is not $(n+1)$ *)
-Lemma nbd_not_n_col_graph_not_Sn_col : forall (g : graph) (f : coloring) (p : colors) n,
+(** ** A non-[n]-colorable neighborhood refutes successor-colorability *)
+Lemma not_neighborhood_n_colorable_not_succ_coloring :
+  forall (g : graph) (f : coloring) (p : colors) n,
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
         M.find v f = Some ci /\
           (~ n_coloring (restrict_on_nbd f g v) (S.remove ci p) n)) ->
     ~ n_coloring f p (S n).
 Proof.
-  qauto l: on use: nbd_Sn_colorable_n.
+  qauto l: on use: neighborhood_succ_colorable.
 Qed.
 
-(* if f is a complete coloring of g, then if there is a vertex whose
-   neighborhood is not 2-colorable or the coloring is not complete
-   then f cannot be a 3-coloring
- *)
-Lemma nbd_not_2_col_graph_not_3_col : forall (g : graph) (f : coloring) (p : colors),
+(** A non-2-colorable neighborhood refutes 3-colorability. *)
+Lemma not_neighborhood_two_colorable_not_three_coloring :
+  forall (g : graph) (f : coloring) (p : colors),
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
         M.find v f = Some ci /\
           (~ two_coloring (restrict_on_nbd f g v) (S.remove ci p))) ->
     ~ three_coloring f p.
 Proof.
-  qauto l: on use: nbd_2_colorable_3.
+  qauto l: on use: neighborhood_two_colorable_of_three.
 Qed.
 
 (** * Constant coloring of a vertex set [s] with [c] *)

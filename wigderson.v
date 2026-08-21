@@ -90,6 +90,16 @@ Proof.
   apply subset_nodes_sub in Echoose. auto.
 Qed.
 
+(** A phase-1 step strictly decreases the residual graph cardinality. *)
+Lemma phase1_step_lt : forall k g v,
+    S.choose (subset_nodes (high_deg k) g) = Some v ->
+    (M.cardinal (remove_nodes g (S.add v (nodes (neighborhood g v))))
+      < M.cardinal g)%nat.
+Proof.
+  intros k g v Echoose; eapply remove_nodes_lt;
+    eauto using S.add_1, chosen_high_deg_in.
+Qed.
+
 (** ** Colors used by phase1 are bounded below by c *)
 Lemma phase1_color_lower_bound :
   forall k c g i ci,
@@ -112,10 +122,7 @@ Proof.
       * rewrite M.gso in Hfi by auto.
         apply force_all_palette in Hfi. destruct Hfi; subst; lia.
     + assert (Hlt : (M.cardinal g' < n)%nat).
-      { subst n. unfold g'.
-        eapply remove_nodes_lt with (i := v).
-        - apply S.add_spec. left. reflexivity.
-        - eapply chosen_high_deg_in; eauto. }
+      { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
       assert (Hge : (c + 3 <= ci)%positive).
       { eapply (IH _ Hlt k (c+3) g' (Logic.eq_refl _)).
         rewrite Eph. simpl. exact Hfi. }
@@ -145,14 +152,12 @@ Proof.
       * eapply chosen_high_deg_in; eauto.
       * rewrite M.gso in Hfi by auto.
         unfold m', two_color_nbd in Hfi.
-        eapply subgraph_vert_m; [apply nbd_subgraph |].
+        eapply subgraph_vertex_in; [apply neighborhood_subgraph |].
         eapply force_all_domain; eauto.
         apply neighborhood_undirected. auto.
     + assert (Hlt : (M.cardinal g' < n)%nat).
-      { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
-        - apply S.add_spec. left. reflexivity.
-        - eapply chosen_high_deg_in; eauto. }
-      eapply subgraph_vert_m; [apply remove_nodes_subgraph |].
+      { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
+      eapply subgraph_vertex_in; [apply remove_nodes_subgraph |].
       eapply (IH _ Hlt k (c+3) g' (Logic.eq_refl _) i ci); auto.
       * apply remove_nodes_undirected. auto.
       * rewrite Eph. simpl. auto.
@@ -206,10 +211,10 @@ Proof.
         unfold m', two_color_nbd in Hfi, Hfj.
         (* i and j are in dom(force_all nbhd ...) hence in nodes nbhd ⊆ adj g v *)
         assert (HiN : S.In i (adj g v)).
-        { apply nbd_adj. apply in_nodes_iff.
+        { apply neighborhood_nodes_subset_adj. apply in_nodes_iff.
           eapply force_all_domain; eauto. }
         assert (HjN : S.In j (adj g v)).
-        { apply nbd_adj. apply in_nodes_iff.
+        { apply neighborhood_nodes_subset_adj. apply in_nodes_iff.
           eapply force_all_domain; eauto. }
         (* The edge (i,j) is in neighborhood g v *)
         assert (Hadj' : S.In j (adj nbhd i)).
@@ -237,10 +242,7 @@ Proof.
       lia.
     + (* Both in recursive step *)
       assert (Hlt : (M.cardinal g' < n)%nat).
-      { subst n. unfold g'.
-        eapply remove_nodes_lt with (i := v).
-        - apply S.add_spec. left. reflexivity.
-        - eapply chosen_high_deg_in; eauto. }
+      { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
       (* The edge (i,j) must exist in g' *)
       (* Both i,j are colored by phase1 on g', so they're in nodes g' *)
       (* Since i,j ∉ {v} ∪ nodes(nbhd) and (i,j) is edge in g, it's edge in g' *)
@@ -280,9 +282,7 @@ Proof.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl.
     assert (Hlt : (M.cardinal g' < n)%nat).
-    { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
-      - apply S.add_spec. left. reflexivity.
-      - eapply chosen_high_deg_in; eauto. }
+    { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
     specialize (IH _ Hlt k (c+3) g' (Logic.eq_refl _)). rewrite Eph in IH. simpl in IH.
     eapply subgraph_trans; eauto. apply remove_nodes_subgraph.
   - simpl. apply subgraph_refl.
@@ -304,9 +304,7 @@ Proof.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl.
     assert (Hlt : (M.cardinal g' < n)%nat).
-    { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
-      - apply S.add_spec. left. reflexivity.
-      - eapply chosen_high_deg_in; eauto. }
+    { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     specialize (IH _ Hlt k (c+3) g' Ug' (Logic.eq_refl _)).
     rewrite Eph in IH. simpl in IH. exact IH.
@@ -329,9 +327,7 @@ Proof.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl.
     assert (Hlt : (M.cardinal g' < n)%nat).
-    { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
-      - apply S.add_spec. left. reflexivity.
-      - eapply chosen_high_deg_in; eauto. }
+    { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
     assert (Hloop' : no_selfloop g') by
       (unfold g'; eapply subgraph_no_selfloop; [apply remove_nodes_subgraph | auto]).
     specialize (IH _ Hlt k (c+3) g' Hloop' (Logic.eq_refl _)).
@@ -356,9 +352,7 @@ Proof.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl.
     assert (Hlt : (M.cardinal g' < n)%nat).
-    { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
-      - apply S.add_spec. left. reflexivity.
-      - eapply chosen_high_deg_in; eauto. }
+    { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     specialize (IH _ Hlt k (c+3) g' Ug' (Logic.eq_refl _)).
     rewrite Eph in IH. simpl in IH. exact IH.
@@ -385,16 +379,14 @@ Proof.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in *.
     assert (Hlt : (M.cardinal g' < n)%nat).
-    { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
-      - apply S.add_spec. left. reflexivity.
-      - eapply chosen_high_deg_in; eauto. }
+    { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     (* g2 is a subgraph of g' *)
     assert (Hsub : is_subgraph g2 g').
     { pose proof (phase1_subgraph k (c+3) g'). rewrite Eph in H. simpl in H. exact H. }
     (* i,j are in g' since g2 ⊆ g' *)
-    assert (Hi' : M.In i g') by (eapply subgraph_vert_m; eauto).
-    assert (Hj' : M.In j g') by (eapply subgraph_vert_m; eauto).
+    assert (Hi' : M.In i g') by (eapply subgraph_vertex_in; eauto).
+    assert (Hj' : M.In j g') by (eapply subgraph_vertex_in; eauto).
     (* i,j not in the removed set *)
     assert (Hni : ~ S.In i (S.add v (nodes nbhd)))
       by (apply (proj1 (in_remove_nodes_iff _ _ _) Hi')).
@@ -466,6 +458,8 @@ Qed.
 (** The recursive body of phase 2: colors each independent layer of
     maximum-degree vertices with a fresh color. Returns the coloring
     and the (empty) residual graph. *)
+Local Set Warnings "-funind-cannot-define-principle".
+
 Function phase2 (g : graph) {measure M.cardinal g} : coloring * graph :=
   match (max_deg g)%nat with
   | 0%nat => (constant_color (nodes g) 1, (@M.empty _))
@@ -480,37 +474,8 @@ Proof.
   rewrite <- teq0.
   rewrite teq0.
   simpl.
-  assert (~ S.Empty ns).
-  {
-    intros contra.
-    rewrite extract_vertices_degs_equation in teq0.
-    destruct (extract_deg_vert_dec g (S n)) eqn:EE.
-    - destruct s as [v Hv].
-      simpl in *.
-      destruct (extract_vertices_degs (remove_node v g) (S n)) as [s g''].
-      inversion teq0.
-      subst.
-      assert (S.In v (S.add v s)).
-      {
-        sfirstorder use: SP.Dec.F.add_iff unfold: node, PositiveOrderedTypeBits.t, PositiveSet.elt, nodeset.
-      }
-      scongruence.
-    - inversion teq0.
-      subst.
-      clear teq0.
-      pose proof (max_degree_vert g' (S n) ltac:(hauto use: max_deg_gt_not_empty, nlt_0_r unfold: Peano.lt inv: sumbool) teq).
-      contradiction.
-  }
-  assert (exists v, S.In v ns).
-  {
-    clear -H.
-    destruct (PositiveSet.choose ns) eqn:EE.
-    - exists e.
-      strivial use: PositiveSet.choose_1 unfold: nodeset.
-    - sfirstorder use: PositiveSet.choose_2.
-  }
-  clear H.
-  destruct H0 as [v Hv].
+  destruct (extract_vertices_degs_witness g (S n) ns g'
+              ltac:(lia) ltac:(symmetry; exact teq) teq0) as [v Hv].
   assert (is_subgraph g' g) by hauto l: on use: extract_vertices_degs_subgraph.
   pose proof (extract_vertices_remove g g' ns (S n) ltac:(auto) v Hv).
   unfold is_subgraph in H.
@@ -526,6 +491,8 @@ Proof.
 Defined.
 
 Functional Scheme phase2_ind := Induction for phase2 Sort Prop.
+
+Local Set Warnings "+funind-cannot-define-principle".
 
 (** The palette [{1, ..., p+1}] as a node set, used to bound the colors
     produced by phase 2. *)
@@ -675,7 +642,7 @@ Proof.
       pose proof (extract_vertices_remove g g'0 ns (S n) e0).
       hauto l: on.
     + (* x came from the recursive coloring f' over g' *)
-      hauto lq: on use: in_nodes_iff, in_domain, subgraph_vert_m, extract_vertices_degs_subgraph unfold: PositiveSet.Subset, coloring, PositiveMap.key, PositiveSet.elt.
+      hauto lq: on use: in_nodes_iff, in_domain, subgraph_vertex_in, extract_vertices_degs_subgraph unfold: PositiveSet.Subset, coloring, PositiveMap.key, PositiveSet.elt.
 Qed.
 
 (** Any vertex colored by phase 2 is a vertex of the input graph. *)
@@ -947,22 +914,17 @@ Proof.
   intros k g Hempty.
   destruct (Nat.le_gt_cases (max_deg g) k) as [|Hgt]; auto.
   exfalso.
-  destruct (M.elements g) eqn:Hel.
-  - (* empty graph: max_deg = 0 *)
-    unfold max_deg in Hgt. rewrite Hel in Hgt. simpl in Hgt. lia.
-  - assert (Hne : ~ M.Empty g).
-    { intro He. apply WP.elements_Empty in He. rewrite Hel in He. discriminate. }
-    destruct (max_degree_vert g (max_deg g) Hne (Logic.eq_refl _)) as [v Hv].
-    apply degree_spec in Hv. destruct Hv as [Hvin Hdeg].
-    apply Hempty with (a := v).
-    unfold subset_nodes. apply in_domain.
-    assert (HIn : M.In v g) by (apply in_nodes_iff; auto).
-    destruct HIn as [e He].
-    exists e. apply WP.filter_iff;
-      [intros x y Heq a b Hab; subst; auto |].
-    split; auto.
-    unfold high_deg. apply Nat.ltb_lt.
-    unfold adj in Hdeg. rewrite He in *. lia.
+  destruct (max_degree_vert g (max_deg g)
+              (max_deg_gt_not_empty g ltac:(lia)) (Logic.eq_refl _)) as [v Hv].
+  apply degree_spec in Hv. destruct Hv as [Hvin Hdeg].
+  apply (Hempty v).
+  unfold subset_nodes. apply in_domain.
+  apply in_nodes_iff in Hvin; destruct Hvin as [e He].
+  exists e. apply WP.filter_iff;
+    [intros x y Heq a b Hab; subst; auto |].
+  split; auto.
+  unfold high_deg. apply Nat.ltb_lt.
+  unfold adj in Hdeg. rewrite He in *. lia.
 Qed.
 
 (** Phase1 residual graph has max_deg <= k *)
@@ -1008,7 +970,7 @@ Proof.
   unfold high_deg in Hhigh. apply Nat.ltb_lt in Hhigh.
   (* nodes(neighborhood g v) = adj g v *)
   assert (Hneq : S.Equal (nodes (neighborhood g v)) (adj g v)).
-  { apply neighborhood_nodes_equal_adj; auto. }
+  { apply neighborhood_nodes_eq; auto using undirected_well_formed. }
   (* v ∉ adj g v *)
   assert (Hvna : ~ S.In v (adj g v)) by (apply Hloop).
   (* S.cardinal (S.add v (adj g v)) >= k + 2 *)
@@ -1040,7 +1002,7 @@ Proof.
   intros a m b Hm Hle.
   replace (b / m + 1)%nat with ((b + 1 * m) / m)%nat by
     (rewrite Nat.div_add; lia).
-  apply Nat.div_le_mono; lia.
+  apply Nat.Div0.div_le_mono; lia.
 Qed.
 
 (** Main inductive bound: phase1 colors are bounded *)
@@ -1061,9 +1023,7 @@ Proof.
     set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in Hfi.
     assert (Hlt : (M.cardinal g' < n)%nat).
-    { subst n. unfold g'. eapply remove_nodes_lt with (i := v).
-      - apply S.add_spec. left. reflexivity.
-      - eapply chosen_high_deg_in; eauto. }
+    { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     assert (Hloop' : no_selfloop g') by
       (unfold g'; eapply subgraph_no_selfloop; [apply remove_nodes_subgraph | auto]).
@@ -1148,7 +1108,7 @@ Lemma sqrt_div_le : forall n,
   (n / (Nat.sqrt n + 2) <= Nat.sqrt n)%nat.
 Proof.
   intros n.
-  apply Nat.div_le_upper_bound; [lia |].
+  apply Nat.Div0.div_le_upper_bound.
   destruct n as [|n'].
   - simpl. lia.
   - pose proof (Nat.sqrt_spec (S n') ltac:(lia)) as [_ Hhi]. nia.
