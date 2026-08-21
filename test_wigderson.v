@@ -1,4 +1,5 @@
 Require Import graph.
+Require Import graph_notations.
 Require Import coloring.
 Require Import wigderson.
 Require Import List.
@@ -6,6 +7,7 @@ Require Import PArith.
 Import ListNotations.
 
 Local Open Scope positive_scope.
+Local Open Scope graph_scope.
 
 (** * Tests for the Wigderson coloring algorithm
 
@@ -129,7 +131,7 @@ Definition g_path10 :=
 
 (* Helper: check all edges have different colors *)
 Definition check_edge (f : coloring) (i j : positive) : bool :=
-  match M.find i f, M.find j f with
+  match f !! i, f !! j with
   | Some ci, Some cj => negb (Pos.eqb ci cj)
   | _, _ => false (* uncolored vertex = failure *)
   end.

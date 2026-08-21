@@ -15,5 +15,24 @@ from-clean rebuild.
 
 The accompanying paper source is `wigderson-paper.tex`.
 
+## Proof notation
+
+Import `graph_notations` and open `graph_scope` to use the optional compact
+notation employed by the higher-level proofs:
+
+```coq
+Require Import graph_notations.
+Local Open Scope graph_scope.
+```
+
+- `x ∈ s`, `v ∈ dom g`, and `s ⊆ t` denote set membership,
+  map-domain membership, and set inclusion.
+- `m !! k` denotes `M.find k m`; `V[g]` is the vertex set.
+- `Adj[g; v]` is the adjacency set, `N[g; v]` is the neighborhood graph,
+  and `u ~[g] v` states that `v` is adjacent from `u` in `g`.
+- `h ⊑ g`, `g ⇂ s`, and `g ∖ s` denote the subgraph relation, induced
+  subgraph, and vertex removal.
+- `deg[g] v` and `Δ[g]` denote degree lookup and maximum degree.
+
 ## License
 This software is licensed under the MIT license.

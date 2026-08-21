@@ -1,6 +1,7 @@
 (** * coloring.v - Graph coloring theory and two-color step *)
 Require Import graph.
 Require Import subgraph.
+Require Import graph_notations.
 Require Import restrict.
 Require Import munion.
 Require Import List.
@@ -18,6 +19,7 @@ Import ListNotations.
 Import Nat.
 
 Local Open Scope positive_scope.
+Local Open Scope graph_scope.
 
 Create HintDb coloring_spec.
 
@@ -46,7 +48,7 @@ Qed.
 
 (** ** A coloring is complete if every vertex is colored *)
 Definition coloring_complete (palette: colors) (g: graph) (f: coloring) :=
-  (forall i, M.In i g -> M.In i f) /\ coloring_ok palette g f.
+  (forall i, i ∈ dom g -> i ∈ dom f) /\ coloring_ok palette g f.
 
 (** ** Complete coloring implies graph is irreflexive *)
 Lemma coloring_complete_no_selfloop : forall (g : graph) (c : coloring) p,
@@ -109,7 +111,7 @@ Defined.
 
 (** ** Valid coloring carries to subgraphs *)
 Lemma subgraph_coloring_ok : forall (g g' : graph) f p,
-    is_subgraph g' g ->
+    g' ⊑ g ->
     coloring_ok p g f ->
     coloring_ok p g' f.
 Proof.
@@ -119,7 +121,7 @@ Qed.
 
 (** ** Complete coloring carries to subgraphs *)
 Lemma subgraph_coloring_complete : forall (g g' : graph) f p,
-    is_subgraph g' g ->
+    g' ⊑ g ->
     coloring_complete p g f ->
     coloring_complete p g' f.
 Proof.
@@ -129,7 +131,7 @@ Qed.
 
 (** ** Definition of $n$-coloring *)
 Definition n_coloring (f : coloring) (p : colors) (n : nat) :=
-  S.cardinal p = n /\ forall v c, M.find v f = Some c -> S.In c p.
+  S.cardinal p = n /\ forall v c, f !! v = Some c -> c ∈ p.
 
 (** ** Definition of 3-coloring *)
 Definition three_coloring (f : coloring) p := n_coloring f p 3.
@@ -149,8 +151,8 @@ Then [f] is a $n$-coloring wrt. [p\{c}].
 
 Lemma n_coloring_missed (f : coloring) p c n :
   n_coloring f p (S n) ->
-  S.In c p ->
-  (forall x, M.find x f <> Some c) ->
+  c ∈ p ->
+  (forall x, f !! x <> Some c) ->
   n_coloring f (S.remove c p) n.
 Proof.
   intros [p3 Hf] Hc Hcm.
@@ -166,8 +168,8 @@ Qed.
 
 Lemma two_coloring_from_three (f : coloring) p c :
   three_coloring f p ->
-  S.In c p ->
-  (forall x, M.find x f <> Some c) ->
+  c ∈ p ->
+  (forall x, f !! x <> Some c) ->
   two_coloring f (S.remove c p).
 Proof. apply n_coloring_missed. Qed.
 
@@ -181,12 +183,12 @@ Qed.
 (** ** Restricting a coloring on the neighborhood of a node *)
 
 Definition restrict_on_nbd (f : coloring) (g : graph) (v : node) :=
-  restrict f (nodes (neighborhood g v)).
+  restrict f V[ N[ g ; v ] ].
 
 (** ** Core find-spec for the neighborhood restriction *)
 Lemma restrict_on_nbd_find_iff f g v i c :
-  M.find i (restrict_on_nbd f g v) = Some c
-  <-> S.In i (nodes (neighborhood g v)) /\ M.find i f = Some c.
+  restrict_on_nbd f g v !! i = Some c
+  <-> i ∈ V[ N[ g ; v ] ] /\ f !! i = Some c.
 Proof.
   hauto l: on use: @restrict_find_some_iff unfold: coloring, restrict_on_nbd.
 Qed.
@@ -194,7 +196,7 @@ Qed.
 (** ** Domain of the restriction *)
 Lemma restrict_on_nbd_domain_spec f g v :
   S.Equal (Mdomain (restrict_on_nbd f g v))
-          (S.inter (nodes (neighborhood g v)) (Mdomain f)).
+          (S.inter V[ N[ g ; v ] ] (Mdomain f)).
 Proof.
   hfcrush use: @domain_restrict_eq, SP.inter_sym unfold: PositiveSet.Equal, coloring, restrict_on_nbd.
 Qed.
@@ -204,9 +206,9 @@ Lemma neighborhood_succ_colorable :
   forall (g : graph) (f : coloring) (p : colors) (n : nat),
     coloring_complete p g f ->
     n_coloring f p (S n) ->
-    forall v ci, M.find v f = Some ci ->
+    forall v ci, f !! v = Some ci ->
             n_coloring (restrict_on_nbd f g v) (S.remove ci p) n
-         /\ coloring_complete (S.remove ci p) (neighborhood g v) (restrict_on_nbd f g v).
+         /\ coloring_complete (S.remove ci p) N[ g ; v ] (restrict_on_nbd f g v).
 Proof.
   intros g f p k H H0 v ci H1.
   split.
@@ -215,7 +217,7 @@ Proof.
     + sfirstorder.
     + (* let x be a neighbor of v *)
       intros x contra.
-      assert (S.In x (adj g v)).
+      assert (v ~[ g ] x).
       {
         hauto q: on use: neighborhood_nodes_subset_adj, @restrict_in_set, WF.in_find_iff.
       }
@@ -228,13 +230,13 @@ Proof.
         qauto l: on use: WF.In_dec.
       }
       intros contra.
-      assert (M.In i g).
+      assert (i ∈ dom g).
       {
         strivial use: subgraph_vertex_in, neighborhood_subgraph.
       }
       (* contra states that i doesn't have a color in the restriction *)
       (* but that would mean that f was not complete *)
-      assert (~ S.In i (nodes (neighborhood g v))).
+      assert (~ (i ∈ V[ N[ g ; v ] ])).
       {
         qauto l: on use: @restrict_in_intro.
       }
@@ -256,9 +258,9 @@ Lemma neighborhood_two_colorable_of_three :
   forall (g : graph) (f : coloring) p,
     coloring_complete p g f ->
     three_coloring f p ->
-    forall v ci, M.find v f = Some ci ->
+    forall v ci, f !! v = Some ci ->
             two_coloring (restrict_on_nbd f g v) (S.remove ci p) /\
-              coloring_complete (S.remove ci p) (neighborhood g v) (restrict_on_nbd f g v).
+              coloring_complete (S.remove ci p) N[ g ; v ] (restrict_on_nbd f g v).
 Proof.
   hauto l: on use: SP.remove_cardinal_1, neighborhood_succ_colorable.
 Qed.
@@ -268,7 +270,7 @@ Lemma not_neighborhood_n_colorable_not_succ_coloring :
   forall (g : graph) (f : coloring) (p : colors) n,
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
-        M.find v f = Some ci /\
+        f !! v = Some ci /\
           (~ n_coloring (restrict_on_nbd f g v) (S.remove ci p) n)) ->
     ~ n_coloring f p (S n).
 Proof.
@@ -280,7 +282,7 @@ Lemma not_neighborhood_two_colorable_not_three_coloring :
   forall (g : graph) (f : coloring) (p : colors),
     coloring_complete p g f ->
     (exists (v : M.key) (ci : node),
-        M.find v f = Some ci /\
+        f !! v = Some ci /\
           (~ two_coloring (restrict_on_nbd f g v) (S.remove ci p))) ->
     ~ three_coloring f p.
 Proof.
@@ -291,7 +293,7 @@ Qed.
 Definition constant_color {A} (s : nodeset) c := S.fold (fun v => M.add v c) s (@M.empty A).
 
 (** ** Constant coloring colors any vertex in the set with [c] *)
-Lemma constant_color_colors {A} s c : forall i, S.In i s -> M.find i (@constant_color A s c) = Some c.
+Lemma constant_color_colors {A} s c : forall i, i ∈ s -> @constant_color A s c !! i = Some c.
 Proof.
   intros i Hi.
   unfold constant_color.
@@ -304,7 +306,7 @@ Proof.
 Qed.
 
 (** ** Constant coloring inversion 1 *)
-Lemma constant_color_inv {A} s c d : forall i, M.find i (@constant_color A s c) = Some d -> S.In i s.
+Lemma constant_color_inv {A} s c d : forall i, @constant_color A s c !! i = Some d -> i ∈ s.
 Proof.
   intros i.
   unfold constant_color.
@@ -318,7 +320,7 @@ Proof.
 Qed.
 
 (** ** Constant coloring inversion 2 *)
-Lemma constant_color_inv2 {A} s c : forall i d, M.find i (@constant_color A s c) = Some d -> c = d.
+Lemma constant_color_inv2 {A} s c : forall i d, @constant_color A s c !! i = Some d -> c = d.
 Proof.
   intros i d.
   unfold constant_color.
@@ -333,14 +335,14 @@ Qed.
 
 (** ** Constant coloring find characterization *)
 Lemma constant_color_find_some_iff (s : S.t) (c d : node) i :
-  M.find i (constant_color s c) = Some d <-> S.In i s /\ d = c.
+  constant_color s c !! i = Some d <-> i ∈ s /\ d = c.
 Proof.
   sauto lq: on use: @constant_color_inv, @constant_color_inv2, @constant_color_colors unfold: nodeset.
 Qed.
 
 (** ** Constant coloring find characterization, specialized to [d = c] *)
 Lemma constant_color_find_iff (s : S.t) (c : node) i :
-  M.find i (constant_color s c) = Some c <-> S.In i s.
+  constant_color s c !! i = Some c <-> i ∈ s.
 Proof.
   hauto use: constant_color_find_some_iff.
 Qed.
@@ -353,7 +355,7 @@ Proof.
   - (* -> *)
     rewrite in_domain in Hi.
     strivial use: constant_color_find_some_iff unfold: PositiveMap.key, PositiveSet.elt, PositiveMap.MapsTo, PositiveMap.In.
-  - (* <- *) apply in_domain. (* show M.In i (constant_color s c) *)
+  - (* <- *) apply in_domain. (* show [i ∈ dom (constant_color s c)] *)
     exists c. now apply constant_color_colors.
 Qed.
 
@@ -365,8 +367,8 @@ Definition two_color_step (g : graph) (v : node) c1 c2 (f : coloring) : coloring
 
 (** ** One-shot lookup characterization *)
 Lemma two_color_step_find_iff g v c1 c2 f j ci :
-  M.find j (two_color_step g v c1 c2 f) = Some ci
-  <-> (j = v /\ ci = c1) \/ (j <> v /\ S.In j (adj g v) /\ ci = c2).
+  two_color_step g v c1 c2 f !! j = Some ci
+  <-> (j = v /\ ci = c1) \/ (j <> v /\ v ~[ g ] j /\ ci = c2).
 Proof.
   unfold two_color_step.
   destruct (E.eq_dec j v) as [->|Hneq].
@@ -392,28 +394,28 @@ Proof.
 Qed.
 
 (** ** Vertex is colored $c_1$ *)
-Lemma two_color_step_colors_v_c1 : forall g v c1 c2 f, M.find v (two_color_step g v c1 c2 f) = Some c1.
+Lemma two_color_step_colors_v_c1 : forall g v c1 c2 f, two_color_step g v c1 c2 f !! v = Some c1.
 Proof.
   hfcrush use: two_color_step_find_iff.
 Qed.
 
 (** ** Neighbors are colored $c_2$ *)
 Lemma two_color_step_colors_adj_c2 : forall g v c1 c2 f i,
-    i <> v -> S.In i (adj g v) -> M.find i (two_color_step g v c1 c2 f) = Some c2.
+    i <> v -> v ~[ g ] i -> two_color_step g v c1 c2 f !! i = Some c2.
 Proof.
   hfcrush use: two_color_step_find_iff.
 Qed.
 
 (** ** Vertex colored by 2-color step is either [v] or a neighbor *)
 Lemma two_color_step_inv : forall g v c1 c2 f ci j,
-    M.find j (two_color_step g v c1 c2 f) = Some ci ->
-    j = v \/ S.In j (adj g v).
+    two_color_step g v c1 c2 f !! j = Some ci ->
+    j = v \/ v ~[ g ] j.
 Proof.
   qauto use: two_color_step_find_iff.
 Qed.
 
 (** ** Membership of a two-element set *)
-Lemma in_two_set_inv : forall i a b, S.In i (SP.of_list [a;b]) -> i = a \/ i = b.
+Lemma in_two_set_inv : forall i a b, i ∈ SP.of_list [a;b] -> i = a \/ i = b.
 Proof.
   qauto use: PositiveSet.singleton_1, PositiveSet.add_spec, PositiveSet.cardinal_1.
 Qed.
@@ -423,7 +425,7 @@ Lemma two_color_step_correct : forall (g : graph) (v : node) c1 c2,
     c1 <> c2 ->
     no_selfloop g ->
     undirected g ->
-    M.In v g ->
+    v ∈ dom g ->
     (exists m, two_coloring m (SP.of_list [c1;c2]) /\ coloring_complete (SP.of_list [c1;c2]) g m) ->
     coloring_ok (SP.of_list [c1;c2]) g (two_color_step g v c1 c2 (@M.empty _)).
 Proof.
@@ -434,17 +436,17 @@ Proof.
     hauto q: on use: PositiveSet.add_spec unfold: fold_right, SP.of_list.
   - intros ci cj H2 H3.
     remember (two_color_step g v c1 c2 (M.empty node)) as f.
-    assert (Hv: M.find v f = Some c1).
+    assert (Hv: f !! v = Some c1).
     {
       subst.
       apply two_color_step_colors_v_c1.
     }
-    assert (Cadj: forall x, S.In x (adj g v) -> M.find x f = Some c2).
+    assert (Cadj: forall x, v ~[ g ] x -> f !! x = Some c2).
     {
       intros x Hx.
       hauto l: on use: two_color_step_colors_adj_c2, two_color_step_colors_v_c1.
     }
-    assert (~ M.In v (M.empty node)) by hauto l: on use: WF.empty_in_iff.
+    assert (~ (v ∈ dom (M.empty node))) by hauto l: on use: WF.empty_in_iff.
     destruct (E.eq_dec i j); [scongruence|].
     subst f.
     pose proof (two_color_step_inv g _ _ _ _ _ _ H3).
@@ -487,9 +489,9 @@ Lemma two_color_step_complete : forall (g : graph) (v : node) c1 c2,
     c1 <> c2 ->
     no_selfloop g ->
     undirected g ->
-    M.In v g ->
+    v ∈ dom g ->
     (exists m, two_coloring m (SP.of_list [c1;c2]) /\ coloring_complete (SP.of_list [c1;c2]) g m) ->
-    coloring_complete (SP.of_list [c1;c2]) (subgraph_of g (nodes (neighborhood g v))) (two_color_step g v c1 c2 (@M.empty _)).
+    coloring_complete (SP.of_list [c1;c2]) (g ⇂ V[ N[ g ; v ] ]) (two_color_step g v c1 c2 (@M.empty _)).
 Proof.
   intros g v c1 c2 H H0 H1 H2 H3.
   split.
@@ -502,7 +504,7 @@ Qed.
 
 (** ** Constant coloring is complete on max degree 0 graphs *)
 Lemma max_deg_0_constant_col : forall (g : graph) c,
-    max_deg g = 0%nat ->
+    Δ[ g ] = 0%nat ->
     coloring_complete (S.singleton c) g (constant_color (nodes g) c).
 Proof.
   intros g c H.
@@ -514,9 +516,9 @@ Qed.
 (** ** Any coloring function is ok on independent sets *)
 Lemma indep_set_ok : forall (g : graph) s (p : colors) (m : coloring),
     independent_set g s ->
-    S.Subset (Mdomain m) s ->
-    (forall i ci : node, M.find i m = Some ci -> S.In ci p) ->
-    coloring_ok p (subgraph_of g s) m.
+    Mdomain m ⊆ s ->
+    (forall i ci : node, m !! i = Some ci -> ci ∈ p) ->
+    coloring_ok p (g ⇂ s) m.
 Proof.
   intros g s p m H H0 H1.
   split.
@@ -527,7 +529,7 @@ Qed.
 (** ** Constant coloring is complete on independent sets *)
 Lemma constant_col_indep_set : forall (g : graph) s c,
     independent_set g s ->
-    coloring_complete (S.singleton c) (subgraph_of g s) (constant_color s c).
+    coloring_complete (S.singleton c) (g ⇂ s) (constant_color s c).
 Proof.
   intros g s c H.
   split.
@@ -551,10 +553,10 @@ Qed.
 Lemma coloring_max_deg_complete g d c s :
   no_selfloop g ->
   undirected g ->
-  d = max_deg g ->
+  d = Δ[ g ] ->
   (d > 0)%nat ->
   s = fst (extract_vertices_degs g d) ->
-  coloring_complete (S.singleton c) (subgraph_of g s) (constant_color s c).
+  coloring_complete (S.singleton c) (g ⇂ s) (constant_color s c).
 Proof.
   intros H H0 H1 H2 H3.
   hfcrush use: max_degree_extraction_independent_set, constant_col_indep_set.
@@ -580,11 +582,11 @@ Proof.
   - intros ci cj H0 H1.
     munion_cases2 H0 H1.
     + sfirstorder unfold: coloring_ok.
-    + assert (S.In ci p1) by sfirstorder.
-      assert (S.In cj p2) by hauto unfold: undirected, coloring_ok.
+    + assert (ci ∈ p1) by sfirstorder.
+      assert (cj ∈ p2) by hauto unfold: undirected, coloring_ok.
       qauto use: PositiveSet.inter_spec unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.Empty, node.
-    + assert (S.In ci p2) by sfirstorder.
-      assert (S.In cj p1) by hauto unfold: undirected, coloring_ok.
+    + assert (ci ∈ p2) by sfirstorder.
+      assert (cj ∈ p1) by hauto unfold: undirected, coloring_ok.
       qauto use: PositiveSet.inter_spec unfold: PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.Empty, node.
     + sfirstorder unfold: coloring_ok.
 Qed.
@@ -598,7 +600,7 @@ Proof. sfirstorder. Qed.
 
 (** ** Weakening of valid colorings under subset relation *)
 Lemma ok_coloring_subset : forall (g : graph) s1 s2 m,
-    S.Subset s1 s2 ->
+    s1 ⊆ s2 ->
     coloring_ok s1 g m ->
     coloring_ok s2 g m.
 Proof. sfirstorder. Qed.
@@ -611,7 +613,7 @@ Lemma constant_col_union_indep_set : forall (g : graph) (s1 s2 : nodeset) c1 c2,
     independent_set g s1 ->
     independent_set g s2 ->
     c1 <> c2 ->
-    coloring_complete (SP.of_list [c1;c2]) (subgraph_of g (S.union s1 s2)) (Munion (constant_color s1 c1) (constant_color s2 c2)).
+    coloring_complete (SP.of_list [c1;c2]) (g ⇂ S.union s1 s2) (Munion (constant_color s1 c1) (constant_color s2 c2)).
 Proof.
   intros g s1 s2 c1 c2 H H0 H2.
   split.
