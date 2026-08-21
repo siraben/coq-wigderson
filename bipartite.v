@@ -1,6 +1,7 @@
 (** * bipartite.v - Bipartition and 2-coloring equivalence *)
 Require Import graph.
 Require Import subgraph.
+Require Import graph_notations.
 Require Import coloring.
 Require Import munion.
 Require Import List.
@@ -17,6 +18,7 @@ Import ListNotations.
 Import Nat.
 
 Local Open Scope positive_scope.
+Local Open Scope graph_scope.
 
 (** * Bipartite graphs *)
 
@@ -42,7 +44,7 @@ Qed.
 
 (** ** A vertex of a bipartite graph lies in one of the two sides *)
 Lemma in_bipartition_or g L R i :
-  is_bipartition g L R -> S.In i (nodes g) -> S.In i L \/ S.In i R.
+  is_bipartition g L R -> i ∈ V[ g ] -> i ∈ L \/ i ∈ R.
 Proof.
   intros (_ & Hcov & _ & _) Hi.
   apply S.union_spec, Hcov, Hi.
@@ -91,7 +93,7 @@ Qed.
 
 Lemma bicolor_complete g L R c1 c2 :
   is_bipartition g L R ->
-  (forall i, M.In i g -> M.In i (bicolor L R c1 c2)).
+  (forall i, i ∈ dom g -> i ∈ dom (bicolor L R c1 c2)).
 Proof.
   intros Hbip i Hi.
   apply in_nodes_iff in Hi.
@@ -120,7 +122,7 @@ Qed.
 
 (* one place to define the test we use in L_of/side_of *)
 Definition color_is (f : coloring) (c : node) (i : S.elt) : bool :=
-  match M.find i f with
+  match f !! i with
   | Some d => Pos.eqb d c
   | None   => false
   end.
@@ -142,14 +144,14 @@ Definition R_of (g : graph) (f : coloring) (c : node) : S.t :=
   S.diff (nodes g) (L_of g f c).
 
 Lemma side_of_spec f c i :
-  S.In i (side_of f c) <-> S.In i (Mdomain f) /\ M.find i f = Some c.
+  i ∈ side_of f c <-> i ∈ Mdomain f /\ f !! i = Some c.
 Proof.
   unfold side_of, color_is.
   split.
   - intro Hi.
     apply (SP.Dec.F.filter_iff) in Hi; [|apply color_is_compat].
     destruct Hi as [Hin Hb].
-    destruct (M.find i f) as [d|] eqn:Fi; simpl in Hb; [|discriminate].
+    destruct (f !! i) as [d|] eqn:Fi; simpl in Hb; [|discriminate].
     apply Pos.eqb_eq in Hb; subst d.
     sfirstorder.
   - intros [Hin Hfind].
@@ -159,14 +161,14 @@ Proof.
 Qed.
 
 Lemma L_of_spec g f c i :
-  S.In i (L_of g f c) <-> S.In i (nodes g) /\ M.find i f = Some c.
+  i ∈ L_of g f c <-> i ∈ V[ g ] /\ f !! i = Some c.
 Proof.
   unfold L_of, color_is.
   split.
   - intro Hi.
     apply SP.Dec.F.filter_iff in Hi; [|apply color_is_compat].
     destruct Hi as [Hg Hb].
-    destruct (M.find i f) as [d|] eqn:Fi; simpl in Hb; [|discriminate].
+    destruct (f !! i) as [d|] eqn:Fi; simpl in Hb; [|discriminate].
     apply Pos.eqb_eq in Hb; subst d. sfirstorder.
   - intros [Hg Hfind].
     apply SP.Dec.F.filter_iff; [apply color_is_compat|].
@@ -175,14 +177,14 @@ Proof.
 Qed.
 
 Lemma L_of_subset_nodes g f c :
-  S.Subset (L_of g f c) (nodes g).
+  L_of g f c ⊆ V[ g ].
 Proof.
   unfold L_of. intros i Hi.
   strivial use: L_of_spec unfold: L_of.
 Qed.
 
 Lemma R_of_spec g f c i :
-  S.In i (R_of g f c) <-> S.In i (nodes g) /\ M.find i f <> Some c.
+  i ∈ R_of g f c <-> i ∈ V[ g ] /\ f !! i <> Some c.
 Proof.
   qauto use: PositiveSet.diff_3, PositiveSet.diff_spec, L_of_spec unfold: R_of.
 Qed.
@@ -214,7 +216,7 @@ Lemma two_coloring_complete_to_bipartition g f p :
 Proof.
   intros (Hcomp & Hok) [Hp2 Hmem].
   (* pick one color c in the 2-element palette *)
-  assert (Hex : exists c, S.In c p).
+  assert (Hex : exists c, c ∈ p).
   { destruct (S.elements p) eqn:E.
     - hfcrush use: SP.elements_Empty, SP.cardinal_Empty unfold: colors.
     - exists e.
@@ -231,7 +233,7 @@ Proof.
   assert (Hcov : S.Equal (S.union (L_of g f c) (R_of g f c)) (nodes g)).
   { intro i; split; intro Hi.
     - apply S.union_spec in Hi as [Hi|Hi]; [apply L_of_spec in Hi|apply R_of_spec in Hi]; tauto.
-    - assert (M.In i f).
+    - assert (i ∈ dom f).
       {
         hauto l: on use: in_domain.
       }
@@ -324,12 +326,12 @@ Proof.
       intros i j Hi Hj Hadj.
       apply R_of_spec in Hi as [HiG Hni].
       apply R_of_spec in Hj as [HjG Hnj].
-      assert (HMi : M.In i f) by (apply Hdom; now apply in_domain).
-      assert (HMj : M.In j f) by (apply Hdom; now apply in_domain).
+      assert (HMi : i ∈ dom f) by (apply Hdom; now apply in_domain).
+      assert (HMj : j ∈ dom f) by (apply Hdom; now apply in_domain).
       destruct HMi as [ci Hci]. destruct HMj as [cj Hcj].
       unfold M.MapsTo in Hci, Hcj.
       destruct (Hok j i Hadj) as [Hpal_j Hneq].
-      assert (Hadj' : S.In j (adj g i)) by (apply Ug; exact Hadj).
+      assert (Hadj' : i ~[ g ] j) by (apply Ug; exact Hadj).
       destruct (Hok i j Hadj') as [Hpal_i _].
       specialize (Hpal_j _ Hcj). specialize (Hpal_i _ Hci).
       assert (ci <> 1) by congruence.
@@ -345,7 +347,7 @@ Qed.
 
 (** ** An independent set stays independent (intersected with [t]) in the induced subgraph *)
 Lemma independent_set_inter_subgraph_of g s t :
-  independent_set g s -> independent_set (subgraph_of g t) (S.inter s t).
+  independent_set g s -> independent_set (g ⇂ t) (S.inter s t).
 Proof.
   intros Hind i j Hi Hj.
   rewrite adj_subgraph_of_spec.
@@ -353,7 +355,7 @@ Proof.
 Qed.
 
 Lemma bipartite_subgraph_of g s :
-  bipartite g -> bipartite (subgraph_of g s).
+  bipartite g -> bipartite (g ⇂ s).
 Proof.
   intros [L [R (Hdisj & Hcov & HindL & HindR)]].
   exists (S.inter L s), (S.inter R s).
@@ -375,7 +377,7 @@ Lemma neighborhood_bipartite_of_three_coloring :
     undirected g ->
     coloring_complete p g f ->
     three_coloring f p ->
-    bipartite (neighborhood g v).
+    bipartite N[ g ; v ].
 Proof.
   intros g f p v Ug Hc H3.
   (* If [v] is in [g], its neighborhood is 2-colorable. Otherwise the

@@ -32,6 +32,16 @@
 \newcommand{\degree}{\operatorname{deg}}
 \newcommand{\maxdeg}{\operatorname{maxdeg}}
 \newcommand{\restrict}{\operatorname{restrict}}
+\newcommand{\verticesof}[1]{V[#1]}
+\newcommand{\adjset}[2]{\operatorname{Adj}[#1;#2]}
+\newcommand{\nbdgraph}[2]{N[#1;#2]}
+\newcommand{\maplookup}[2]{#1\mathbin{!!}#2}
+\newcommand{\induced}[2]{#1\mathbin{\upharpoonright}#2}
+\newcommand{\withoutvertices}[2]{#1\mathbin{\setminus_{V}}#2}
+\newcommand{\subgraphrel}{\sqsubseteq}
+\newcommand{\adjacentin}[3]{#1\mathrel{\sim_{#2}}#3}
+\newcommand{\degreeof}[2]{\operatorname{deg}[#1]#2}
+\newcommand{\maxdegreeof}[1]{\Delta[#1]}
 \newcommand{\Nat}{\mathbb{N}}
 \newcommand{\Pos}{\mathbb{Z}^{+}}
 \newcommand{\powerset}{\mathcal{P}}
@@ -229,6 +239,33 @@ If $c(i) = v$, then $\Munion(c,d)(i) = v$.
 $i \in \operatorname{dom}(\Munion(c,d)) \iff i \in \operatorname{dom}(c) \lor i \in \operatorname{dom}(d)$.
 \end{lemma}
 
+\subsection{Scoped Proof Notation}
+
+The higher-level Coq proofs import \texttt{graph\_notations.v} and locally
+open \texttt{graph\_scope}.  The notation is a parsing and printing layer
+over the original definitions; it introduces no new logical constants.
+The paper uses the corresponding mathematical forms throughout the graph
+theory development.
+
+\begin{center}
+\begin{tabular}{ll}
+\textbf{Notation} & \textbf{Underlying Coq definition} \\
+$x \in s$ & \texttt{S.In x s} \\
+$v \in \Mdomain(g)$ & \texttt{M.In v g} \\
+$s \subseteq t$ & \texttt{S.Subset s t} \\
+$\maplookup{m}{k}$ & \texttt{M.find k m} \\
+$\verticesof{g}$ & \texttt{nodes g} \\
+$\adjset{g}{v}$ & \texttt{adj g v} \\
+$\nbdgraph{g}{v}$ & \texttt{neighborhood g v} \\
+$\adjacentin{u}{g}{v}$ & \texttt{S.In v (adj g u)} \\
+$h \subgraphrel g$ & \texttt{is\_subgraph h g} \\
+$\induced{g}{s}$ & \texttt{subgraph\_of g s} \\
+$\withoutvertices{g}{s}$ & \texttt{remove\_nodes g s} \\
+$\degreeof{g}{v}$ & \texttt{degree v g} \\
+$\maxdegreeof{g}$ & \texttt{max\_deg g}
+\end{tabular}
+\end{center}
+
 %% ====================================================================
 \section{Subgraphs, Neighborhoods, and Independent Sets}
 \label{sec:subgraph}
@@ -238,22 +275,22 @@ $i \in \operatorname{dom}(\Munion(c,d)) \iff i \in \operatorname{dom}(c) \lor i 
 \begin{definition}[Induced Subgraph]
 The \emph{induced subgraph} of $g$ on a vertex set $s$ is
 \[
-  \texttt{subgraph\_of}(g, s) = \texttt{map}\;(\lambda\, a.\; s \cap a)\;(\restrict(g, s)).
+  \induced{g}{s} = \texttt{map}\;(\lambda\, a.\; s \cap a)\;(\restrict(g, s)).
 \]
 This restricts both the vertex set and every adjacency set to $s$.
 \end{definition}
 
 \begin{definition}[Subgraph Predicate]
-We write $\texttt{is\_subgraph}(g', g)$ when
-$\nodes(g') \subseteq \nodes(g)$ and for all~$v$, $\adj(g', v) \subseteq \adj(g, v)$.
+We write $g' \subgraphrel g$ when
+$\verticesof{g'} \subseteq \verticesof{g}$ and for all~$v$, $\adjset{g'}{v} \subseteq \adjset{g}{v}$.
 \end{definition}
 
 \begin{lemma}[Adjacency in Induced Subgraphs]
-$i \in \adj(\texttt{subgraph\_of}(g, s), j) \iff i \in \adj(g, j) \wedge i \in s \wedge j \in s$.
+$\adjacentin{j}{\induced{g}{s}}{i} \iff \adjacentin{j}{g}{i} \wedge i \in s \wedge j \in s$.
 \end{lemma}
 
 \begin{lemma}
-$\texttt{subgraph\_of}(g, s)$ is a subgraph of $g$. Induced subgraphs preserve undirectedness.
+$\induced{g}{s} \subgraphrel g$. Induced subgraphs preserve undirectedness.
 \end{lemma}
 
 \subsection{Node Removal}
@@ -261,13 +298,13 @@ $\texttt{subgraph\_of}(g, s)$ is a subgraph of $g$. Induced subgraphs preserve u
 \begin{definition}[Removing Nodes]
 For a set $s$ of vertices to remove:
 \[
-  \texttt{remove\_nodes}(g, s) = \texttt{map}\;(\lambda\, a.\; a \setminus s)\;(\restrict(g, \nodes(g) \setminus s)).
+  \withoutvertices{g}{s} = \texttt{map}\;(\lambda\, a.\; a \setminus s)\;(\restrict(g, \verticesof{g} \setminus s)).
 \]
 \end{definition}
 
 \begin{lemma}[Adjacency after Removal]
 \label{lem:adj-remove}
-$i \in \adj(\texttt{remove\_nodes}(g,s), j) \iff i \in \adj(g,j) \wedge i \notin s \wedge j \notin s$.
+$\adjacentin{j}{\withoutvertices{g}{s}}{i} \iff \adjacentin{j}{g}{i} \wedge i \notin s \wedge j \notin s$.
 \end{lemma}
 
 \begin{lemma}
@@ -277,9 +314,9 @@ Removing a non-empty set of vertices that intersects $\operatorname{dom}(g)$ str
 \subsection{Neighborhoods}
 
 \begin{definition}[Neighborhood]
-The \emph{(open) neighborhood} of vertex $v$ in $g$ is the induced subgraph on $\adj(g,v)$, with $v$ itself removed:
+The \emph{(open) neighborhood} of vertex $v$ in $g$ is the induced subgraph on $\adjset{g}{v}$, with $v$ itself removed:
 \[
-  \texttt{neighborhood}(g, v) = \texttt{remove\_node}(v, \texttt{subgraph\_of}(g, \adj(g,v))).
+  \nbdgraph{g}{v} = \texttt{remove\_node}(v, \induced{g}{\adjset{g}{v}}).
 \]
 \end{definition}
 
@@ -319,22 +356,22 @@ The \emph{(open) neighborhood} of vertex $v$ in $g$ is the induced subgraph on $
 \label{lem:nbd-nodes}
 For an irreflexive undirected graph~$g$,
 \[
-  \nodes(\texttt{neighborhood}(g, v)) = \adj(g, v).
+  \verticesof{\nbdgraph{g}{v}} = \adjset{g}{v}.
 \]
 \end{lemma}
 
 \begin{lemma}
-The neighborhood of $v$ is a subgraph of $g$ and inherits undirectedness.
+$\nbdgraph{g}{v} \subgraphrel g$ and inherits undirectedness.
 \end{lemma}
 
 \subsection{Degrees and Maximum Degree}
 
 \begin{definition}[Degree, Maximum Degree]
-The \emph{degree} of $v$ in $g$ is $\degree(v, g) = |\adj(g,v)|$ (when $v \in g$). The \emph{maximum degree} is $\maxdeg(g) = \max_{v \in g} \degree(v, g)$.
+The \emph{degree} of $v$ in $g$ is $\degreeof{g}{v} = |\adjset{g}{v}|$ (when $v \in \Mdomain(g)$). The \emph{maximum degree} is $\maxdegreeof{g} = \max_{v \in \Mdomain(g)} \degreeof{g}{v}$.
 \end{definition}
 
 \begin{lemma}
-For any vertex $v$ with adjacency set $e$: $|e| \le \maxdeg(g)$. Maximum degree is non-increasing under subgraph formation.
+For any vertex $v$ with adjacency set $e$: $|e| \le \maxdegreeof{g}$. Maximum degree is non-increasing under subgraph formation.
 \end{lemma}
 
 \subsection{Independent Sets}
@@ -957,12 +994,13 @@ In Coq, the key step uses \texttt{Nat.sqrt\_spec} and nonlinear arithmetic (\tex
 
 We have presented a complete formal verification of Wigderson's graph coloring algorithm in Coq. The main results are: (1)~the algorithm produces a proper coloring of any 3-colorable undirected graph (\texttt{wigderson\_ok}, Theorem~\ref{thm:wigderson-ok}), (2)~every color assigned is bounded by $3\lfloor n/(k{+}2)\rfloor + k + 2$ (\texttt{wigderson\_color\_bound}, Theorem~\ref{thm:color-bound}), and (3)~setting $k = \lfloor\!\sqrt{n}\rfloor$ yields the concrete bound $c_i \le 4\lfloor\!\sqrt{n}\rfloor + 2$ (\texttt{wigderson\_sqrt\_bound}, Corollary~\ref{cor:sqrt-bound}), formally establishing the $O(\!\sqrt{n})$ guarantee.
 
-The formalization consists of approximately 6{,}100 lines of Coq across 9 source files:
+The formalization consists of approximately 6{,}100 lines of Coq across 10 source files:
 \begin{itemize}[nosep]
   \item \texttt{graph.v}: Core graph definitions, domain lemmas, and greedy coloring.
   \item \texttt{restrict.v}: Map restriction by key sets.
   \item \texttt{munion.v}: Left-biased map union.
   \item \texttt{subgraph.v}: Induced subgraphs, neighborhoods, degrees, independent sets.
+  \item \texttt{graph\_notations.v}: Scoped notation for graph, set, and map proofs.
   \item \texttt{coloring.v}: Coloring completeness, $n$-coloring, union of disjoint colorings.
   \item \texttt{connectivity.v}: Walks, reachability, bipartition parity.
   \item \texttt{bipartite.v}: Bipartition, 2-coloring equivalence.

@@ -3,6 +3,7 @@ graph.v
 restrict.v
 munion.v
 subgraph.v
+graph_notations.v
 coloring.v
 wigderson.v
 bipartite.v

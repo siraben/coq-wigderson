@@ -1,6 +1,7 @@
 (** * connectivity.v - Walks, reachability, and bipartition parity *)
 Require Import graph.
 Require Import subgraph.
+Require Import graph_notations.
 Require Import List.
 Require Import Setoid.
 Require Import FSets.
@@ -16,6 +17,7 @@ Import ListNotations.
 Import Nat.
 
 Local Open Scope positive_scope.
+Local Open Scope graph_scope.
 
 (* Hammer filters shared across coloring/subgraph/connectivity/forcing *)
 Add Hammer Filter Coq.Numbers.BinNums.
@@ -33,11 +35,11 @@ Set Hammer ReconstrLimit 10.
 (** * Walks and reachability *)
 
 (** ** A single step follows an edge [x -> y] *)
-Definition step (g : graph) (x y : node) : Prop := S.In y (adj g x).
+Definition step (g : graph) (x y : node) : Prop := x ~[ g ] y.
 
 (** ** A walk is a sequence of steps recording its intermediate vertices *)
 Inductive walk (g : graph) : node -> list node -> node -> Prop :=
-| walk_nil  : forall x, M.In x g -> walk g x [] x
+| walk_nil  : forall x, x ∈ dom g -> walk g x [] x
 | walk_cons : forall x y l z, step g x y -> walk g y l z -> walk g x (y :: l) z.
 
 (** ** A simple walk has no repeated vertices *)
@@ -66,7 +68,7 @@ Proof. sauto lq: on rew: off. Qed.
 
 (** ** A single edge to a vertex in [g] is a walk *)
 Lemma walk_singleton g x y :
-  step g x y -> M.In y g -> walk g x [y] y.
+  step g x y -> y ∈ dom g -> walk g x [y] y.
 Proof.
   intros Hstep Hy. econstructor; [exact Hstep|].
   now apply walk_nil.
@@ -74,7 +76,7 @@ Qed.
 
 
 (** ** The start of a walk is a vertex of the graph *)
-Lemma walk_start_in : forall g x l z, walk g x l z -> M.In x g.
+Lemma walk_start_in : forall g x l z, walk g x l z -> x ∈ dom g.
 Proof.
   intros g x l z H.
   induction H.
@@ -83,13 +85,13 @@ Proof.
 Qed.
 
 (** ** The end of a walk is a vertex of the graph *)
-Lemma walk_end_in : forall g x l z, walk g x l z -> M.In z g.
+Lemma walk_end_in : forall g x l z, walk g x l z -> z ∈ dom g.
 Proof. intros g x l z H; induction H; assumption. Qed.
 
 (** ** Every vertex on a walk is a node of the graph *)
 Lemma walk_all_in_nodes :
   forall g x l z, walk g x l z ->
-             Forall (fun v => S.In v (nodes g)) (x :: l ++ [z]).
+             Forall (fun v => v ∈ V[ g ]) (x :: l ++ [z]).
 Proof.
   intros g x l z H; induction H.
   - cbn.
@@ -117,7 +119,7 @@ Qed.
 
 (** ** A walk in a subgraph is a walk in the supergraph *)
 Lemma walk_subgraph_mono :
-  forall g' g x l z, is_subgraph g' g -> walk g' x l z -> walk g x l z.
+  forall g' g x l z, g' ⊑ g -> walk g' x l z -> walk g x l z.
 Proof.
   intros g' g x l z H H0.
   induction H0.
@@ -128,11 +130,11 @@ Qed.
 (** ** Induced subgraph: a walk whose vertices all lie in [s] is preserved *)
 Lemma walk_in_subgraph_of_iff :
   forall g s x l z,
-    Forall (fun v => S.In v s) (x :: l ++ [z]) ->
-    (walk (subgraph_of g s) x l z <-> walk g x l z).
+    Forall (fun v => v ∈ s) (x :: l ++ [z]) ->
+    (walk (g ⇂ s) x l z <-> walk g x l z).
 Proof.
   intros g s x l z Hall; split; intro W.
-  - apply walk_subgraph_mono with (g' := subgraph_of g s); [apply subgraph_of_is_subgraph|assumption].
+  - apply walk_subgraph_mono with (g' := g ⇂ s); [apply subgraph_of_is_subgraph|assumption].
   - induction W; simpl in *.
     + apply walk_nil.
       inversion Hall; subst.
@@ -147,11 +149,11 @@ Qed.
 
 (** ** Removing vertices: a walk touching none of them persists *)
 Lemma walk_preserved_remove_nodes g s x l z :
-  Forall (fun v => ~ S.In v s) (x :: l ++ [z]) ->
-  (walk (remove_nodes g s) x l z <-> walk g x l z).
+  Forall (fun v => ~ (v ∈ s)) (x :: l ++ [z]) ->
+  (walk (g ∖ s) x l z <-> walk g x l z).
 Proof.
   intro Hall; split; intro W.
-  - apply walk_subgraph_mono with (g' := remove_nodes g s); [apply remove_nodes_subgraph|assumption].
+  - apply walk_subgraph_mono with (g' := g ∖ s); [apply remove_nodes_subgraph|assumption].
   - induction W.
     + apply walk_nil. rewrite in_remove_nodes_iff. split; [assumption|].
       sauto.
@@ -167,7 +169,7 @@ Qed.
 Lemma step_L_R g L R x y :
   well_formed g ->
   is_bipartition g L R ->
-  S.In x L -> step g x y -> S.In y R.
+  x ∈ L -> step g x y -> y ∈ R.
 Proof.
   intros Hwf (Hdisj & Hcov & HindL & HindR) Hx Hxy.
   qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes_wf unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, independent_set, PositiveSet.Equal.
@@ -177,7 +179,7 @@ Qed.
 Lemma step_R_L g L R x y :
   well_formed g ->
   is_bipartition g L R ->
-  S.In x R -> step g x y -> S.In y L.
+  x ∈ R -> step g x y -> y ∈ L.
 Proof.
   intros Hwf (Hdisj & Hcov & HindL & HindR) Hx Hxy.
   qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes_wf unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, independent_set, PositiveSet.Equal.
@@ -189,13 +191,13 @@ Lemma bipartition_walk_parity_even g L R :
   is_bipartition g L R ->
   forall x l z, walk g x l z ->
     (* start in L *)
-    (S.In x L ->
-       (Nat.even (length l) = true  -> S.In z L) /\
-       (Nat.even (length l) = false -> S.In z R))
+    (x ∈ L ->
+       (Nat.even (length l) = true  -> z ∈ L) /\
+       (Nat.even (length l) = false -> z ∈ R))
   /\ (* start in R *)
-    (S.In x R ->
-       (Nat.even (length l) = true  -> S.In z R) /\
-       (Nat.even (length l) = false -> S.In z L)).
+    (x ∈ R ->
+       (Nat.even (length l) = true  -> z ∈ R) /\
+       (Nat.even (length l) = false -> z ∈ L)).
 Proof.
   intros Hwf Hbip x l z W; revert x z W.
   induction l as [|y l IH]; intros x z W; simpl.
@@ -209,12 +211,12 @@ Proof.
     split.
     + (* start in L *)
       intros HxL.
-      assert (HyR : S.In y R) by (eapply step_L_R; eauto).
+      assert (HyR : y ∈ R) by (eapply step_L_R; eauto).
       destruct (IH_R HyR) as [EvTrue EvFalse].
       hauto lq: on use: even_1, even_succ, odd_1, even_0 unfold: Init.Nat.odd inv: nat.
     + (* start in R *)
       intros HxR.
-      assert (HyL : S.In y L) by (eapply step_R_L; eauto).
+      assert (HyL : y ∈ L) by (eapply step_R_L; eauto).
       hauto lq: on use: even_1, even_succ, odd_1, even_0 unfold: Init.Nat.odd inv: nat.
 Qed.
 
@@ -222,9 +224,9 @@ Qed.
 Lemma bipartition_walk_parity_L g L R x l z :
   well_formed g ->
   is_bipartition g L R ->
-  S.In x L -> walk g x l z ->
-  (Nat.even (length l) = true  -> S.In z L) /\
-  (Nat.odd  (length l) = true  -> S.In z R).
+  x ∈ L -> walk g x l z ->
+  (Nat.even (length l) = true  -> z ∈ L) /\
+  (Nat.odd  (length l) = true  -> z ∈ R).
 Proof.
   intros Hwf Hbip HxL W.
   pose proof (bipartition_walk_parity_even g L R Hwf Hbip x l z W) as [HL _].

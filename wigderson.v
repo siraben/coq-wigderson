@@ -1,6 +1,7 @@
 (** * wigderson.v - Wigderson's graph coloring algorithm and correctness proof *)
 Require Import graph.
 Require Import subgraph.
+Require Import graph_notations.
 Require Import coloring.
 Require Import List.
 Require Import Setoid.
@@ -19,6 +20,7 @@ Import Arith.
 Import ListNotations.
 Import Nat.
 
+Local Open Scope graph_scope.
 
 (** [high_deg K n adj] holds when vertex [n] with adjacency set [adj]
     has degree strictly greater than [K]. *)
@@ -49,7 +51,7 @@ Require Import Program.
 (** 2-coloring of the neighborhood of [v] using colors [c1], [c2],
     computed by BFS-based forcing. *)
 Definition two_color_nbd (g : graph) (v : node) (c1 c2 : positive) : coloring :=
-  force_all (neighborhood g v) c1 c2.
+  force_all N[ g ; v ] c1 c2.
 
 (** The recursive body of phase 1: at each step it picks a high-degree
     vertex, 2-colors its neighborhood, colors the vertex itself, and
@@ -59,18 +61,18 @@ Function phase1
   (k : nat) (c : positive) (g : graph) {measure M.cardinal g} : coloring * graph :=
   match S.choose (subset_nodes (high_deg k) g) with
   | Some v =>
-      let nbhd := neighborhood g v in
+      let nbhd := N[ g ; v ] in
       let m' := two_color_nbd g v (c+1) (c+2) in
-      let g' := remove_nodes g (S.add v (nodes nbhd)) in
+      let g' := g ∖ (S.add v (nodes nbhd)) in
       let '(c2, g2) := phase1 k (c+3) g' in
       (Munion (M.add v c m') c2, g2)
   | None => (@M.empty _, g)
   end.
 Proof.
   intros k c g v Hchoose.
-  set (s := S.add v (nodes (neighborhood g v))).
-  assert (Sv : S.In v s) by (unfold s; apply S.add_spec; left; reflexivity).
-  assert (Vin : M.In v g).
+  set (s := S.add v V[ N[ g ; v ] ]).
+  assert (Sv : v ∈ s) by (unfold s; apply S.add_spec; left; reflexivity).
+  assert (Vin : v ∈ dom g).
   { apply in_nodes_iff. apply S.choose_1 in Hchoose.
     apply subset_nodes_sub in Hchoose. auto. }
   rewrite !m_cardinal_domain. rewrite nodes_remove_nodes_eq.
@@ -83,7 +85,7 @@ Defined.
 (** A vertex chosen by [S.choose] on the high-degree subset is a
     vertex of the graph. Used throughout the phase-1 induction. *)
 Lemma chosen_high_deg_in : forall k g v,
-    S.choose (subset_nodes (high_deg k) g) = Some v -> M.In v g.
+    S.choose (subset_nodes (high_deg k) g) = Some v -> v ∈ dom g.
 Proof.
   intros k g v Echoose.
   apply in_nodes_iff. apply S.choose_1 in Echoose.
@@ -93,7 +95,7 @@ Qed.
 (** A phase-1 step strictly decreases the residual graph cardinality. *)
 Lemma phase1_step_lt : forall k g v,
     S.choose (subset_nodes (high_deg k) g) = Some v ->
-    (M.cardinal (remove_nodes g (S.add v (nodes (neighborhood g v))))
+    (M.cardinal (g ∖ (S.add v V[ N[ g ; v ] ]))
       < M.cardinal g)%nat.
 Proof.
   intros k g v Echoose; eapply remove_nodes_lt;
@@ -103,7 +105,7 @@ Qed.
 (** ** Colors used by phase1 are bounded below by c *)
 Lemma phase1_color_lower_bound :
   forall k c g i ci,
-    M.find i (fst (phase1 k c g)) = Some ci -> (c <= ci)%positive.
+    fst (phase1 k c g) !! i = Some ci -> (c <= ci)%positive.
 Proof.
   intros k c g.
   remember (M.cardinal g) as n eqn:Hn.
@@ -112,9 +114,9 @@ Proof.
   intros k c g Hn i ci Hfi.
   rewrite phase1_equation in Hfi.
   destruct (S.choose (subset_nodes (high_deg k) g)) as [v|] eqn:Echoose.
-  - set (nbhd := neighborhood g v) in *.
+  - set (nbhd := N[ g ; v ]) in *.
     set (m' := two_color_nbd g v (c+1) (c+2)) in *.
-    set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
+    set (g' := g ∖ (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in Hfi.
     munion_cases Hfi.
     + destruct (E.eq_dec i v) as [->|Hne].
@@ -134,7 +136,7 @@ Qed.
 Lemma phase1_domain :
   forall k c g i ci,
     undirected g ->
-    M.find i (fst (phase1 k c g)) = Some ci -> M.In i g.
+    fst (phase1 k c g) !! i = Some ci -> i ∈ dom g.
 Proof.
   intros k c g.
   remember (M.cardinal g) as n eqn:Hn.
@@ -143,9 +145,9 @@ Proof.
   intros k c g Hn i ci Ug Hfi.
   rewrite phase1_equation in Hfi.
   destruct (S.choose (subset_nodes (high_deg k) g)) as [v|] eqn:Echoose.
-  - set (nbhd := neighborhood g v) in *.
+  - set (nbhd := N[ g ; v ]) in *.
     set (m' := two_color_nbd g v (c+1) (c+2)) in *.
-    set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
+    set (g' := g ∖ (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in Hfi.
     munion_cases Hfi.
     + destruct (E.eq_dec i v) as [->|Hne].
@@ -170,9 +172,9 @@ Lemma phase1_coloring_ok :
     undirected g -> no_selfloop g ->
     coloring_complete p g f -> three_coloring f p ->
     forall i j ci cj,
-      S.In j (adj g i) ->
-      M.find i (fst (phase1 k c g)) = Some ci ->
-      M.find j (fst (phase1 k c g)) = Some cj -> ci <> cj.
+      i ~[ g ] j ->
+      fst (phase1 k c g) !! i = Some ci ->
+      fst (phase1 k c g) !! j = Some cj -> ci <> cj.
 Proof.
   intros k c g f p Ug Hloop Hcol H3.
   remember (M.cardinal g) as n eqn:Hn.
@@ -182,9 +184,9 @@ Proof.
   rewrite phase1_equation in Hfi, Hfj.
   destruct (S.choose (subset_nodes (high_deg k) g)) as [v|] eqn:Echoose.
   - (* Step case: v is a high-degree vertex *)
-    set (nbhd := neighborhood g v) in *.
+    set (nbhd := N[ g ; v ]) in *.
     set (m' := two_color_nbd g v (c+1) (c+2)) in *.
-    set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
+    set (g' := g ∖ (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph.
     simpl in Hfi, Hfj.
     (* Both colored by Munion (M.add v c m') f2 *)
@@ -200,9 +202,9 @@ Proof.
       * (* i ≠ v, j = v: symmetric *)
         rewrite M.gso in Hfi by auto. rewrite M.gss in Hfj. injection Hfj as <-.
         apply force_all_palette in Hfi. destruct Hfi; subst; lia.
-      * (* both ≠ v: both in m' = force_all(neighborhood g v, c+1, c+2) *)
+      * (* both ≠ v: both in [m' = force_all N[g; v] (c+1) (c+2)] *)
         rewrite M.gso in Hfi, Hfj by auto.
-        (* Need: (i,j) is an edge in neighborhood g v *)
+        (* Need: [(i,j)] is an edge in [N[g; v]]. *)
         assert (Hbip : bipartite nbhd).
         { unfold nbhd. eapply neighborhood_bipartite_of_three_coloring; eauto. }
         assert (Hnbd_und : undirected nbhd).
@@ -210,14 +212,14 @@ Proof.
         pose proof (force_all_ok nbhd (c+1) (c+2) Hnbd_und Hbip ltac:(lia)) as Hok.
         unfold m', two_color_nbd in Hfi, Hfj.
         (* i and j are in dom(force_all nbhd ...) hence in nodes nbhd ⊆ adj g v *)
-        assert (HiN : S.In i (adj g v)).
+        assert (HiN : v ~[ g ] i).
         { apply neighborhood_nodes_subset_adj. apply in_nodes_iff.
           eapply force_all_domain; eauto. }
-        assert (HjN : S.In j (adj g v)).
+        assert (HjN : v ~[ g ] j).
         { apply neighborhood_nodes_subset_adj. apply in_nodes_iff.
           eapply force_all_domain; eauto. }
-        (* The edge (i,j) is in neighborhood g v *)
-        assert (Hadj' : S.In j (adj nbhd i)).
+        (* The edge [(i,j)] is in [N[g; v]]. *)
+        assert (Hadj' : i ~[ nbhd ] j).
         { unfold nbhd. apply adj_neighborhood_spec; auto. }
         (* Apply coloring_ok *)
         destruct (Hok i j Hadj') as [_ Hneq].
@@ -252,11 +254,11 @@ Proof.
       (* three-colorability carries to subgraph *)
       assert (Hcol' : coloring_complete p g' f).
       { eapply subgraph_coloring_complete; eauto. apply remove_nodes_subgraph. }
-      assert (Hfi' : M.find i (fst (phase1 k (c+3) g')) = Some ci) by (rewrite Eph; auto).
-      assert (Hfj' : M.find j (fst (phase1 k (c+3) g')) = Some cj) by (rewrite Eph; auto).
-      assert (Hi_g' : M.In i g') by (eapply phase1_domain; eauto).
-      assert (Hj_g' : M.In j g') by (eapply phase1_domain; eauto).
-      assert (Hadj' : S.In j (adj g' i)).
+      assert (Hfi' : fst (phase1 k (c+3) g') !! i = Some ci) by (rewrite Eph; auto).
+      assert (Hfj' : fst (phase1 k (c+3) g') !! j = Some cj) by (rewrite Eph; auto).
+      assert (Hi_g' : i ∈ dom g') by (eapply phase1_domain; eauto).
+      assert (Hj_g' : j ∈ dom g') by (eapply phase1_domain; eauto).
+      assert (Hadj' : i ~[ g' ] j).
       { unfold g'. apply adj_remove_nodes_spec. split; [|split]; auto.
         - apply (proj1 (in_remove_nodes_iff _ _ _) Hj_g').
         - apply (proj1 (in_remove_nodes_iff _ _ _) Hi_g'). }
@@ -268,7 +270,7 @@ Qed.
 (** ** Phase1 residual graph is a subgraph of the original *)
 Lemma phase1_subgraph :
   forall k c g,
-    is_subgraph (snd (phase1 k c g)) g.
+    snd (phase1 k c g) ⊑ g.
 Proof.
   intros k c g.
   remember (M.cardinal g) as n eqn:Hn.
@@ -277,9 +279,9 @@ Proof.
   intros k c g Hn.
   rewrite phase1_equation.
   destruct (S.choose (subset_nodes (high_deg k) g)) as [v|] eqn:Echoose.
-  - set (nbhd := neighborhood g v) in *.
+  - set (nbhd := N[ g ; v ]) in *.
     set (m' := two_color_nbd g v (c+1) (c+2)) in *.
-    set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
+    set (g' := g ∖ (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
@@ -300,8 +302,8 @@ Proof.
   intros k c g Ug Hn.
   rewrite phase1_equation.
   destruct (S.choose (subset_nodes (high_deg k) g)) as [v|] eqn:Echoose.
-  - set (nbhd := neighborhood g v) in *.
-    set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
+  - set (nbhd := N[ g ; v ]) in *.
+    set (g' := g ∖ (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
@@ -323,8 +325,8 @@ Proof.
   intros k c g Hloop Hn.
   rewrite phase1_equation.
   destruct (S.choose (subset_nodes (high_deg k) g)) as [v|] eqn:Echoose.
-  - set (nbhd := neighborhood g v) in *.
-    set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
+  - set (nbhd := N[ g ; v ]) in *.
+    set (g' := g ∖ (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
@@ -348,8 +350,8 @@ Proof.
   intros k c g Ug Hn.
   rewrite phase1_equation.
   destruct (S.choose (subset_nodes (high_deg k) g)) as [v|] eqn:Echoose.
-  - set (nbhd := neighborhood g v) in *.
-    set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
+  - set (nbhd := N[ g ; v ]) in *.
+    set (g' := g ∖ (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
@@ -363,10 +365,10 @@ Qed.
 Lemma phase1_adj_preserved :
   forall k c g i j,
     undirected g ->
-    S.In j (adj g i) ->
-    M.In i (snd (phase1 k c g)) ->
-    M.In j (snd (phase1 k c g)) ->
-    S.In j (adj (snd (phase1 k c g)) i).
+    i ~[ g ] j ->
+    i ∈ dom (snd (phase1 k c g)) ->
+    j ∈ dom (snd (phase1 k c g)) ->
+    i ~[ snd (phase1 k c g) ] j.
 Proof.
   intros k c g.
   remember (M.cardinal g) as n eqn:Hn.
@@ -375,25 +377,25 @@ Proof.
   intros k c g Hn i j Ug Hadj Hi Hj.
   rewrite phase1_equation in Hi, Hj |- *.
   destruct (S.choose (subset_nodes (high_deg k) g)) as [v|] eqn:Echoose.
-  - set (nbhd := neighborhood g v) in *.
-    set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
+  - set (nbhd := N[ g ; v ]) in *.
+    set (g' := g ∖ (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in *.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     (* g2 is a subgraph of g' *)
-    assert (Hsub : is_subgraph g2 g').
+    assert (Hsub : g2 ⊑ g').
     { pose proof (phase1_subgraph k (c+3) g'). rewrite Eph in H. simpl in H. exact H. }
     (* i,j are in g' since g2 ⊆ g' *)
-    assert (Hi' : M.In i g') by (eapply subgraph_vertex_in; eauto).
-    assert (Hj' : M.In j g') by (eapply subgraph_vertex_in; eauto).
+    assert (Hi' : i ∈ dom g') by (eapply subgraph_vertex_in; eauto).
+    assert (Hj' : j ∈ dom g') by (eapply subgraph_vertex_in; eauto).
     (* i,j not in the removed set *)
-    assert (Hni : ~ S.In i (S.add v (nodes nbhd)))
+    assert (Hni : ~ (i ∈ S.add v (nodes nbhd)))
       by (apply (proj1 (in_remove_nodes_iff _ _ _) Hi')).
-    assert (Hnj : ~ S.In j (S.add v (nodes nbhd)))
+    assert (Hnj : ~ (j ∈ S.add v (nodes nbhd)))
       by (apply (proj1 (in_remove_nodes_iff _ _ _) Hj')).
     (* edge persists in g' *)
-    assert (Hadj' : S.In j (adj g' i)).
+    assert (Hadj' : i ~[ g' ] j).
     { apply adj_preserved_if_not_removed; auto. }
     (* apply IH *)
     assert (IHres := IH _ Hlt k (c+3) g' (Logic.eq_refl _) i j Ug' Hadj').
@@ -439,7 +441,7 @@ Qed.
 
 (** [max_color] is an upper bound on every color in the coloring. *)
 Lemma max_color_spec : forall f i ci,
-  M.find i f = Some ci -> (ci <= max_color f)%positive.
+  f !! i = Some ci -> (ci <= max_color f)%positive.
 Proof.
   intros f i ci Hfi.
   unfold max_color. rewrite M.fold_1.
@@ -461,7 +463,7 @@ Qed.
 Local Set Warnings "-funind-cannot-define-principle".
 
 Function phase2 (g : graph) {measure M.cardinal g} : coloring * graph :=
-  match (max_deg g)%nat with
+  match (Δ[ g ])%nat with
   | 0%nat => (constant_color (nodes g) 1, (@M.empty _))
   | S n => let (ns, g') := extract_vertices_degs g (S n) in
           let (f', g'') := phase2 g' in
@@ -476,10 +478,10 @@ Proof.
   simpl.
   destruct (extract_vertices_degs_witness g (S n) ns g'
               ltac:(lia) ltac:(symmetry; exact teq) teq0) as [v Hv].
-  assert (is_subgraph g' g) by hauto l: on use: extract_vertices_degs_subgraph.
+  assert (g' ⊑ g) by hauto l: on use: extract_vertices_degs_subgraph.
   pose proof (extract_vertices_remove g g' ns (S n) ltac:(auto) v Hv).
   unfold is_subgraph in H.
-  assert (~ S.In v (nodes g') /\ S.In v (nodes g)).
+  assert (~ (v ∈ nodes g') /\ v ∈ nodes g).
   {
     sfirstorder use: in_nodes_iff.
   }
@@ -497,11 +499,11 @@ Local Set Warnings "+funind-cannot-define-principle".
 (** The palette [{1, ..., p+1}] as a node set, used to bound the colors
     produced by phase 2. *)
 Definition siota p := SP.of_list (map Pos.of_nat (seq 1 (p + 1))).
-(** The palette used by phase 2: colors [1 .. max_deg g + 1]. *)
-Definition phase2_colors g := siota (max_deg g).
+(** The palette used by phase 2: colors [1 .. Δ[g] + 1]. *)
+Definition phase2_colors g := siota Δ[ g ].
 
 (** ** Specification of siota construction *)
-Lemma siota_spec : forall (n : nat), (forall i, (0 <= i <= n + 1)%nat <-> S.In (Pos.of_nat i) (siota n)).
+Lemma siota_spec : forall (n : nat), (forall i, (0 <= i <= n + 1)%nat <-> Pos.of_nat i ∈ siota n).
 Proof.
   intros n i.
   split; intros H.
@@ -524,7 +526,7 @@ Proof.
 Qed.
 
 (** ** Siota subset relation *)
-Lemma siota_subset p q : (p <= q)%nat -> S.Subset (siota p) (siota q).
+Lemma siota_subset p q : (p <= q)%nat -> siota p ⊆ siota q.
 Proof.
   intros H a Ha.
   destruct (of_nat_surj a) as [x <-].
@@ -533,7 +535,7 @@ Qed.
 
 (** ** Siota non-membership *)
 Lemma siota_miss : forall p q,
-    (q + 1 < S p)%nat -> ~ S.In (Pos.of_nat (S p)) (siota q).
+    (q + 1 < S p)%nat -> ~ (Pos.of_nat (S p) ∈ siota q).
 Proof.
   intros p q H contra.
   apply siota_spec in contra.
@@ -544,7 +546,7 @@ Qed.
 Lemma indep_set_union : forall (g : graph) (f : coloring) (s : nodeset) (p : colors) c,
     undirected g ->
     independent_set g s ->
-    ~ S.In c p ->
+    ~ (c ∈ p) ->
     coloring_ok p g f ->
     coloring_ok (S.add c p) g (Munion (constant_color s c) f).
 Proof.
@@ -575,12 +577,12 @@ Proof.
     + strivial unfold: coloring_ok.
 Qed.
 
-(** ** Phase2 colors are bounded by max_deg g + 1 *)
+(** ** Phase2 colors are bounded by Δ[g] + 1 *)
 Lemma phase2_color_bound :
   forall (g : graph) (f : coloring) (g' : graph) (i : node) n,
     phase2 g = (f, g') ->
-    M.find i f = Some (Pos.of_nat n) ->
-    (n <= max_deg g + 1)%nat.
+    f !! i = Some (Pos.of_nat n) ->
+    (n <= Δ[ g ] + 1)%nat.
 Proof.
   intros g f g' i n H H0.
   generalize dependent g'.
@@ -611,17 +613,17 @@ Qed.
 Lemma phase2_domain_subset :
   forall g f g',
     phase2 g = (f, g') ->
-    S.Subset (Mdomain f) (nodes g).
+    Mdomain f ⊆ nodes g.
 Proof.
   intros g f g' Hph.
   revert f Hph.
   functional induction (phase2 g) using phase2_ind.
-  - (* base: max_deg g = 0 *)
+  - (* base: [Δ[g] = 0] *)
     intros f Hf.
     inversion Hf; subst; clear Hf.
     intros H Hv.
     sauto lq: on rew: off use: constant_color_inv, in_domain.
-  - (* step: max_deg g = S n *)
+  - (* step: [Δ[g] = S n] *)
     intros f Hf.
     inversion Hf; subst; clear Hf.
     intros x Hx.
@@ -647,7 +649,7 @@ Qed.
 
 (** Any vertex colored by phase 2 is a vertex of the input graph. *)
 Lemma phase2_find_in : forall g f g' i c,
-    phase2 g = (f, g') -> M.find i f = Some c -> M.In i g.
+    phase2 g = (f, g') -> f !! i = Some c -> i ∈ dom g.
 Proof.
   intros g f g' i c Hph Hfi.
   apply in_nodes_iff. eapply phase2_domain_subset; eauto.
@@ -660,9 +662,9 @@ Lemma phase2_colors_distinct :
     undirected g ->
     no_selfloop g ->
     phase2 g = (f, g') ->
-    S.In j (adj g i) ->
-    M.find i f = Some ci ->
-    M.find j f = Some cj ->
+    i ~[ g ] j ->
+    f !! i = Some ci ->
+    f !! j = Some cj ->
     ci <> cj.
 Proof.
   intros g g' i j ci cj f Hund Hloop Hph Hadj Hfi Hfj.
@@ -670,10 +672,10 @@ Proof.
   generalize dependent f.
   revert Hadj ci cj.
   functional induction (phase2 g) using phase2_ind.
-  - (* base: max_deg g = 0 *)
+  - (* base: [Δ[g] = 0] *)
     intros Hadj ci cj f' Hfi' Hfj' g'' Hph'.
     sauto lq: on rew: off use: max_deg_0_adj.
-  - (* step: max_deg g = S n *)
+  - (* step: [Δ[g] = S n] *)
     intros Hadj ci cj f0 Hfi0 Hfj0 g''' Hph''.
     assert (Hund' : undirected g') by hauto l: on use: extract_vertices_degs_undirected.
     assert (Hloop' : no_selfloop g') by
@@ -691,14 +693,14 @@ Proof.
       apply constant_color_inv in Hj_now.
       pose proof (max_degree_extraction_independent_set g (S n) Hund Hloop (eq_sym e)) as [Hind _].
       hauto l: on unfold: independent_set.
-    + (* i now, j later → colors differ: j's color is in siota(max_deg g') but fresh color n' is not *)
+    + (* i now, j later: j's color is in [siota Δ[g']], but [n'] is not. *)
       apply constant_color_inv2 in Hi_now. subst ci.
       destruct (of_nat_surj cj) as [x <-].
       pose proof (phase2_color_bound g' _ _ _ _ e1 Hj_later) as B.
-      (* cj ∈ siota (max_deg g') and n' ∉ that set *)
-      assert (S.In (Pos.of_nat x) (siota (max_deg g'))) by (apply siota_spec; lia).
-      assert (~ S.In (Pos.of_nat (S (S n))) (siota (max_deg g'))) as Fresh.
-      { (* max_deg g' < max_deg g *)
+      (* [cj ∈ siota Δ[g']] and [n' ∉ siota Δ[g']]. *)
+      assert (Pos.of_nat x ∈ siota Δ[ g' ]) by (apply siota_spec; lia).
+      assert (~ (Pos.of_nat (S (S n)) ∈ siota Δ[ g' ])) as Fresh.
+      { (* [Δ[g'] < Δ[g]] *)
         pose proof (extract_vertices_max_degs g g' ns ltac:(hauto) ltac:(scongruence)).
         rewrite e in *.
         apply siota_miss; lia.
@@ -708,17 +710,17 @@ Proof.
       apply constant_color_inv2 in Hj_now. subst cj.
       destruct (of_nat_surj ci) as [x <-].
       pose proof (phase2_color_bound g' _ _ _ _ e1 Hi_later) as B.
-      assert (S.In (Pos.of_nat x) (siota (max_deg g'))) by (apply siota_spec; lia).
-      assert (~ S.In (Pos.of_nat (S (S n))) (siota (max_deg g'))) as Fresh.
+      assert (Pos.of_nat x ∈ siota Δ[ g' ]) by (apply siota_spec; lia).
+      assert (~ (Pos.of_nat (S (S n)) ∈ siota Δ[ g' ])) as Fresh.
       { pose proof (extract_vertices_max_degs g g' ns ltac:(hauto) ltac:(scongruence)).
         rewrite e in *; apply siota_miss; lia. }
       congruence.
     + (* both later → use IH; first show the edge persists in g' *)
       (* If both are colored by f', they are in dom f' hence nodes g' *)
-      assert (Di : M.In i g') by (eapply phase2_find_in; eauto).
-      assert (Dj : M.In j g') by (eapply phase2_find_in; eauto).
+      assert (Di : i ∈ dom g') by (eapply phase2_find_in; eauto).
+      assert (Dj : j ∈ dom g') by (eapply phase2_find_in; eauto).
       (* adjacency is preserved among surviving vertices *)
-      assert (Hadj' : S.In j (adj g' i)).
+      assert (Hadj' : i ~[ g' ] j).
       { rewrite adj_preserved_after_extract with (g := g).
         - scongruence.
         - hauto l: on.
@@ -736,10 +738,10 @@ Lemma phase2_ok : forall (g : graph),
 Proof.
   intros g Hund Hloop.
   functional induction (phase2 g) using phase2_ind.
-  - (* base: max_deg g = 0 *)
+  - (* base: [Δ[g] = 0] *)
     (* all adjacency sets empty => constant_color is vacuously OK *)
     sfirstorder use: max_deg_0_adj unfold: coloring_ok.
-  - (* step: max_deg g = S n *)
+  - (* step: [Δ[g] = S n] *)
     remember (Pos.of_nat (S (S n))) as n'.
     rewrite e1 in *; simpl in IHp.
     assert (Hund' : undirected g') by strivial use: extract_vertices_degs_undirected.
@@ -747,8 +749,8 @@ Proof.
     specialize (IHp Hund' Hloop'). simpl in IHp.
     (* ns is independent, and all are max-degree vertices *)
     pose proof (max_degree_extraction_independent_set g (S n) Hund Hloop (eq_sym e)) as [Hind Hdeg].
-    (* First: show the recursive coloring f' is OK on g with palette siota(max_deg g') *)
-    assert (Hok_rec_on_g : coloring_ok (siota (max_deg g')) g f').
+    (* First, [f'] is valid on [g] with palette [siota Δ[g']]. *)
+    assert (Hok_rec_on_g : coloring_ok (siota Δ[ g' ]) g f').
     { (* prove the two conjuncts explicitly to avoid dependence on edges in g' only *)
       split.
       - (* palette membership for any colored i *)
@@ -759,20 +761,20 @@ Proof.
       - (* adjacent vertices get different colors *)
         intros ci cj H0 H1.
         pose proof (phase2_domain_subset g' f' g'' e1) as DomSub.
-        assert (Hi_dom : S.In i (Mdomain f')).
+        assert (Hi_dom : i ∈ Mdomain f').
         {
           qauto use: in_domain, WF.in_find_iff unfold: coloring, node, PositiveSet.elt, PositiveOrderedTypeBits.t, PositiveMap.key.
         }
-        assert (Hj_dom : S.In j (Mdomain f')).
+        assert (Hj_dom : j ∈ Mdomain f').
         {
           qauto use: WF.in_find_iff, in_domain unfold: coloring, PositiveMap.key, PositiveSet.elt.
         }
         pose proof (DomSub _ Hi_dom) as Hi_nodes'.
         pose proof (DomSub _ Hj_dom) as Hj_nodes'.
-        assert (Hadj' : S.In j (adj g' i)).
+        assert (Hadj' : i ~[ g' ] j).
         {
-          assert (M.In i g') by hauto l: on use: in_domain.
-          assert (M.In j g') by hauto l: on use: in_domain.
+          assert (i ∈ dom g') by hauto l: on use: in_domain.
+          assert (j ∈ dom g') by hauto l: on use: in_domain.
           pose proof (adj_preserved_after_extract _ _ _ _ i j e0 H2 H3).
           sauto lq: on.
         }
@@ -780,26 +782,26 @@ Proof.
     }
     (* Combine the independent-set constant coloring with f' *)
     assert (Hok_union :
-      coloring_ok (S.add n' (siota (max_deg g'))) g (Munion (constant_color ns n') f')).
+      coloring_ok (S.add n' (siota Δ[ g' ])) g (Munion (constant_color ns n') f')).
     { eapply indep_set_union; eauto.
       hauto lq: on unfold: fst.
-      (* Freshness: n' ∉ siota (max_deg g') *)
-      assert (Fresh : ~ S.In n' (siota (max_deg g'))).
-      { (* max_deg g' < max_deg g *)
+      (* Freshness: [n' ∉ siota Δ[g']]. *)
+      assert (Fresh : ~ (n' ∈ siota Δ[ g' ])).
+      { (* [Δ[g'] < Δ[g]] *)
         pose proof (extract_vertices_max_degs g g' ns ltac:(hauto) ltac:(scongruence)).
         rewrite e in *.
         hauto l: on use: siota_miss.
       }
       exact Fresh.
     }
-    (* Finally, enlarge the palette from {n'}∪siota(max_deg g') to siota(max_deg g) *)
-    assert (S.Subset (S.add n' (siota (max_deg g'))) (siota (max_deg g))) as Pal_incl.
+    (* Finally, enlarge [{n'} ∪ siota Δ[g']] to [siota Δ[g]]. *)
+    assert (S.add n' (siota Δ[ g' ]) ⊆ siota Δ[ g ]) as Pal_incl.
     { intros a Ha.
       apply S.add_spec in Ha as [->|Ha]; subst.
       - apply siota_spec.
         lia.
-      - (* show n' ∈ siota(max_deg g) *)
-        assert (is_subgraph g' g).
+      - (* show [n' ∈ siota Δ[g]] *)
+        assert (g' ⊑ g).
         { hauto l: on use: extract_vertices_degs_subgraph. }
         pose proof (max_deg_subgraph g g' H).
         clear -Ha H0.
@@ -820,9 +822,9 @@ Theorem wigderson_ok k g f p :
   undirected g -> no_selfloop g ->
   coloring_complete p g f -> three_coloring f p ->
   forall i j ci cj,
-    S.In j (adj g i) ->
-    M.find i (wigderson k g) = Some ci ->
-    M.find j (wigderson k g) = Some cj -> ci <> cj.
+    i ~[ g ] j ->
+    wigderson k g !! i = Some ci ->
+    wigderson k g !! j = Some cj -> ci <> cj.
 Proof.
   intros Ug Hloop Hcol H3 i j ci cj Hadj Hfi Hfj.
   unfold wigderson in Hfi, Hfj.
@@ -836,20 +838,20 @@ Proof.
   { assert (H := phase1_no_selfloop k 1 g Hloop). rewrite Eph in H. simpl in H. exact H. }
   munion_cases2 Hfi Hfj.
   - (* Both from f1: use phase1_coloring_ok *)
-    assert (Hfi' : M.find i (fst (phase1 k 1 g)) = Some ci) by (rewrite Eph; simpl; auto).
-    assert (Hfj' : M.find j (fst (phase1 k 1 g)) = Some cj) by (rewrite Eph; simpl; auto).
+    assert (Hfi' : fst (phase1 k 1 g) !! i = Some ci) by (rewrite Eph; simpl; auto).
+    assert (Hfj' : fst (phase1 k 1 g) !! j = Some cj) by (rewrite Eph; simpl; auto).
     exact (phase1_coloring_ok k 1 g f p Ug Hloop Hcol H3 i j ci cj Hadj Hfi' Hfj').
   - (* i from f1, j from f2': color bounds separate *)
     assert (Hci : (ci <= offset)%positive) by (apply max_color_spec with (i := i); auto).
     unfold f2' in Hfj. rewrite map_o in Hfj.
-    destruct (M.find j f2) as [cj_orig|] eqn:Ecj; [|simpl in Hfj; discriminate].
+    destruct (f2 !! j) as [cj_orig|] eqn:Ecj; [|simpl in Hfj; discriminate].
     simpl in Hfj. injection Hfj as <-.
     (* cj = offset + cj_orig > offset >= ci *)
     intro Heq. lia.
   - (* i from f2', j from f1: symmetric *)
     assert (Hcj : (cj <= offset)%positive) by (apply max_color_spec with (i := j); auto).
     unfold f2' in Hfi. rewrite map_o in Hfi.
-    destruct (M.find i f2) as [ci_orig|] eqn:Eci; [|simpl in Hfi; discriminate].
+    destruct (f2 !! i) as [ci_orig|] eqn:Eci; [|simpl in Hfi; discriminate].
     simpl in Hfi. injection Hfi as <-.
     intro Heq. lia.
   - (* Both from f2': use phase2_colors_distinct *)
@@ -857,15 +859,15 @@ Proof.
     rewrite map_o in Hfi, Hfj.
     destruct (phase2 g') as [f2_res g''] eqn:Ep2.
     simpl in Hfi, Hfj.
-    destruct (M.find i f2_res) as [ci_orig|] eqn:Eci; [|simpl in Hfi; discriminate].
-    destruct (M.find j f2_res) as [cj_orig|] eqn:Ecj; [|simpl in Hfj; discriminate].
+    destruct (f2_res !! i) as [ci_orig|] eqn:Eci; [|simpl in Hfi; discriminate].
+    destruct (f2_res !! j) as [cj_orig|] eqn:Ecj; [|simpl in Hfj; discriminate].
     simpl in Hfi, Hfj.
     injection Hfi as Hci_eq. injection Hfj as Hcj_eq.
     (* Show ci_orig ≠ cj_orig via phase2_colors_distinct *)
-    assert (Hi_g' : M.In i g') by (eapply phase2_find_in; eauto).
-    assert (Hj_g' : M.In j g') by (eapply phase2_find_in; eauto).
+    assert (Hi_g' : i ∈ dom g') by (eapply phase2_find_in; eauto).
+    assert (Hj_g' : j ∈ dom g') by (eapply phase2_find_in; eauto).
     assert (Hg'_eq : g' = snd (phase1 k 1 g)) by (rewrite Eph; auto).
-    assert (Hadj' : S.In j (adj g' i)).
+    assert (Hadj' : i ~[ g' ] j).
     { rewrite Hg'_eq.
       apply phase1_adj_preserved; auto.
       - rewrite Hg'_eq in Hi_g'. auto.
@@ -895,7 +897,7 @@ Qed.
 (** max_color is bounded if all values in the coloring are bounded *)
 Lemma max_color_bound_nat : forall f (B : nat),
   (1 <= B)%nat ->
-  (forall i ci, M.find i f = Some ci -> (Pos.to_nat ci <= B)%nat) ->
+  (forall i ci, f !! i = Some ci -> (Pos.to_nat ci <= B)%nat) ->
   (Pos.to_nat (max_color f) <= B)%nat.
 Proof.
   intros f B HB Hall.
@@ -906,15 +908,15 @@ Proof.
   apply M.elements_complete. auto.
 Qed.
 
-(** If there are no high-degree vertices, then max_deg g <= k *)
+(** If there are no high-degree vertices, then [Δ[g] <= k]. *)
 Lemma no_high_deg_max_deg_le : forall k g,
   S.Empty (subset_nodes (high_deg k) g) ->
-  (max_deg g <= k)%nat.
+  (Δ[ g ] <= k)%nat.
 Proof.
   intros k g Hempty.
-  destruct (Nat.le_gt_cases (max_deg g) k) as [|Hgt]; auto.
+  destruct (Nat.le_gt_cases Δ[ g ] k) as [|Hgt]; auto.
   exfalso.
-  destruct (max_degree_vert g (max_deg g)
+  destruct (max_degree_vert g Δ[ g ]
               (max_deg_gt_not_empty g ltac:(lia)) (Logic.eq_refl _)) as [v Hv].
   apply degree_spec in Hv. destruct Hv as [Hvin Hdeg].
   apply (Hempty v).
@@ -927,9 +929,9 @@ Proof.
   unfold adj in Hdeg. rewrite He in *. lia.
 Qed.
 
-(** Phase1 residual graph has max_deg <= k *)
+(** Phase1 residual graph has maximum degree at most [k]. *)
 Lemma phase1_residual_max_deg : forall k c g,
-  undirected g -> (max_deg (snd (phase1 k c g)) <= k)%nat.
+  undirected g -> (Δ[ snd (phase1 k c g) ] <= k)%nat.
 Proof.
   intros k c g Ug.
   apply no_high_deg_max_deg_le. apply phase1_no_high_deg. auto.
@@ -937,7 +939,7 @@ Qed.
 
 (** Cardinal of set difference when B is a subset of A *)
 Lemma cardinal_diff_subset : forall A B,
-  S.Subset B A ->
+  B ⊆ A ->
   (S.cardinal (S.diff A B) + S.cardinal B = S.cardinal A)%nat.
 Proof.
   intros A B Hsub.
@@ -957,40 +959,40 @@ Qed.
 (** Each phase1 step removes at least k+2 vertices *)
 Lemma phase1_removes_many : forall k g v,
   undirected g -> no_selfloop g ->
-  S.In v (subset_nodes (high_deg k) g) ->
-  (M.cardinal (remove_nodes g (S.add v (nodes (neighborhood g v)))) + k + 2
+  v ∈ subset_nodes (high_deg k) g ->
+  (M.cardinal (g ∖ (S.add v V[ N[ g ; v ] ])) + k + 2
    <= M.cardinal g)%nat.
 Proof.
   intros k g v Ug Hloop Hv.
-  (* v is high-degree: S.cardinal (adj g v) > k *)
-  assert (HvIn : S.In v (nodes g)) by (eapply subset_nodes_sub; eauto).
+  (* [v] is high-degree: [S.cardinal Adj[g; v] > k]. *)
+  assert (HvIn : v ∈ V[ g ]) by (eapply subset_nodes_sub; eauto).
   unfold subset_nodes in Hv. apply in_domain in Hv. destruct Hv as [e Hfe].
   apply WP.filter_iff in Hfe; [| intros x y Heq a b Hab; subst; auto].
   destruct Hfe as [Hfind Hhigh].
   unfold high_deg in Hhigh. apply Nat.ltb_lt in Hhigh.
-  (* nodes(neighborhood g v) = adj g v *)
-  assert (Hneq : S.Equal (nodes (neighborhood g v)) (adj g v)).
+  (* [V[N[g; v]]] is [Adj[g; v]]. *)
+  assert (Hneq : S.Equal V[ N[ g ; v ] ] Adj[ g ; v ]).
   { apply neighborhood_nodes_eq; auto using undirected_well_formed. }
   (* v ∉ adj g v *)
-  assert (Hvna : ~ S.In v (adj g v)) by (apply Hloop).
+  assert (Hvna : ~ (v ~[ g ] v)) by (apply Hloop).
   (* S.cardinal (S.add v (adj g v)) >= k + 2 *)
   assert (Hadj_eq : adj g v = e).
   { unfold adj. unfold M.MapsTo in Hfind. rewrite Hfind. auto. }
-  assert (Hcard_add : (S.cardinal (S.add v (nodes (neighborhood g v))) >= k + 2)%nat).
-  { assert (Hvna' : ~ S.In v (nodes (neighborhood g v))) by (rewrite Hneq; auto).
+  assert (Hcard_add : (S.cardinal (S.add v V[ N[ g ; v ] ]) >= k + 2)%nat).
+  { assert (Hvna' : ~ (v ∈ V[ N[ g ; v ] ])) by (rewrite Hneq; auto).
     rewrite SP.add_cardinal_2 by auto.
-    assert (S.cardinal (nodes (neighborhood g v)) = S.cardinal (adj g v)).
+    assert (S.cardinal V[ N[ g ; v ] ] = S.cardinal Adj[ g ; v ]).
     { apply SP.Equal_cardinal. auto. }
     rewrite Hadj_eq in *. lia. }
   (* S.add v (nodes nbhd) ⊆ nodes g *)
-  assert (Hsub : S.Subset (S.add v (nodes (neighborhood g v))) (nodes g)).
+  assert (Hsub : S.add v V[ N[ g ; v ] ] ⊆ V[ g ]).
   { intros x Hx. apply S.add_spec in Hx as [->|Hx]; auto.
     rewrite Hneq in Hx. eapply in_adj_neighbor_in_nodes; eauto. }
-  (* M.cardinal (remove_nodes ...) = S.cardinal(nodes g) - S.cardinal(S.add v ...) *)
+  (* Cardinality after [g ∖ ...] is vertex cardinality minus the removed set. *)
   rewrite !m_cardinal_domain.
   change (Mdomain g) with (nodes g).
-  change (Mdomain (remove_nodes g (S.add v (nodes (neighborhood g v))))) with
-    (nodes (remove_nodes g (S.add v (nodes (neighborhood g v))))).
+  change (Mdomain (g ∖ (S.add v V[ N[ g ; v ] ]))) with
+    (V[ g ∖ (S.add v V[ N[ g ; v ] ]) ]).
   rewrite nodes_remove_nodes_eq.
   pose proof (cardinal_diff_subset _ _ Hsub). lia.
 Qed.
@@ -1008,7 +1010,7 @@ Qed.
 (** Main inductive bound: phase1 colors are bounded *)
 Lemma phase1_color_upper_bound : forall k c g i ci,
   undirected g -> no_selfloop g ->
-  M.find i (fst (phase1 k c g)) = Some ci ->
+  fst (phase1 k c g) !! i = Some ci ->
   (Pos.to_nat ci + 1 <= Pos.to_nat c + 3 * (M.cardinal g / (k + 2)))%nat.
 Proof.
   intros k c g.
@@ -1018,16 +1020,16 @@ Proof.
   intros k c g Hn i ci Ug Hloop Hfi.
   rewrite phase1_equation in Hfi.
   destruct (S.choose (subset_nodes (high_deg k) g)) as [v|] eqn:Echoose.
-  - set (nbhd := neighborhood g v) in *.
+  - set (nbhd := N[ g ; v ]) in *.
     set (m' := two_color_nbd g v (c+1) (c+2)) in *.
-    set (g' := remove_nodes g (S.add v (nodes nbhd))) in *.
+    set (g' := g ∖ (S.add v (nodes nbhd))) in *.
     destruct (phase1 k (c+3) g') as [f2 g2] eqn:Eph. simpl in Hfi.
     assert (Hlt : (M.cardinal g' < n)%nat).
     { subst n. unfold g', nbhd. eapply phase1_step_lt; eauto. }
     assert (Ug' : undirected g') by (unfold g'; apply remove_nodes_undirected; auto).
     assert (Hloop' : no_selfloop g') by
       (unfold g'; eapply subgraph_no_selfloop; [apply remove_nodes_subgraph | auto]).
-    assert (Hvin : S.In v (subset_nodes (high_deg k) g)).
+    assert (Hvin : v ∈ subset_nodes (high_deg k) g).
     { apply S.choose_1 in Echoose. auto. }
     assert (Hremoves : (M.cardinal g' + k + 2 <= n)%nat).
     { subst n. unfold g'. apply phase1_removes_many; auto. }
@@ -1063,7 +1065,7 @@ Qed.
 (** Final theorem: every color assigned by wigderson is bounded *)
 Theorem wigderson_color_bound : forall k g i ci,
   undirected g -> no_selfloop g ->
-  M.find i (wigderson k g) = Some ci ->
+  wigderson k g !! i = Some ci ->
   (Pos.to_nat ci <= 3 * (M.cardinal g / (k + 2)) + k + 2)%nat.
 Proof.
   intros k g i ci Ug Hloop Hfi.
@@ -1074,25 +1076,25 @@ Proof.
   set (f2' := M.map (Pos.add offset) f2) in *.
   munion_cases Hfi.
   - (* Phase1 color *)
-    assert (Hfi' : M.find i (fst (phase1 k 1 g)) = Some ci) by (rewrite Eph; simpl; auto).
+    assert (Hfi' : fst (phase1 k 1 g) !! i = Some ci) by (rewrite Eph; simpl; auto).
     assert (Hbound := phase1_color_upper_bound k 1 g i ci Ug Hloop Hfi').
     simpl in Hbound. lia.
   - (* Phase2 color: ci = offset + c2_orig *)
     unfold f2' in Hfi. rewrite map_o in Hfi.
-    destruct (M.find i f2) as [ci_orig|] eqn:Eci; [|simpl in Hfi; discriminate].
+    destruct (f2 !! i) as [ci_orig|] eqn:Eci; [|simpl in Hfi; discriminate].
     simpl in Hfi. injection Hfi as <-.
     (* Bound offset *)
     assert (Hoffset_bound : (Pos.to_nat offset <= 3 * (M.cardinal g / (k + 2)) + 1)%nat).
     { apply max_color_bound_nat; [lia |].
       intros j cj Hfj.
-      assert (Hfj' : M.find j (fst (phase1 k 1 g)) = Some cj) by (rewrite Eph; simpl; auto).
+      assert (Hfj' : fst (phase1 k 1 g) !! j = Some cj) by (rewrite Eph; simpl; auto).
       pose proof (phase1_color_upper_bound k 1 g j cj Ug Hloop Hfj') as Hb.
       simpl in Hb. lia. }
     (* Bound ci_orig: by phase2_color_bound + phase1_residual_max_deg *)
     assert (Hci_bound : (Pos.to_nat ci_orig <= k + 1)%nat).
     { unfold f2 in Eci.
       destruct (phase2 g') as [f2_res g''] eqn:Ep2. simpl in Eci.
-      assert (Hmd : (max_deg g' <= k)%nat).
+      assert (Hmd : (Δ[ g' ] <= k)%nat).
       { assert (Hmd := phase1_residual_max_deg k 1 g Ug). rewrite Eph in Hmd. simpl in Hmd. auto. }
       (* ci_orig is a color of phase2, so Pos.of_nat (Pos.to_nat ci_orig) = ci_orig *)
       pose proof (phase2_color_bound g' f2_res g'' i (Pos.to_nat ci_orig) Ep2) as Hpcb.
@@ -1117,7 +1119,7 @@ Qed.
 (** With [k = sqrt |V|], wigderson colors [g] with [O(sqrt |V|)] colors. *)
 Theorem wigderson_sqrt_bound : forall g i ci,
   undirected g -> no_selfloop g ->
-  M.find i (wigderson (Nat.sqrt (M.cardinal g)) g) = Some ci ->
+  wigderson (Nat.sqrt (M.cardinal g)) g !! i = Some ci ->
   (Pos.to_nat ci <= 4 * Nat.sqrt (M.cardinal g) + 2)%nat.
 Proof.
   intros g i ci Ug Hloop Hfi.

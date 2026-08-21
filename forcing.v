@@ -1,6 +1,7 @@
 (** * forcing.v - BFS-based forced coloring of bipartite graphs *)
 Require Import graph.
 Require Import subgraph.
+Require Import graph_notations.
 Require Import restrict.
 Require Import munion.
 Require Import List.
@@ -19,6 +20,8 @@ From Hammer Require Import Reflect.
 Import Arith.
 Import ListNotations.
 Import Nat.
+
+Local Open Scope graph_scope.
 
 (* Hammer filters shared across coloring/subgraph/connectivity/forcing *)
 Add Hammer Filter Coq.Numbers.BinNums.
@@ -45,13 +48,13 @@ Lemma nbs_empty g : nbs g S.empty = S.empty.
 Proof. reflexivity. Qed.
 
 Lemma nbs_spec g s i :
-  S.In i (nbs g s) <-> exists v, S.In v s /\ S.In i (adj g v).
+  i ∈ nbs g s <-> exists v, v ∈ s /\ v ~[ g ] i.
 Proof.
   unfold nbs.
   apply SP.fold_rec_bis
     with (P := fun s' acc =>
-                S.In i acc <->
-                exists v, S.In v s' /\ S.In i (adj g v)).
+                i ∈ acc <->
+                exists v, v ∈ s' /\ v ~[ g ] i).
   - intros s' Hs'.
     sfirstorder.
   - sauto.
@@ -73,7 +76,7 @@ Qed.
 (** Neighbors of a set in a well-formed graph are graph vertices. *)
 Lemma nbs_subset_nodes_wf g s :
   well_formed g ->
-  S.Subset (nbs g s) (nodes g).
+  nbs g s ⊆ V[ g ].
 Proof.
   intros Hwf i Hi; apply nbs_spec in Hi as (v & Hv & Hiv).
   eauto using in_adj_neighbor_in_nodes_wf.
@@ -82,7 +85,7 @@ Qed.
 (** Neighbors of a set in an undirected graph are graph vertices. *)
 Corollary nbs_subset_nodes g s :
   undirected g ->
-  S.Subset (nbs g s) (nodes g).
+  nbs g s ⊆ V[ g ].
 Proof. eauto using nbs_subset_nodes_wf, undirected_well_formed. Qed.
 
 (** * BFS layering
@@ -132,19 +135,19 @@ Definition force_component (g : graph) (seed c1 c2 : node) : coloring :=
 (** BFS layering keeps both color classes inside the vertex set of [g]. *)
 Lemma force_layers_subsets_nodes g L R FL FR k :
   undirected g ->
-  S.Subset L (nodes g) -> S.Subset R (nodes g) ->
-  S.Subset FL (nodes g) -> S.Subset FR (nodes g) ->
+  L ⊆ V[ g ] -> R ⊆ V[ g ] ->
+  FL ⊆ V[ g ] -> FR ⊆ V[ g ] ->
   let '(L',R') := force_layers g L R FL FR k in
-  S.Subset L' (nodes g) /\ S.Subset R' (nodes g).
+  L' ⊆ V[ g ] /\ R' ⊆ V[ g ].
 Proof.
   revert L R FL FR; induction k; cbn; intros L R FL FR UG HL HR HFL HFR.
   - eauto.
   - pose (Vis := S.union L R).
-    assert (S.Subset (add_to_R g FL Vis) (nodes g)).
+    assert (add_to_R g FL Vis ⊆ V[ g ]).
     {
       sauto lq: on use: SP.subset_diff, nbs_subset_nodes unfold: add_to_R.
     }
-    assert (S.Subset (add_to_L g FR Vis) (nodes g)).
+    assert (add_to_L g FR Vis ⊆ V[ g ]).
     {
       sauto lq: on use: SP.subset_diff, nbs_subset_nodes unfold: add_to_L.
     }
@@ -159,7 +162,7 @@ Qed.
 Lemma nbs_subset_bip_side g BL BR :
   undirected g ->
   is_bipartition g BL BR ->
-  S.Subset (nbs g BL) BR /\ S.Subset (nbs g BR) BL.
+  nbs g BL ⊆ BR /\ nbs g BR ⊆ BL.
 Proof.
   intros Hg (Hdisj & Hcov & HindL & HindR).
   split; intros x Hx;
@@ -171,7 +174,7 @@ Proof.
 Qed.
 
 Lemma nbs_mono g s1 s2 :
-  S.Subset s1 s2 -> S.Subset (nbs g s1) (nbs g s2).
+  s1 ⊆ s2 -> nbs g s1 ⊆ nbs g s2.
 Proof.
   intros Hsub i Hi.
   apply nbs_spec in Hi as (v & Hv & Hiv).
@@ -181,10 +184,10 @@ Qed.
 Lemma force_layers_subset_true_partition_gen g BL BR L R FL FR k :
   undirected g ->
   is_bipartition g BL BR ->
-  S.Subset L  BL -> S.Subset R  BR ->
-  S.Subset FL BL -> S.Subset FR BR ->
+  L ⊆ BL -> R ⊆ BR ->
+  FL ⊆ BL -> FR ⊆ BR ->
   let '(L',R') := force_layers g L R FL FR k in
-  S.Subset L' BL /\ S.Subset R' BR.
+  L' ⊆ BL /\ R' ⊆ BR.
 Proof.
   revert L R FL FR.
   induction k as [|k IH]; intros L R FL FR Ug Hbip HL HR HFL HFR; cbn.
@@ -195,15 +198,15 @@ Proof.
     destruct (nbs_subset_bip_side g BL BR Ug Hbip) as [HBLtoBR HBRtoBL].
 
     (* nbs of frontiers land on the opposite true side *)
-    assert (Hnbs_FL_BR : S.Subset (nbs g FL) BR).
+    assert (Hnbs_FL_BR : nbs g FL ⊆ BR).
     { hecrush use: nbs_mono unfold: PositiveSet.Subset. }
-    assert (Hnbs_FR_BL : S.Subset (nbs g FR) BL).
+    assert (Hnbs_FR_BL : nbs g FR ⊆ BL).
     { hecrush use: nbs_mono unfold: PositiveSet.Subset. }
 
     (* removing already visited vertices keeps subset *)
-    assert (HRadd_BR : S.Subset Radd BR).
+    assert (HRadd_BR : Radd ⊆ BR).
     { unfold Radd, add_to_R. eapply SP.subset_diff. exact Hnbs_FL_BR. }
-    assert (HLadd_BL : S.Subset Ladd BL).
+    assert (HLadd_BL : Ladd ⊆ BL).
     { unfold Ladd, add_to_L. eapply SP.subset_diff. exact Hnbs_FR_BL. }
 
     destruct (force_layers g (S.union L Ladd) (S.union R Radd) Ladd Radd k) as [L' R'] eqn:E.
@@ -214,10 +217,10 @@ Qed.
 Lemma force_layers_subset_true_partition g BL BR seed k :
   undirected g ->
   is_bipartition g BL BR ->
-  S.In seed BL ->
+  seed ∈ BL ->
   let '(L,R) := force_layers g (S.singleton seed) S.empty
                              (S.singleton seed) S.empty k in
-  S.Subset L BL /\ S.Subset R BR.
+  L ⊆ BL /\ R ⊆ BR.
 Proof.
   intros Ug Hbip Hin.
   eapply (force_layers_subset_true_partition_gen g BL BR
@@ -229,12 +232,12 @@ Proof.
 Qed.
 
 Lemma independent_subset g s s' :
-  independent_set g s -> S.Subset s' s -> independent_set g s'.
+  independent_set g s -> s' ⊆ s -> independent_set g s'.
 Proof. firstorder. Qed.
 
 Lemma disjoint_by_subsets BL BR L R :
   S.Empty (S.inter BL BR) ->
-  S.Subset L BL -> S.Subset R BR ->
+  L ⊆ BL -> R ⊆ BR ->
   S.Empty (S.inter L R).
 Proof.
   intros Hdis HL HR x Hx.
@@ -242,8 +245,8 @@ Proof.
 Qed.
 
 Lemma nodes_subgraph_of_union_eq g L R :
-  S.Subset L (nodes g) -> S.Subset R (nodes g) ->
-  S.Equal (nodes (subgraph_of g (S.union L R))) (S.union L R).
+  L ⊆ V[ g ] -> R ⊆ V[ g ] ->
+  S.Equal (V[ g ⇂ S.union L R ]) (S.union L R).
 Proof.
   intros HL HR i; split; intro Hi.
   - apply nodes_subgraph_of_spec in Hi as [HinG HinU]. exact HinU.
@@ -256,17 +259,17 @@ Qed.
     subgraph induced on [L ∪ R] is itself bipartitioned by [L] and [R]. *)
 Lemma bipartition_induced_of_subsets g BL BR L R :
   is_bipartition g BL BR ->
-  S.Subset L BL -> S.Subset R BR ->
-  is_bipartition (subgraph_of g (S.union L R)) L R.
+  L ⊆ BL -> R ⊆ BR ->
+  is_bipartition (g ⇂ S.union L R) L R.
 Proof.
   intros (Hdisj & Hcov & HindL & HindR) HLsub HRsub.
   (* the true sides lie inside [nodes g], hence so do [L] and [R] *)
-  assert (HBLg : S.Subset BL (nodes g))
+  assert (HBLg : BL ⊆ V[ g ])
     by (intros x Hx; apply Hcov, S.union_spec; left; exact Hx).
-  assert (HBRg : S.Subset BR (nodes g))
+  assert (HBRg : BR ⊆ V[ g ])
     by (intros x Hx; apply Hcov, S.union_spec; right; exact Hx).
-  assert (HLg : S.Subset L (nodes g)) by (eapply SP.subset_trans; eauto).
-  assert (HRg : S.Subset R (nodes g)) by (eapply SP.subset_trans; eauto).
+  assert (HLg : L ⊆ V[ g ]) by (eapply SP.subset_trans; eauto).
+  assert (HRg : R ⊆ V[ g ]) by (eapply SP.subset_trans; eauto).
   split; [|split; [|split]].
   - (* disjointness inherited from [BL ∩ BR = ∅] *)
     eapply disjoint_by_subsets; [exact Hdisj | exact HLsub | exact HRsub].
@@ -280,10 +283,10 @@ Proof.
 Qed.
 
 Lemma force_component_bipartition_on_reached g seed :
-  undirected g -> bipartite g -> S.In seed (nodes g) ->
+  undirected g -> bipartite g -> seed ∈ V[ g ] ->
   let LR := force_component_sets g seed in
   let L := fst LR in let R := snd LR in
-  is_bipartition (subgraph_of g (S.union L R)) L R.
+  is_bipartition (g ⇂ S.union L R) L R.
 Proof.
   intros Ug [BL [BR Hbip]] HseedG.
   unfold force_component_sets.
@@ -310,11 +313,11 @@ Qed.
 (** The forced component coloring is a complete 2-coloring of the reached
     subgraph. *)
 Lemma force_component_ok g seed c1 c2 :
-  undirected g -> bipartite g -> c1 <> c2 -> S.In seed (nodes g) ->
+  undirected g -> bipartite g -> c1 <> c2 -> seed ∈ V[ g ] ->
   let LR := force_component_sets g seed in
   let L := fst LR in let R := snd LR in
   coloring_complete (SP.of_list [c1;c2])
-     (subgraph_of g (S.union L R))
+     (g ⇂ S.union L R)
      (force_component g seed c1 c2).
 Proof.
   intros Ug Hbip Hneq Hseed.
@@ -342,13 +345,13 @@ Qed.
     surviving vertices. *)
 Lemma bipartition_remove_nodes g L R s :
   is_bipartition g L R ->
-  is_bipartition (remove_nodes g s) (S.diff L s) (S.diff R s).
+  is_bipartition (g ∖ s) (S.diff L s) (S.diff R s).
 Proof.
   intros (Hdisj & Hcov & HindL & HindR).
   repeat split.
   - (* disjoint *)
     hauto lq: on use: disjoint_by_subsets, SP.diff_subset unfold: nodeset.
-  - (* cover, forward direction: nodes(remove_nodes g s) = nodes g \ s *)
+  - (* cover, forward direction: [V[g ∖ s] = V[g] \ s] *)
     rewrite nodes_remove_nodes_eq.
     intros H.
     rewrite S.diff_spec.
@@ -359,7 +362,7 @@ Proof.
   - (* cover, reverse direction *)
     hfcrush use: PositiveSet.union_3, nodes_remove_nodes_spec, PositiveSet.union_2, PositiveSet.diff_3, PositiveSet.union_1 unfold: PositiveSet.Equal, nodeset.
   - (* L independent after removal: [diff L s] is a subset of the independent
-       [L], and [remove_nodes g s] is a subgraph of [g] *)
+       [L], and [g ∖ s ⊑ g] *)
     eapply independent_set_subgraph; [apply remove_nodes_subgraph|].
     eapply independent_subset; [exact HindL | apply SP.diff_subset].
   - (* R independent after removal, symmetric *)
@@ -370,7 +373,7 @@ Qed.
 
 (** Removing vertices preserves bipartiteness. *)
 Corollary bipartite_remove_nodes g s :
-  bipartite g -> bipartite (remove_nodes g s).
+  bipartite g -> bipartite (g ∖ s).
 Proof.
   intros [L [R Hbip]]. eexists; eexists. eapply bipartition_remove_nodes; eauto.
 Qed.
@@ -382,7 +385,7 @@ Definition reached g seed :=
 
 Lemma force_layers_preserve_L :
   forall g L R FL FR k,
-    S.Subset L (fst (force_layers g L R FL FR k)).
+    L ⊆ fst (force_layers g L R FL FR k).
 Proof.
   intros g L R FL FR k.
   revert L R FL FR.
@@ -400,7 +403,7 @@ Qed.
 
 Lemma force_layers_preserve_R :
   forall g L R FL FR k,
-    S.Subset R (snd (force_layers g L R FL FR k)).
+    R ⊆ snd (force_layers g L R FL FR k).
 Proof.
   intros g L R FL FR k.
   revert L R FL FR.
@@ -417,8 +420,8 @@ Proof.
 Qed.
 
 Lemma force_layers_seed_in_L g seed k :
-  S.In seed (fst (force_layers g (S.singleton seed) S.empty
-                                 (S.singleton seed) S.empty k)).
+  seed ∈ fst (force_layers g (S.singleton seed) S.empty
+                                 (S.singleton seed) S.empty k).
 Proof.
   eapply force_layers_preserve_L.
   (* seed ∈ {seed} *)
@@ -426,7 +429,7 @@ Proof.
 Qed.
 
 Lemma seed_in_reached g seed :
-  S.In seed (reached g seed).
+  seed ∈ reached g seed.
 Proof.
   unfold reached, force_component_sets.
   apply S.union_spec; left.
@@ -436,8 +439,8 @@ Qed.
 (** Removing the component reached from a graph vertex strictly decreases the
     graph cardinality. *)
 Lemma remove_reached_lt g seed :
-  S.In seed (nodes g) ->
-  M.cardinal (remove_nodes g (reached g seed)) < M.cardinal g.
+  seed ∈ V[ g ] ->
+  M.cardinal (g ∖ reached g seed) < M.cardinal g.
 Proof.
   intros Hseed; eapply remove_nodes_lt.
   - apply seed_in_reached.
@@ -464,7 +467,7 @@ Function force_all (g : graph) (c1 c2 : node)
       let S := S.union L R in
       Munion
         (bicolor L R c1 c2)
-        (force_all (remove_nodes g S) c1 c2)
+        (force_all (g ∖ S) c1 c2)
   end.
 Proof.
   intros g c1 c2 seed Hchoose.
@@ -481,11 +484,11 @@ Local Set Warnings "+funind-cannot-define-principle".
 Lemma coloring_union_no_cross g p S f1 f2 :
   undirected g ->
   (* f1 colors the induced subgraph on S *)
-  coloring_ok p (subgraph_of g S) f1 ->
+  coloring_ok p (g ⇂ S) f1 ->
   (* f2 colors the complement *)
-  coloring_ok p (remove_nodes g S) f2 ->
+  coloring_ok p (g ∖ S) f2 ->
   (* No cross edges out of S *)
-  S.Subset (nbs g S) S ->
+  nbs g S ⊆ S ->
   (* f1's domain is exactly S *)
   S.Equal (Mdomain f1) S ->
   coloring_ok p g (Munion f1 f2).
@@ -494,56 +497,56 @@ Proof.
   (* Determine whether i is in S *)
   destruct (SP.In_dec i S) as [HiS|HiS].
   - (* i ∈ S: neighbor j ∈ S by closure *)
-    assert (HjS : S.In j S).
+    assert (HjS : j ∈ S).
     { apply Closed. apply nbs_spec. exists i. split; assumption. }
     (* i has a color in f1 *)
-    assert (HiIn : M.In i f1).
+    assert (HiIn : i ∈ dom f1).
     { rewrite <- in_domain. rewrite Hdom. exact HiS. }
     destruct HiIn as [ci Hci]. unfold M.MapsTo in Hci.
     (* Use munion_find_l to pin colors to f1 *)
     split.
     + intros ci' Hci'.
       rewrite (munion_find_l _ _ _ _ Hci) in Hci'. injection Hci' as <-.
-      assert (Hadj' : S.In j (adj (subgraph_of g S) i)).
+      assert (Hadj' : i ~[ g ⇂ S ] j).
       { apply adj_subgraph_of_spec. auto. }
       destruct (OK1 i j Hadj') as [Hpal _].
       exact (Hpal ci Hci).
     + intros ci' cj' Hci' Hcj' Heq.
       rewrite (munion_find_l _ _ _ _ Hci) in Hci'. injection Hci' as <-.
-      assert (HjIn : M.In j f1).
+      assert (HjIn : j ∈ dom f1).
       { rewrite <- in_domain. rewrite Hdom. exact HjS. }
       destruct HjIn as [cj Hcj]. unfold M.MapsTo in Hcj.
       rewrite (munion_find_l _ _ _ _ Hcj) in Hcj'. injection Hcj' as <-.
-      assert (Hadj' : S.In j (adj (subgraph_of g S) i)).
+      assert (Hadj' : i ~[ g ⇂ S ] j).
       { apply adj_subgraph_of_spec. auto. }
       destruct (OK1 i j Hadj') as [_ Hneq].
       exact (Hneq ci cj Hci Hcj Heq).
   - (* i ∉ S *)
     (* j ∉ S: if j ∈ S then i ∈ nbs g S ⊆ S, contradiction *)
-    assert (HjS : ~ S.In j S).
+    assert (HjS : ~ (j ∈ S)).
     { intro HjS. apply HiS. apply Closed.
       apply nbs_spec. exists j. split; [exact HjS|apply Ug; exact Hadj]. }
     (* i has no color in f1, so Munion gives f2's color *)
-    assert (Hfi1 : M.find i f1 = None).
-    { destruct (M.find i f1) as [vi|] eqn:E; [|reflexivity].
+    assert (Hfi1 : f1 !! i = None).
+    { destruct (f1 !! i) as [vi|] eqn:E; [|reflexivity].
       exfalso. apply HiS. rewrite <- Hdom. apply in_domain.
       exists vi. exact E. }
     split.
     + intros ci Hci.
       munion_cases Hci.
       * congruence.
-      * assert (Hadj' : S.In j (adj (remove_nodes g S) i)).
+      * assert (Hadj' : i ~[ g ∖ S ] j).
         { apply adj_remove_nodes_spec. auto. }
         destruct (OK2 i j Hadj') as [Hpal _].
         exact (Hpal ci Hci).
     + intros ci cj Hci Hcj Heq.
       munion_cases Hci; [congruence|].
-      assert (Hfj1 : M.find j f1 = None).
-      { destruct (M.find j f1) as [vj|] eqn:E; [|reflexivity].
+      assert (Hfj1 : f1 !! j = None).
+      { destruct (f1 !! j) as [vj|] eqn:E; [|reflexivity].
         exfalso. apply HjS. rewrite <- Hdom. apply in_domain.
         exists vj. exact E. }
       munion_cases Hcj; [congruence|].
-      assert (Hadj' : S.In j (adj (remove_nodes g S) i)).
+      assert (Hadj' : i ~[ g ∖ S ] j).
       { apply adj_remove_nodes_spec. auto. }
       destruct (OK2 i j Hadj') as [_ Hneq].
       exact (Hneq ci cj Hci Hcj Heq).
@@ -555,7 +558,7 @@ Qed.
     the BFS explores a full connected component. *)
 
 Lemma nbs_union g A B :
-  S.Subset (nbs g (S.union A B)) (S.union (nbs g A) (nbs g B)).
+  nbs g (S.union A B) ⊆ S.union (nbs g A) (nbs g B).
 Proof.
   intros i Hi.
   apply nbs_spec in Hi as (v & Hv & Hiv).
@@ -605,8 +608,8 @@ Qed.
 
 (** Neighbors of a set split into neighbors of a frontier subset and the rest. *)
 Lemma nbs_split_frontier g L FL :
-  S.Subset FL L ->
-  S.Subset (nbs g L) (S.union (nbs g FL) (nbs g (S.diff L FL))).
+  FL ⊆ L ->
+  nbs g L ⊆ S.union (nbs g FL) (nbs g (S.diff L FL)).
 Proof.
   intros HFL i Hi. apply nbs_spec in Hi as (v & Hv & Hiv).
   destruct (SP.In_dec v FL).
@@ -618,7 +621,7 @@ Qed.
 (** Every neighbor of a frontier is either already visited or a fresh addition
     ([S.diff (nbs g F) Vis], i.e. [add_to_R]/[add_to_L]). *)
 Lemma nbs_subset_vis_diff g F Vis :
-  S.Subset (nbs g F) (S.union Vis (S.diff (nbs g F) Vis)).
+  nbs g F ⊆ S.union Vis (S.diff (nbs g F) Vis).
 Proof.
   intros x Hx.
   destruct (SP.In_dec x Vis).
@@ -628,20 +631,20 @@ Qed.
 
 Lemma force_layers_closure g L R FL FR k :
   undirected g ->
-  S.Subset FL L -> S.Subset FR R ->
-  S.Subset L (nodes g) -> S.Subset R (nodes g) ->
-  S.Subset (nbs g (S.diff L FL)) (S.union L R) ->
-  S.Subset (nbs g (S.diff R FR)) (S.union L R) ->
+  FL ⊆ L -> FR ⊆ R ->
+  L ⊆ V[ g ] -> R ⊆ V[ g ] ->
+  nbs g (S.diff L FL) ⊆ S.union L R ->
+  nbs g (S.diff R FR) ⊆ S.union L R ->
   (S.cardinal (S.diff (nodes g) (S.union L R)) <= k)%nat ->
   let '(L', R') := force_layers g L R FL FR k in
-  S.Subset (nbs g (S.union L' R')) (S.union L' R').
+  nbs g (S.union L' R') ⊆ S.union L' R'.
 Proof.
   revert L R FL FR.
   induction k as [|k IH]; intros L R FL FR Ug HFL HFR HL HR HdL HdR Hcard; simpl.
   - (* k = 0: all nodes visited *)
-    assert (Hcover : S.Subset (nodes g) (S.union L R)).
+    assert (Hcover : V[ g ] ⊆ S.union L R).
     { intros x Hx. destruct (SP.In_dec x (S.union L R)); auto.
-      exfalso. assert (S.In x (S.diff (nodes g) (S.union L R))) by (apply S.diff_spec; auto).
+      exfalso. assert (x ∈ S.diff V[ g ] (S.union L R)) by (apply S.diff_spec; auto).
       destruct (S.cardinal (S.diff (nodes g) (S.union L R))) eqn:Hc; [|lia].
       apply SP.cardinal_inv_1 in Hc. apply (Hc x). auto. }
     intros i Hi. apply nbs_spec in Hi as (v & Hv & Hiv).
@@ -652,18 +655,18 @@ Proof.
     set (Ladd := add_to_L g FR Vis).
     destruct (S.choose (S.union Ladd Radd)) as [fresh|] eqn:Echoose.
     + (* Non-empty: new vertices added, use IH *)
-      assert (Hfresh : S.In fresh (S.union Ladd Radd)) by (apply S.choose_1; auto).
+      assert (Hfresh : fresh ∈ S.union Ladd Radd) by (apply S.choose_1; auto).
       set (L' := S.union L Ladd). set (R' := S.union R Radd).
-      assert (HL' : S.Subset L' (nodes g)).
+      assert (HL' : L' ⊆ V[ g ]).
       { unfold L'. intros x Hx. apply S.union_spec in Hx as [|Hx]; auto.
         unfold Ladd, add_to_L in Hx. apply S.diff_spec in Hx as [Hx _].
         eapply nbs_subset_nodes; eauto. }
-      assert (HR' : S.Subset R' (nodes g)).
+      assert (HR' : R' ⊆ V[ g ]).
       { unfold R'. intros x Hx. apply S.union_spec in Hx as [|Hx]; auto.
         unfold Radd, add_to_R in Hx. apply S.diff_spec in Hx as [Hx _].
         eapply nbs_subset_nodes; eauto. }
-      assert (HdL' : S.Subset (nbs g (S.diff L' Ladd)) (S.union L' R')).
-      { assert (Hdiff_sub : S.Subset (S.diff L' Ladd) L).
+      assert (HdL' : nbs g (S.diff L' Ladd) ⊆ S.union L' R').
+      { assert (Hdiff_sub : S.diff L' Ladd ⊆ L).
         { unfold L'. intros x Hx. apply S.diff_spec in Hx as [Hx Hx'].
           apply S.union_spec in Hx as [|]; auto. contradiction. }
         intros i Hi. apply (nbs_mono _ _ _ Hdiff_sub) in Hi.
@@ -679,8 +682,8 @@ Proof.
           apply S.union_spec in Hi as [Hi|Hi];
           apply S.union_spec; [left; unfold L'|right; unfold R'];
           apply S.union_spec; left; auto. }
-      assert (HdR' : S.Subset (nbs g (S.diff R' Radd)) (S.union L' R')).
-      { assert (Hdiff_sub : S.Subset (S.diff R' Radd) R).
+      assert (HdR' : nbs g (S.diff R' Radd) ⊆ S.union L' R').
+      { assert (Hdiff_sub : S.diff R' Radd ⊆ R).
         { unfold R'. intros x Hx. apply S.diff_spec in Hx as [Hx Hx'].
           apply S.union_spec in Hx as [|]; auto. contradiction. }
         intros i Hi. apply (nbs_mono _ _ _ Hdiff_sub) in Hi.
@@ -697,18 +700,18 @@ Proof.
           apply S.union_spec; [left; unfold L'|right; unfold R'];
           apply S.union_spec; left; auto. }
       assert (Hcard' : (S.cardinal (S.diff (nodes g) (S.union L' R')) <= k)%nat).
-      { assert (Hfresh_diff : S.In fresh (S.diff (nodes g) Vis)).
+      { assert (Hfresh_diff : fresh ∈ S.diff V[ g ] Vis).
         { apply S.union_spec in Hfresh as [Hf|Hf].
           - apply S.diff_spec; split; [apply HL'; apply S.union_spec; right; auto|].
             unfold Ladd, add_to_L in Hf; apply S.diff_spec in Hf; tauto.
           - apply S.diff_spec; split; [apply HR'; apply S.union_spec; right; auto|].
             unfold Radd, add_to_R in Hf; apply S.diff_spec in Hf; tauto. }
-        assert (Hfresh_not : ~ S.In fresh (S.diff (nodes g) (S.union L' R'))).
+        assert (Hfresh_not : ~ (fresh ∈ S.diff V[ g ] (S.union L' R'))).
         { intro contra. apply S.diff_spec in contra as [_ contra].
           apply contra. apply S.union_spec in Hfresh as [Hf|Hf];
           apply S.union_spec; [left; unfold L'|right; unfold R'];
           apply S.union_spec; right; auto. }
-        assert (Hsub : S.Subset (S.diff (nodes g) (S.union L' R')) (S.diff (nodes g) Vis)).
+        assert (Hsub : S.diff V[ g ] (S.union L' R') ⊆ S.diff V[ g ] Vis).
         { unfold L', R', Vis. intros x Hx. apply S.diff_spec in Hx as [Hx1 Hx2].
           apply S.diff_spec; split; auto. intro contra.
           apply Hx2. apply S.union_spec in contra as [Hc|Hc];
@@ -724,16 +727,16 @@ Proof.
       assert (HRadd_empty : S.Empty Radd).
       { apply S.choose_2 in Echoose. intros x Hx. apply (Echoose x).
         apply S.union_spec; right; auto. }
-      assert (HnFL : S.Subset (nbs g FL) Vis).
+      assert (HnFL : nbs g FL ⊆ Vis).
       { intros x Hx. destruct (SP.In_dec x Vis); auto.
         exfalso. apply (HRadd_empty x). unfold Radd, add_to_R.
         apply S.diff_spec; auto. }
-      assert (HnFR : S.Subset (nbs g FR) Vis).
+      assert (HnFR : nbs g FR ⊆ Vis).
       { intros x Hx. destruct (SP.In_dec x Vis); auto.
         exfalso. apply (HLadd_empty x). unfold Ladd, add_to_L.
         apply S.diff_spec; auto. }
       (* nbs g (L∪R) ⊆ L∪R *)
-      assert (Hclosed : S.Subset (nbs g Vis) Vis).
+      assert (Hclosed : nbs g Vis ⊆ Vis).
       { intros i Hi. apply nbs_union in Hi.
         apply S.union_spec in Hi as [Hi|Hi].
         - apply (nbs_split_frontier _ _ FL HFL) in Hi.
@@ -746,17 +749,17 @@ Proof.
       destruct (force_layers g (S.union L Ladd) (S.union R Radd) Ladd Radd k) as [Lf Rf].
       destruct Hnoop as [HLf HRf].
       (* Lf ≡ S.union L Ladd ≡ L, Rf ≡ S.union R Radd ≡ R *)
-      assert (HLf_eq : forall x, S.In x Lf <-> S.In x L).
+      assert (HLf_eq : forall x, x ∈ Lf <-> x ∈ L).
       { intro x. rewrite HLf. apply union_empty_equal_l; auto. }
-      assert (HRf_eq : forall x, S.In x Rf <-> S.In x R).
+      assert (HRf_eq : forall x, x ∈ Rf <-> x ∈ R).
       { intro x. rewrite HRf. apply union_empty_equal_l; auto. }
       intros i Hi. apply nbs_spec in Hi as (v & Hv & Hiv).
       apply S.union_spec in Hv as [Hv|Hv].
-      * rewrite HLf_eq in Hv. assert (S.In i Vis).
+      * rewrite HLf_eq in Hv. assert (i ∈ Vis).
         { apply Hclosed. apply nbs_spec. exists v. split; [apply S.union_spec; left|]; auto. }
         unfold Vis in H. apply S.union_spec in H as [H|H];
         apply S.union_spec; [left; apply HLf_eq|right; apply HRf_eq]; auto.
-      * rewrite HRf_eq in Hv. assert (S.In i Vis).
+      * rewrite HRf_eq in Hv. assert (i ∈ Vis).
         { apply Hclosed. apply nbs_spec. exists v. split; [apply S.union_spec; right|]; auto. }
         unfold Vis in H. apply S.union_spec in H as [H|H];
         apply S.union_spec; [left; apply HLf_eq|right; apply HRf_eq]; auto.
@@ -764,8 +767,8 @@ Qed.
 
 (** The reached set is closed under adjacency in [g]. *)
 Lemma reached_adj_closed g seed :
-  undirected g -> S.In seed (nodes g) ->
-  S.Subset (nbs g (reached g seed)) (reached g seed).
+  undirected g -> seed ∈ V[ g ] ->
+  nbs g (reached g seed) ⊆ reached g seed.
 Proof.
   intros Ug Hseed.
   unfold reached, force_component_sets.
@@ -816,19 +819,19 @@ Proof.
     set (LR := force_component_sets g seed).
     set (L := fst LR). set (R := snd LR).
     set (Sreach := S.union L R).
-    assert (Hseed : S.In seed (nodes g)) by (apply S.choose_1; auto).
+    assert (Hseed : seed ∈ V[ g ]) by (apply S.choose_1; auto).
     (* reached set is closed under adjacency *)
-    assert (Hclosed : S.Subset (nbs g Sreach) Sreach).
+    assert (Hclosed : nbs g Sreach ⊆ Sreach).
     { unfold Sreach, L, R, LR. apply reached_adj_closed; auto. }
     (* force_component_ok gives coloring_ok on subgraph *)
     pose proof (force_component_ok g seed c1 c2 Ug Hbip Hneq Hseed) as Hcomp.
     unfold force_component, force_component_sets in Hcomp.
     fold LR in Hcomp. fold L R in Hcomp.
     destruct Hcomp as [Hcomp_complete Hcomp_ok].
-    (* IH for remove_nodes *)
-    assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
+    (* Induction hypothesis for [g ∖ Sreach]. *)
+    assert (Hlt : (M.cardinal (g ∖ Sreach) < n)%nat).
     { subst n; unfold Sreach, L, R, LR; now apply remove_reached_lt. }
-    assert (Hok_rem : coloring_ok (SP.of_list [c1;c2]) (remove_nodes g Sreach) (force_all (remove_nodes g Sreach) c1 c2)).
+    assert (Hok_rem : coloring_ok (SP.of_list [c1;c2]) (g ∖ Sreach) (force_all (g ∖ Sreach) c1 c2)).
     { apply (IH _ Hlt _ (Logic.eq_refl _)); auto.
       - apply remove_nodes_undirected; auto.
       - apply bipartite_remove_nodes; auto. }
@@ -840,14 +843,14 @@ Proof.
   - (* None: empty graph *)
     intros i j Hadj. exfalso.
     apply S.choose_2 in Echoose.
-    assert (HiG : S.In i (nodes g)).
+    assert (HiG : i ∈ V[ g ]).
     { eapply in_adj_center_in_nodes. eauto. }
     exact (Echoose _ HiG).
 Qed.
 
 (** Every color assigned by [force_all] is one of the two chosen colors. *)
 Lemma force_all_palette g c1 c2 i ci :
-  M.find i (force_all g c1 c2) = Some ci -> ci = c1 \/ ci = c2.
+  force_all g c1 c2 !! i = Some ci -> ci = c1 \/ ci = c2.
 Proof.
   remember (M.cardinal g) as n eqn:Hn.
   revert g Hn.
@@ -863,8 +866,8 @@ Proof.
       unfold bicolor in Hfi. munion_cases Hfi.
       * left. symmetry. eapply constant_color_inv2. eauto.
       * right. symmetry. eapply constant_color_inv2. eauto.
-    + (* ci from force_all (remove_nodes g Sreach) c1 c2 *)
-      assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
+    + (* [ci] comes from [force_all (g ∖ Sreach) c1 c2]. *)
+      assert (Hlt : (M.cardinal (g ∖ Sreach) < n)%nat).
       { subst n; unfold Sreach, L, R, LR.
         now apply remove_reached_lt, S.choose_1. }
       eapply IH; eauto.
@@ -873,8 +876,8 @@ Qed.
 
 (** The reached set is a subset of the vertices of [g]. *)
 Lemma reached_subset_nodes g seed :
-  undirected g -> S.In seed (nodes g) ->
-  S.Subset (reached g seed) (nodes g).
+  undirected g -> seed ∈ V[ g ] ->
+  reached g seed ⊆ V[ g ].
 Proof.
   intros Ug Hseed.
   unfold reached, force_component_sets.
@@ -894,7 +897,7 @@ Qed.
 (** Anything colored by [force_all] is a vertex of [g]. *)
 Lemma force_all_domain g c1 c2 i ci :
   undirected g ->
-  M.find i (force_all g c1 c2) = Some ci -> M.In i g.
+  force_all g c1 c2 !! i = Some ci -> i ∈ dom g.
 Proof.
   remember (M.cardinal g) as n eqn:Hn.
   revert g Hn.
@@ -905,7 +908,7 @@ Proof.
   - set (LR := force_component_sets g seed) in *.
     set (L := fst LR) in *. set (R := snd LR) in *.
     set (Sreach := S.union L R) in *.
-    assert (Hseed : S.In seed (nodes g)) by (apply S.choose_1; auto).
+    assert (Hseed : seed ∈ V[ g ]) by (apply S.choose_1; auto).
     munion_cases Hfi.
     + (* i from bicolor L R c1 c2 — in reached g seed ⊆ nodes g *)
       apply in_nodes_iff.
@@ -916,11 +919,11 @@ Proof.
       apply constant_color_inv in Hfi;
       apply S.union_spec; [left | right]; auto.
     + (* i from recursive call *)
-      assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
+      assert (Hlt : (M.cardinal (g ∖ Sreach) < n)%nat).
       { subst n; unfold Sreach, L, R, LR; now apply remove_reached_lt. }
-      assert (Ug' : undirected (remove_nodes g Sreach)).
+      assert (Ug' : undirected (g ∖ Sreach)).
       { apply remove_nodes_undirected. auto. }
-      assert (M.In i (remove_nodes g Sreach)).
+      assert (i ∈ dom (g ∖ Sreach)).
       { eapply IH; eauto. }
       eapply subgraph_vertex_in; [apply remove_nodes_subgraph | exact H].
   - rewrite WF.empty_o in Hfi. discriminate.
@@ -931,7 +934,7 @@ Qed.
 (** ** force_all covers every vertex in g *)
 Lemma force_all_covers g c1 c2 :
   undirected g ->
-  forall i, M.In i g -> M.In i (force_all g c1 c2).
+  forall i, i ∈ dom g -> i ∈ dom (force_all g c1 c2).
 Proof.
   remember (M.cardinal g) as n eqn:Hn.
   revert g Hn.
@@ -942,7 +945,7 @@ Proof.
   - set (LR := force_component_sets g seed) in *.
     set (L := fst LR) in *. set (R := snd LR) in *.
     set (Sreach := S.union L R) in *.
-    assert (Hseed : S.In seed (nodes g)) by (apply S.choose_1; auto).
+    assert (Hseed : seed ∈ V[ g ]) by (apply S.choose_1; auto).
     destruct (SP.In_dec i Sreach) as [HiS|HiS].
     + (* i ∈ reached set → colored by bicolor *)
       apply munion_in. left.
@@ -950,7 +953,7 @@ Proof.
       exact HiS.
     + (* i ∉ reached set → colored by recursive call *)
       apply munion_in. right.
-      assert (Hlt : (M.cardinal (remove_nodes g Sreach) < n)%nat).
+      assert (Hlt : (M.cardinal (g ∖ Sreach) < n)%nat).
       { subst n; unfold Sreach, L, R, LR; now apply remove_reached_lt. }
       apply (IH _ Hlt _ (Logic.eq_refl _)).
       * apply remove_nodes_undirected; auto.
@@ -964,7 +967,7 @@ Qed.
 
 (** [check_edge f i j] holds when [i] and [j] are not assigned the same color. *)
 Definition check_edge (f : coloring) (i j : node) : bool :=
-  match M.find i f, M.find j f with
+  match f !! i, f !! j with
   | Some ci, Some cj => negb (Pos.eqb ci cj)
   | _, _ => true
   end.
@@ -979,10 +982,10 @@ Definition coloring_proper_b (g : graph) (f : coloring) : bool :=
 (** ** Reflection lemma for check_edge *)
 Lemma check_edge_true_iff f i j :
   check_edge f i j = true <->
-  (forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci <> cj).
+  (forall ci cj, f !! i = Some ci -> f !! j = Some cj -> ci <> cj).
 Proof.
   unfold check_edge.
-  destruct (M.find i f) as [ci|] eqn:Ei, (M.find j f) as [cj|] eqn:Ej;
+  destruct (f !! i) as [ci|] eqn:Ei, (f !! j) as [cj|] eqn:Ej;
     try (split; [intros _ ci0 cj0 H1 H2; discriminate | auto]).
   rewrite Bool.negb_true_iff, Pos.eqb_neq.
   split.
@@ -993,8 +996,8 @@ Qed.
 (** ** Reflection lemma for coloring_proper_b *)
 Lemma coloring_proper_b_true_iff g f :
   coloring_proper_b g f = true <->
-  (forall i j, S.In j (adj g i) ->
-    forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci <> cj).
+  (forall i j, i ~[ g ] j ->
+    forall ci cj, f !! i = Some ci -> f !! j = Some cj -> ci <> cj).
 Proof.
   unfold coloring_proper_b.
   rewrite forallb_forall.
@@ -1026,9 +1029,9 @@ Qed.
 
 (** ** Combining palette and properness into coloring_ok *)
 Lemma coloring_ok_of_proper_and_palette palette g f :
-  (forall i ci, M.find i f = Some ci -> S.In ci palette) ->
-  (forall i j, S.In j (adj g i) ->
-    forall ci cj, M.find i f = Some ci -> M.find j f = Some cj -> ci <> cj) ->
+  (forall i ci, f !! i = Some ci -> ci ∈ palette) ->
+  (forall i j, i ~[ g ] j ->
+    forall ci cj, f !! i = Some ci -> f !! j = Some cj -> ci <> cj) ->
   coloring_ok palette g f.
 Proof.
   intros Hpal Hprop.
