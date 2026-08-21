@@ -1,10 +1,7 @@
 Require Import graph.
 Require Import coloring.
 Require Import wigderson.
-Require Import subgraph.
 Require Import List.
-Require Import FSets.
-Require Import FMaps.
 Require Import PArith.
 Import ListNotations.
 
@@ -128,52 +125,6 @@ Definition g_octahedron :=
 Definition g_path10 :=
   mk_graph [(1,2);(2,3);(3,4);(4,5);(5,6);(6,7);(7,8);(8,9);(9,10)].
 
-(** ** Helper: extract a coloring as a list of (node, color) pairs *)
-Definition coloring_to_list (f : coloring) : list (positive * positive) :=
-  M.elements f.
-
-(** ** Compute wigderson on each graph *)
-(* Using k=1 means any vertex with degree > 1 is "high degree" *)
-
-Eval compute in (coloring_to_list (wigderson 1 g_triangle)).
-Eval compute in (coloring_to_list (wigderson 1 g_path4)).
-Eval compute in (coloring_to_list (wigderson 1 g_c5)).
-Eval compute in (coloring_to_list (wigderson 1 g_example)).
-Eval compute in (coloring_to_list (wigderson 1 g_k23)).
-Eval compute in (coloring_to_list (wigderson 1 g_star_plus)).
-
-(* Also try with k=2 (high degree means degree > 2) *)
-Eval compute in (coloring_to_list (wigderson 2 g_triangle)).
-Eval compute in (coloring_to_list (wigderson 2 g_c5)).
-Eval compute in (coloring_to_list (wigderson 2 g_example)).
-Eval compute in (coloring_to_list (wigderson 2 g_star_plus)).
-
-(** ** Complex graphs with k = 1 *)
-Eval compute in (coloring_to_list (wigderson 1 g_c7)).
-Eval compute in (coloring_to_list (wigderson 1 g_petersen)).
-Eval compute in (coloring_to_list (wigderson 1 g_cube)).
-Eval compute in (coloring_to_list (wigderson 1 g_wheel7)).
-Eval compute in (coloring_to_list (wigderson 1 g_grotzsch)).
-Eval compute in (coloring_to_list (wigderson 1 g_grid3x3)).
-Eval compute in (coloring_to_list (wigderson 1 g_k33)).
-Eval compute in (coloring_to_list (wigderson 1 g_bowtie)).
-Eval compute in (coloring_to_list (wigderson 1 g_octahedron)).
-Eval compute in (coloring_to_list (wigderson 1 g_path10)).
-Eval compute in (coloring_to_list (wigderson 1 g_dodecahedron)).
-
-(** ** Complex graphs with k = 2 *)
-Eval compute in (coloring_to_list (wigderson 2 g_c7)).
-Eval compute in (coloring_to_list (wigderson 2 g_petersen)).
-Eval compute in (coloring_to_list (wigderson 2 g_cube)).
-Eval compute in (coloring_to_list (wigderson 2 g_wheel7)).
-Eval compute in (coloring_to_list (wigderson 2 g_grotzsch)).
-Eval compute in (coloring_to_list (wigderson 2 g_grid3x3)).
-Eval compute in (coloring_to_list (wigderson 2 g_k33)).
-Eval compute in (coloring_to_list (wigderson 2 g_bowtie)).
-Eval compute in (coloring_to_list (wigderson 2 g_octahedron)).
-Eval compute in (coloring_to_list (wigderson 2 g_path10)).
-Eval compute in (coloring_to_list (wigderson 2 g_dodecahedron)).
-
 (** ** Verify each coloring is valid by computation *)
 
 (* Helper: check all edges have different colors *)
@@ -186,20 +137,7 @@ Definition check_edge (f : coloring) (i j : positive) : bool :=
 Definition check_edges (f : coloring) (edges : list (positive * positive)) : bool :=
   forallb (fun e => check_edge f (fst e) (snd e)) edges.
 
-(* Triangle *)
-Eval compute in (check_edges (wigderson 1 g_triangle) [(1,2);(2,3);(3,1)]).
-(* Path *)
-Eval compute in (check_edges (wigderson 1 g_path4) [(1,2);(2,3);(3,4)]).
-(* C5 *)
-Eval compute in (check_edges (wigderson 1 g_c5) [(1,2);(2,3);(3,4);(4,5);(5,1)]).
-(* Example *)
-Eval compute in (check_edges (wigderson 1 g_example) [(6,4);(4,5);(4,3);(3,2);(5,2);(1,2);(1,5)]).
-(* K23 *)
-Eval compute in (check_edges (wigderson 1 g_k23) [(1,3);(1,4);(1,5);(2,3);(2,4);(2,5)]).
-(* Star plus *)
-Eval compute in (check_edges (wigderson 1 g_star_plus) [(1,2);(1,3);(1,4);(1,5);(2,3);(4,5)]).
-
-(** ** Complex graph edge checks *)
+(** ** Test cases *)
 
 Definition c7_edges := [(1,2);(2,3);(3,4);(4,5);(5,6);(6,7);(7,1)].
 Definition petersen_edges := [(1,2);(2,3);(3,4);(4,5);(5,1);
@@ -225,28 +163,34 @@ Definition dodecahedron_edges := [(1,2);(2,3);(3,4);(4,5);(5,1);
   (11,16);(12,17);(13,18);(14,19);(15,20);
   (16,17);(17,18);(18,19);(19,20);(20,16)].
 
-(* k=1 checks *)
-Eval compute in (check_edges (wigderson 1 g_c7) c7_edges).
-Eval compute in (check_edges (wigderson 1 g_petersen) petersen_edges).
-Eval compute in (check_edges (wigderson 1 g_cube) cube_edges).
-Eval compute in (check_edges (wigderson 1 g_wheel7) wheel7_edges).
-Eval compute in (check_edges (wigderson 1 g_grotzsch) grotzsch_edges).
-Eval compute in (check_edges (wigderson 1 g_grid3x3) grid3x3_edges).
-Eval compute in (check_edges (wigderson 1 g_k33) k33_edges).
-Eval compute in (check_edges (wigderson 1 g_bowtie) bowtie_edges).
-Eval compute in (check_edges (wigderson 1 g_octahedron) octahedron_edges).
-Eval compute in (check_edges (wigderson 1 g_path10) path10_edges).
-Eval compute in (check_edges (wigderson 1 g_dodecahedron) dodecahedron_edges).
+Definition wigderson_cases : list (graph * list (positive * positive)) := [
+  (g_triangle, [(1,2);(2,3);(3,1)]);
+  (g_path4, [(1,2);(2,3);(3,4)]);
+  (g_c5, [(1,2);(2,3);(3,4);(4,5);(5,1)]);
+  (g_example, [(6,4);(4,5);(4,3);(3,2);(5,2);(1,2);(1,5)]);
+  (g_k23, [(1,3);(1,4);(1,5);(2,3);(2,4);(2,5)]);
+  (g_star_plus, [(1,2);(1,3);(1,4);(1,5);(2,3);(4,5)]);
+  (g_c7, c7_edges);
+  (g_petersen, petersen_edges);
+  (g_cube, cube_edges);
+  (g_wheel7, wheel7_edges);
+  (g_grotzsch, grotzsch_edges);
+  (g_grid3x3, grid3x3_edges);
+  (g_k33, k33_edges);
+  (g_bowtie, bowtie_edges);
+  (g_octahedron, octahedron_edges);
+  (g_path10, path10_edges);
+  (g_dodecahedron, dodecahedron_edges)
+].
 
-(* k=2 checks *)
-Eval compute in (check_edges (wigderson 2 g_c7) c7_edges).
-Eval compute in (check_edges (wigderson 2 g_petersen) petersen_edges).
-Eval compute in (check_edges (wigderson 2 g_cube) cube_edges).
-Eval compute in (check_edges (wigderson 2 g_wheel7) wheel7_edges).
-Eval compute in (check_edges (wigderson 2 g_grotzsch) grotzsch_edges).
-Eval compute in (check_edges (wigderson 2 g_grid3x3) grid3x3_edges).
-Eval compute in (check_edges (wigderson 2 g_k33) k33_edges).
-Eval compute in (check_edges (wigderson 2 g_bowtie) bowtie_edges).
-Eval compute in (check_edges (wigderson 2 g_octahedron) octahedron_edges).
-Eval compute in (check_edges (wigderson 2 g_path10) path10_edges).
-Eval compute in (check_edges (wigderson 2 g_dodecahedron) dodecahedron_edges).
+Definition check_wigderson_case
+  (k : nat) (case : graph * list (positive * positive)) : bool :=
+  check_edges (wigderson k (fst case)) (snd case).
+
+Example wigderson_examples_k1 :
+  forallb (check_wigderson_case 1) wigderson_cases = true.
+Proof. vm_compute. reflexivity. Qed.
+
+Example wigderson_examples_k2 :
+  forallb (check_wigderson_case 2) wigderson_cases = true.
+Proof. vm_compute. reflexivity. Qed.

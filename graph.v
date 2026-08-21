@@ -54,7 +54,12 @@ Qed.
 Lemma filter_sortE: forall f l,
     Sorted E.lt l -> Sorted E.lt (List.filter f l).
 Proof.
-  apply filter_sort with E.eq; intuition.
+  intros f l Hsorted.
+  apply filter_sort with E.eq.
+  - exact eq_equivalence.
+  - exact lt_strict.
+  - exact lt_proper.
+  - exact Hsorted.
 Qed.
 
 Lemma proper_eq_eq:
@@ -222,7 +227,7 @@ Proof.
   hauto lq: on.
 Qed.
 
-(** * Graph Theory Core Definitions *)
+(** * Graph theory core definitions *)
 
 Definition node := E.t.
 Definition nodeset := S.t.

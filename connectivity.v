@@ -83,19 +83,15 @@ Proof.
 Qed.
 
 (** ** The end of a walk is a vertex of the graph *)
-Lemma walk_end_in   : forall g x l z, undirected g -> walk g x l z -> M.In z g.
-Proof.
-  intros g x l z H H0.
-  induction H0; assumption.
-Qed.
+Lemma walk_end_in : forall g x l z, walk g x l z -> M.In z g.
+Proof. intros g x l z H; induction H; assumption. Qed.
 
 (** ** Every vertex on a walk is a node of the graph *)
 Lemma walk_all_in_nodes :
-  forall g x l z, undirected g -> walk g x l z ->
+  forall g x l z, walk g x l z ->
              Forall (fun v => S.In v (nodes g)) (x :: l ++ [z]).
 Proof.
-  intros g x l z H H0.
-  induction H0.
+  intros g x l z H; induction H.
   - cbn.
     rewrite !Forall_cons_iff.
     sauto lq: on rew: off use: in_domain unfold: nodes.
@@ -125,7 +121,7 @@ Lemma walk_subgraph_mono :
 Proof.
   intros g' g x l z H H0.
   induction H0.
-  - hauto l: on use: subgraph_vert_m, walk_nil.
+  - hauto l: on use: subgraph_vertex_in, walk_nil.
   - sfirstorder use: walk_cons unfold: node, step, is_subgraph, PositiveOrderedTypeBits.t, PositiveSet.elt, PositiveSet.Subset.
 Qed.
 
@@ -169,27 +165,27 @@ Qed.
 
 (** ** A step from [L] lands in [R] *)
 Lemma step_L_R g L R x y :
-  undirected g ->
+  well_formed g ->
   is_bipartition g L R ->
   S.In x L -> step g x y -> S.In y R.
 Proof.
-  intros Ug (Hdisj & Hcov & HindL & HindR) Hx Hxy.
-  qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
+  intros Hwf (Hdisj & Hcov & HindL & HindR) Hx Hxy.
+  qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes_wf unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, independent_set, PositiveSet.Equal.
 Qed.
 
 (** ** A step from [R] lands in [L] *)
 Lemma step_R_L g L R x y :
-  undirected g ->
+  well_formed g ->
   is_bipartition g L R ->
   S.In x R -> step g x y -> S.In y L.
 Proof.
-  intros Ug (Hdisj & Hcov & HindL & HindR) Hx Hxy.
-  qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, undirected, independent_set, PositiveSet.Equal.
+  intros Hwf (Hdisj & Hcov & HindL & HindR) Hx Hxy.
+  qauto use: SP.Dec.F.union_iff, in_adj_both_in_nodes_wf unfold: PositiveSet.elt, PositiveOrderedTypeBits.t, step, node, independent_set, PositiveSet.Equal.
 Qed.
 
 (** ** Side of a walk's endpoint is determined by its start side and length parity *)
 Lemma bipartition_walk_parity_even g L R :
-  undirected g ->
+  well_formed g ->
   is_bipartition g L R ->
   forall x l z, walk g x l z ->
     (* start in L *)
@@ -201,7 +197,7 @@ Lemma bipartition_walk_parity_even g L R :
        (Nat.even (length l) = true  -> S.In z R) /\
        (Nat.even (length l) = false -> S.In z L)).
 Proof.
-  intros Ug Hbip x l z W; revert x z W.
+  intros Hwf Hbip x l z W; revert x z W.
   induction l as [|y l IH]; intros x z W; simpl.
   - inversion W; subst; split; intros Hx; split; intro He.
     + now cbn in He; inversion He.
@@ -224,13 +220,13 @@ Qed.
 
 (** ** Parity of a walk starting in [L]: even ends in [L], odd ends in [R] *)
 Lemma bipartition_walk_parity_L g L R x l z :
-  undirected g ->
+  well_formed g ->
   is_bipartition g L R ->
   S.In x L -> walk g x l z ->
   (Nat.even (length l) = true  -> S.In z L) /\
   (Nat.odd  (length l) = true  -> S.In z R).
 Proof.
-  intros Ug Hbip HxL W.
-  pose proof (bipartition_walk_parity_even g L R Ug Hbip x l z W) as [HL _].
+  intros Hwf Hbip HxL W.
+  pose proof (bipartition_walk_parity_even g L R Hwf Hbip x l z W) as [HL _].
   hauto lq: on drew: off use: even_0, negb_odd, even_succ, even_1 unfold: Init.Nat.odd.
 Qed.

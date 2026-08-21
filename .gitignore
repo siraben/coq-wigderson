@@ -52,3 +52,5 @@ Makefile.coq.conf
 CoqMakefile.conf
 .CoqMakefile.d
 .DS_Store
+__pycache__/
+*.py[cod]

@@ -5,6 +5,7 @@ This script implements the same algorithm as the Coq formalization and
 verifies that all Coq-computed colorings are valid proper colorings.
 """
 
+import math
 from collections import defaultdict
 
 # ===== Graph representation =====
@@ -277,7 +278,7 @@ complex_graphs = {
         (1,5),(2,6),(3,7),(4,8),  # vertical edges
     ]),
 
-    # Wheel W6 (center 1, rim 2-3-4-5-6-7-2, 4-chromatic due to odd rim)
+    # Wheel W7 (center 1, even six-vertex rim, 3-chromatic)
     "wheel7": mk_graph([
         (2,3),(3,4),(4,5),(5,6),(6,7),(7,2),  # rim (C6, even)
         (1,2),(1,3),(1,4),(1,5),(1,6),(1,7),  # spokes
@@ -526,7 +527,6 @@ print()
 print("=" * 60)
 print("12. Complex graphs - Python Wigderson (k=sqrt(n))")
 print("=" * 60)
-import math
 for name, g in complex_graphs.items():
     k = max(1, int(math.sqrt(len(g))))
     py = wigderson(k, g)
@@ -541,3 +541,4 @@ if all_pass:
     print("ALL CHECKS PASSED")
 else:
     print("SOME CHECKS FAILED")
+    raise SystemExit(1)

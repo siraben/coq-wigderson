@@ -16,6 +16,7 @@
           packages = with pkgs; [
             coq_8_20
             coqPackages_8_20.coq-hammer
+            python3
             vampire
             eprover
             cvc4
