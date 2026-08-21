@@ -8,4 +8,5 @@ wigderson.v
 bipartite.v
 connectivity.v
 forcing.v
+complete.v
 test_wigderson.v
